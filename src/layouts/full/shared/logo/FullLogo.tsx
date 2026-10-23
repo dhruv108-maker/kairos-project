@@ -1,29 +1,13 @@
 import { Link } from "react-router";
-import Logo from "src/assets/images/logos/darklogo.svg";
-import Logowhite from "src/assets/images/logos/whitelogo.svg";
+import { GraduationCap } from "lucide-react";
 
-const FullLogo = () => {
-  return (
-    <Link to={'/'} className="max-w-[40px] block lg:max-w-[120px] overflow-hidden">
-      {/* Dark Logo   */}
-      <img
-        src={Logo}
-        alt='logo'
-        width={100}
-        height={32}
-        className='block dark:hidden max-w-[120px] rtl:scale-x-[-1]'
-      />
-      {/* Light Logo  */}
-      <img
-        src={Logowhite}
-        alt='logo'
-        width={100}
-        height={32}
-        className='hidden dark:block max-w-[120px] rtl:scale-x-[-1]'
-      />
-    </Link>
-
-  );
-};
+const FullLogo = () => (
+  <Link to="/" className="inline-flex items-center gap-2.5">
+    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+      <GraduationCap className="h-5 w-5" />
+    </span>
+    <span className="text-lg font-semibold tracking-tight text-foreground">Kairos</span>
+  </Link>
+);
 
 export default FullLogo;
