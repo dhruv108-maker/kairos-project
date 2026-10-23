@@ -12,6 +12,12 @@ type DashboardPayload = {
   reports_pending_review?: number;
   active_mentorships?: number;
   pending_assessment_assignments?: number;
+  students?: number;
+  faculty?: number;
+  schools?: number;
+  departments?: number;
+  placements?: number;
+  active_assessment_campaigns?: number;
 };
 
 type Metric = { label: string; value: string | number; description: string; icon: typeof Activity };
@@ -60,6 +66,14 @@ const ModernDashboard = () => {
     { label: "Reports to review", value: numberValue(data?.reports_pending_review), description: "Awaiting your review", icon: ClipboardCheck },
     { label: "Active mentorships", value: numberValue(data?.active_mentorships), description: "Current student mentorships", icon: GraduationCap },
     { label: "Assessments pending", value: numberValue(data?.pending_assessment_assignments), description: "Assigned assessments", icon: BookOpenCheck },
+  ] : data ? [
+    { label: "Students", value: numberValue(data.students), description: "Enrolled student profiles", icon: GraduationCap },
+    { label: "Faculty", value: numberValue(data.faculty), description: "Faculty profiles", icon: Users },
+    { label: "Departments", value: numberValue(data.departments), description: "Across institution schools", icon: BookOpenCheck },
+    { label: "Internship placements", value: numberValue(data.placements), description: "Recorded placements", icon: BriefcaseBusiness },
+    { label: "Schools", value: numberValue(data.schools), description: "Institution schools", icon: ClipboardCheck },
+    { label: "Pending reports", value: numberValue(data.reports_pending_review), description: "Reports needing attention", icon: Activity },
+    { label: "Active assessments", value: numberValue(data.active_assessment_campaigns), description: "Assessment campaigns", icon: ClipboardCheck },
   ] : [];
 
   return (
