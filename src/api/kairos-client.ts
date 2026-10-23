@@ -99,6 +99,15 @@ export async function getRoleDashboard(account: KairosAccount): Promise<unknown>
   const roles = account.roles.map((role) => role.toUpperCase());
   if (roles.includes("STUDENT")) return apiRequest("/students/me/dashboard");
   if (roles.includes("FACULTY")) return apiRequest("/faculty/me/dashboard");
-  // Institution dashboards require the institution ID, which is not included in /auth/me.
-  return null;
+
+  // The institution ID is resolved from the authenticated user's permitted institutions.
+  try {
+    const result = await apiRequest<{ items: Array<{ id: string }> }>("/institutions");
+    const institutionId = result.items?.[0]?.id;
+    if (!institutionId) return null;
+    return await apiRequest(`/institutions/${encodeURIComponent(institutionId)}/dashboard`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 403) return null;
+    throw error;
+  }
 }
