@@ -1,36 +1,32 @@
-import { FC } from 'react';
-import Sidebar from './vertical/sidebar/Sidebar';
-import Header from './vertical/header/Header';
-import { SidebarInset, SidebarProvider } from 'src/components/ui/sidebar';
-import { cn } from 'src/lib/utils';
-import Footer from './shared/footer/Footer';
-import { Outlet } from 'react-router';
+import { FC } from "react";
+import { Navigate } from "react-router";
+import Sidebar from "./vertical/sidebar/Sidebar";
+import Header from "./vertical/header/Header";
+import { SidebarInset, SidebarProvider } from "src/components/ui/sidebar";
+import { cn } from "src/lib/utils";
+import Footer from "./shared/footer/Footer";
+import { Outlet } from "react-router";
+import { useAuth } from "@/context/auth/AuthContext";
 
 const FullLayout: FC = () => {
+  const { account, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading your Kairos workspace…</div>;
+  }
+  if (!account) return <Navigate to="/auth/auth2/login" replace />;
 
   return (
-    <SidebarProvider
-           defaultOpen={true}
-      style={{ "--sidebar-width-icon": "52px" } as React.CSSProperties}
-    >
-      
-        <Sidebar />
-     
+    <SidebarProvider defaultOpen={true} style={{ "--sidebar-width-icon": "52px" } as React.CSSProperties}>
+      <Sidebar />
       <SidebarInset className="outline outline-border m-2 rounded-none! overflow-hidden">
-        {/* Top Header  */}
-       <Header /> 
-        
-          {/* Body Content  */}
-          <div className="flex flex-1 flex-col gap-4 p-4">
+        <Header />
+        <div className="flex flex-1 flex-col gap-4 p-4">
           <div className={cn("w-full mx-auto", "container")}>
-            <div className=" min-h-[calc(100vh-140px)]"><Outlet /></div>
-            <div className="pt-6">
-              <Footer />
-            </div>
+            <div className="min-h-[calc(100vh-140px)]"><Outlet /></div>
+            <div className="pt-6"><Footer /></div>
           </div>
         </div>
-       
-        
       </SidebarInset>
     </SidebarProvider>
   );
