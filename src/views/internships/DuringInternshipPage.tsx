@@ -805,7 +805,7 @@ export default function DuringInternshipPage() {
                     <EmptyState title="No work-log feedback yet" description="Mentor comments will appear here after they review a submitted work log." />
                   ) : workLogs.flatMap((log) => (log.reviews || []).map((review) => ({ log, review }))).map(({ log, review }) => (
                     <Card key={review.id} size="sm"><CardContent className="space-y-2 pt-3">
-                      <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{review.reviewer_name || humanize(review.reviewer_role)}</span><Badge variant="outline">{humanize(review.reviewer_role)}</Badge><StatusBadge value={review.decision} /><span className="text-xs text-muted-foreground">{dateLabel(review.created_at)}</span></div>
+                      <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{review.reviewer_name || humanize(review.reviewer_role)}</span><Badge variant="outline">{humanize(review.reviewer_role)}</Badge><StatusBadge value={review.decision} /><span className="text-xs text-muted-foreground">{timestampLabel(review.created_at)}</span></div>
                       <p className="text-xs text-muted-foreground">Work log · {dateLabel(log.work_date)} · {log.work_summary}</p>
                       <p className="whitespace-pre-wrap text-sm">{review.feedback}</p>
                     </CardContent></Card>
@@ -823,10 +823,31 @@ export default function DuringInternshipPage() {
                 </section>
               </>
             ) : (
-              <EmptyState
-                title={isFaculty ? "Supervision feedback history" : "Industry review history"}
-                description="Feedback is preserved on each work-log and report record. Open the Work log reviews or Reports tab to inspect its associated review history. This role does not receive an invented aggregate grade or score."
-              />
+              <>
+                {placementLogs.flatMap((log) => (log.reviews || []).map((review) => ({ log, review }))).length === 0
+                  && (!isFaculty || reports.every((item) => !item.review_feedback)) ? (
+                  <EmptyState
+                    title={isFaculty ? "No supervision feedback recorded" : "No industry reviews recorded"}
+                    description="Submitted work-log reviews and report feedback will be listed here only after a reviewer has saved them."
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {placementLogs.flatMap((log) => (log.reviews || []).map((review) => ({ log, review }))).map(({ log, review }) => (
+                      <Card key={review.id} size="sm"><CardContent className="space-y-2 pt-3">
+                        <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{review.reviewer_name || humanize(review.reviewer_role)}</span><Badge variant="outline">{humanize(review.reviewer_role)}</Badge><StatusBadge value={review.decision} /><span className="text-xs text-muted-foreground">{timestampLabel(review.created_at)}</span></div>
+                        <p className="text-xs text-muted-foreground">Work log · {dateLabel(log.work_date)} · {log.work_summary}</p>
+                        <p className="whitespace-pre-wrap text-sm">{review.feedback}</p>
+                      </CardContent></Card>
+                    ))}
+                    {isFaculty && reports.filter((item) => item.review_feedback).map((item) => (
+                      <Card key={item.id} size="sm"><CardContent className="space-y-2 pt-3">
+                        <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{item.title}</span><StatusBadge value={item.status} /><span className="text-xs text-muted-foreground">{timestampLabel(item.reviewed_at)}</span></div>
+                        <p className="whitespace-pre-wrap text-sm">{item.review_feedback}</p>
+                      </CardContent></Card>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
         </Tabs>
