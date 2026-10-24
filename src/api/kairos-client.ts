@@ -19,12 +19,20 @@ export interface AuthResponse {
   account: KairosAccount;
 }
 
+export interface ApiValidationError {
+  loc: Array<string | number>;
+  msg: string;
+  type?: string;
+}
+
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  validationErrors: ApiValidationError[];
+  constructor(message: string, status: number, validationErrors: ApiValidationError[] = []) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.validationErrors = validationErrors;
   }
 }
 
@@ -62,16 +70,22 @@ export async function apiRequest<T>(
   if (!response.ok) {
     if (response.status === 401) clearAccessToken();
     let message = `Request failed (${response.status})`;
+    let validationErrors: ApiValidationError[] = [];
     try {
       const payload = await response.json() as { detail?: unknown; error?: { message?: string } };
       if (typeof payload.detail === "string") message = payload.detail;
       else if (Array.isArray(payload.detail)) {
-        message = payload.detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join(". ") || message;
+        const details = payload.detail as ApiValidationError[];
+        validationErrors = details.filter((item) => item && Array.isArray(item.loc) && typeof item.msg === "string");
+        message = details.map((item) => {
+          const location = Array.isArray(item.loc) ? item.loc.filter((part) => part !== "body").join(". ") : "";
+          return location ? `${location}: ${item.msg}` : item.msg;
+        }).filter(Boolean).join(". ") || message;
       } else if (payload.error?.message) message = payload.error.message;
     } catch {
       // Keep the status-based message when the response is not JSON.
     }
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, validationErrors);
   }
 
   if (response.status === 204) return undefined as T;
