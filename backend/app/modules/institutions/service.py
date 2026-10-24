@@ -404,7 +404,7 @@ class InstitutionService:
         await self.db.delete(item)
         await self.db.commit()
 
-    async def update_cohort(self, institution_id: str, actor_id: str, cohort_id: str, name: str | None, graduation_year: int | None, programme_id: str | None, academic_year_id: str | None) -> Cohort:
+    async def update_cohort(self, institution_id: str, actor_id: str, cohort_id: str, name: str | None, graduation_year: int | None, programme_id: str | None, academic_year_id: str | None, is_active: bool | None = None) -> Cohort:
         await self.require_admin(institution_id, actor_id)
         item = await self.db.scalar(select(Cohort).join(Programme, Programme.id == Cohort.programme_id)
             .join(Department, Department.id == Programme.department_id).join(School, School.id == Department.school_id)
@@ -424,7 +424,9 @@ class InstitutionService:
         if graduation_year is not None:
             item.graduation_year = graduation_year
         item.programme_id, item.academic_year_id = next_programme_id, next_year_id
-        AuditService(self.db).record(actor_id, institution_id, "academic.cohort_updated", "cohort", item.id, {"programme_id": item.programme_id, "academic_year_id": item.academic_year_id})
+        if is_active is not None:
+            item.is_active = is_active
+        AuditService(self.db).record(actor_id, institution_id, "academic.cohort_updated", "cohort", item.id, {"programme_id": item.programme_id, "academic_year_id": item.academic_year_id, "is_active": item.is_active})
         await self.db.commit()
         await self.db.refresh(item)
         return item
