@@ -263,14 +263,6 @@ async def _logs_payload(db: AsyncSession, items: list[InternshipWorkLog]) -> lis
     return [_work_log_payload(item, reviews.get(item.id, [])) for item in items]
 
 
-async def _log_and_placement(db: AsyncSession, log_id: str) -> tuple[InternshipWorkLog, InternshipPlacement]:
-    item = await db.get(InternshipWorkLog, log_id)
-    if item is None:
-        raise HTTPException(status_code=404, detail="Work log not found")
-    placement, _ = await _authorized_placement(db, await db.get(Account, item.student_id) if False else None, item.placement_id)
-    return item, placement
-
-
 @router.get("/placements/me")
 async def my_placements(account: CurrentAccount, db: DbSession) -> dict:
     await require_role(db, account, "STUDENT")
