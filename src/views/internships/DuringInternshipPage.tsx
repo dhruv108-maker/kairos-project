@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
-  AlertCircle, ArrowDownToLine, BookOpen, BriefcaseBusiness, CalendarDays, Check, Clock3,
-  FileText, GraduationCap, MessageSquare, Plus, RefreshCw, Send, ShieldCheck, UserRound,
+  AlertCircle, ArrowDownToLine, BookOpen, BriefcaseBusiness, CalendarDays, Check,
+  FileText, GraduationCap, MessageSquare, RefreshCw, Send, ShieldCheck, UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth/AuthContext";
