@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+import logging
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -47,6 +48,8 @@ from app.services.email import send_verification_email, send_password_reset_emai
 from app.modules.identity.service import IdentityService
 from app.models.institutions import Institution
 from app.models.institution_domains import InstitutionDomain
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -453,9 +456,17 @@ async def current_user(account: CurrentAccount, db: DbSession) -> AccountPublic:
 
 async def _send_password_reset(account: Account, token: str) -> bool:
     try:
-        await send_password_reset_email(account.email, token)
+        message_id = await send_password_reset_email(account.email, token)
+        logger.info("Password reset email accepted by provider; provider_message_id=%s", message_id)
         return True
-    except Exception:
+    except Exception as exc:
+        # Keep the public response generic to prevent account enumeration, but make
+        # delivery failures diagnosable in backend logs without exposing PII/tokens.
+        logger.error(
+            "Password reset email delivery failed; error_type=%s error=%s",
+            type(exc).__name__,
+            str(exc)[:300],
+        )
         return False
 
 
@@ -464,7 +475,15 @@ async def request_password_reset(payload: PasswordResetRequest, db: DbSession) -
     # Same response for unknown, disabled, unverified, and eligible accounts.
     account = await IdentityService(db).get_account_by_email(payload.email)
     now = datetime.now(UTC).replace(tzinfo=None)
-    if account is not None and account.is_active and account.is_verified:
+    if account is None:
+        logger.info("Password reset request ignored; account lookup returned no match")
+    elif not account.is_active or not account.is_verified:
+        logger.info(
+            "Password reset request ignored; account is not eligible; active=%s verified=%s",
+            account.is_active,
+            account.is_verified,
+        )
+    else:
         # An unexpired token acts as an account-level cooldown to reduce email flooding.
         can_issue = account.reset_token_expires_at is None or account.reset_token_expires_at <= now
         if can_issue:
@@ -476,6 +495,8 @@ async def request_password_reset(payload: PasswordResetRequest, db: DbSession) -
                 account.reset_token = None
                 account.reset_token_expires_at = None
                 await db.commit()
+        else:
+            logger.info("Password reset request throttled by an existing unexpired reset token")
     return MessageResponse(
         message="If an eligible account exists, password reset instructions will be sent when email delivery is available."
     )
