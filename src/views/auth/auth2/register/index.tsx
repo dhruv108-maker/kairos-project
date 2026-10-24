@@ -284,7 +284,7 @@ const BoxedRegister = () => {
                 <div className="flex min-w-0 items-center gap-2 rounded-md border border-emerald-600/30 bg-emerald-600/5 px-3 py-2.5">
                   <CheckCircle2 aria-hidden="true" className="size-4 shrink-0 text-emerald-700" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{institutionName}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setInstitutionId(""); setInstitutionName(""); setVerifiedDomainMatch(false); setShowInstitutionPicker(true); setInstitutionSearch(""); }}>Change</Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setInstitutionId(""); setInstitutionName(""); setVerifiedDomainMatch(true); setShowInstitutionPicker(true); setInstitutionSearch(""); }}>Change</Button>
                 </div>
               ) : null}
               {institutionStatus === "fallback" ? <p className="text-xs text-muted-foreground">No unique match found. Select your institution below.</p> : null}
