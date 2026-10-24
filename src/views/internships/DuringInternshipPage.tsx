@@ -421,7 +421,6 @@ export default function DuringInternshipPage() {
 
   const isStudent = role === "STUDENT";
   const isFaculty = role === "FACULTY";
-  const isMentor = role === "INDUSTRY_MENTOR";
   const visibleLogs = role === "STUDENT" ? workLogs : placementLogs;
 
   return (
