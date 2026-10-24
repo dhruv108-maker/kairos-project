@@ -22,6 +22,14 @@ interface RegistrationResponse {
   activation_pending: boolean;
 }
 
+function academicOptionLabel(name: string, code: string, id: string): string {
+  const readableName = name.trim();
+  if (readableName && readableName !== id && !/^\\d+$/.test(readableName)) return readableName;
+  const readableCode = code.trim();
+  if (readableCode && readableCode !== id && !/^\\d+$/.test(readableCode)) return readableCode;
+  return readableName && readableName !== id ? readableName : "Unnamed academic option";
+}
+
 function isAcademicOptions(value: unknown): value is AcademicOptions {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<AcademicOptions>;
@@ -356,14 +364,14 @@ const BoxedRegister = () => {
                 <Label>School / Faculty</Label>
                 <Select value={schoolId} onValueChange={(value) => { setSchoolId(value ?? ""); setDepartmentId(""); setProgrammeId(""); }} disabled={!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || academicOptions.schools.length === 0} required>
                   <SelectTrigger className="h-11 w-full min-w-0" aria-label="School"><SelectValue placeholder={academicOptionsLoading ? "Loading schools…" : !verifiedDomainMatch ? "Verify your institution email first" : "Choose your school"} /></SelectTrigger>
-                  <SelectContent>{academicOptions.schools.map((school) => <SelectItem key={school.id} value={school.id}>{school.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{academicOptions.schools.map((school) => <SelectItem key={school.id} value={school.id}>{academicOptionLabel(school.name, school.code, school.id)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="min-w-0 space-y-2">
                 <Label>Department</Label>
                 <Select value={departmentId} onValueChange={(value) => { setDepartmentId(value ?? ""); setProgrammeId(""); }} disabled={!schoolId || academicOptionsLoading || academicOptionsError || selectedDepartments.length === 0} required>
                   <SelectTrigger className="h-11 w-full min-w-0" aria-label="Department"><SelectValue placeholder={!schoolId ? "Choose a school first" : academicOptionsLoading ? "Loading departments…" : "Choose your department"} /></SelectTrigger>
-                  <SelectContent>{selectedDepartments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{selectedDepartments.map((department) => <SelectItem key={department.id} value={department.id}>{academicOptionLabel(department.name, department.code, department.id)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
@@ -375,7 +383,7 @@ const BoxedRegister = () => {
                   <Label>Programme / Course</Label>
                   <Select value={programmeId} onValueChange={(value) => setProgrammeId(value ?? "")} disabled={!departmentId || academicOptionsLoading || academicOptionsError || selectedProgrammes.length === 0} required>
                     <SelectTrigger className="h-11 w-full min-w-0" aria-label="Programme"><SelectValue placeholder={!departmentId ? "Choose a department first" : academicOptionsLoading ? "Loading programmes…" : "Choose your programme"} /></SelectTrigger>
-                    <SelectContent>{selectedProgrammes.map((programme) => <SelectItem key={programme.id} value={programme.id}>{programme.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{selectedProgrammes.map((programme) => <SelectItem key={programme.id} value={programme.id}>{academicOptionLabel(programme.name, programme.code, programme.id)}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="min-w-0 space-y-2"><Label htmlFor="enrollment_number">Enrollment number</Label><Input id="enrollment_number" name="enrollment_number" autoComplete="off" placeholder="Student ID" maxLength={64} required /><p className="text-xs text-muted-foreground">Your institution can assign your cohort after registration.</p></div>
