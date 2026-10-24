@@ -12,6 +12,21 @@ permissions:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-password
+          MYSQL_DATABASE: kairos_migration
+          MYSQL_USER: ci
+          MYSQL_PASSWORD: ci-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uci -pci-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     defaults:
       run:
         working-directory: backend
@@ -22,6 +37,7 @@ jobs:
       DB_USER: ci
       DB_PASSWORD: ci-password
       DB_NAME: kairos
+      MYSQL_LEGACY_MIGRATION_URL: mysql+pymysql://ci:ci-password@127.0.0.1:3306/kairos_migration
       JWT_SECRET_KEY: ci-only-secret-key-not-for-production
       FRONTEND_URL: http://localhost:5173
     steps:
