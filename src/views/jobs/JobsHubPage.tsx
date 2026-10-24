@@ -183,6 +183,10 @@ function DetailPanel({ job, account, appliedIds, onApply, applying }: {
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
           {validExternal && !expired ? (
             <a className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-medium text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2" href={externalUrl!} target="_blank" rel="noopener noreferrer">Apply on company website <ExternalLink className="size-4" /></a>
+          ) : !account && !expired ? (
+            <Button className="w-full bg-teal-700 text-white hover:bg-teal-800" onClick={() => window.location.assign("/auth/auth2/login")}>Sign in to apply</Button>
+          ) : account && !canApply && !expired ? (
+            <Button className="w-full" disabled>Student account required</Button>
           ) : canApply && !validExternal && !applied && !expired ? (
             <Button className="w-full bg-teal-700 text-white hover:bg-teal-800" disabled={applying === job.id} onClick={() => onApply(job)}>
               {applying === job.id ? "Applying…" : "Apply through Kairos"}
@@ -432,7 +436,7 @@ export default function JobsHubPage() {
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Find your next opportunity</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Discover internships, graduate roles, and opportunities that move your career forward.</p>
         <form onSubmit={runSearch} className="mt-6 grid gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]">
-          <label className="flex min-w-0 items-center gap-2 px-3"><Search className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Search title, skill, or company</span><Input aria-label="Search title, skill, or company" className="h-10 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="Job title, skill, or company" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+          <label className="flex min-w-0 items-center gap-2 px-3"><Search className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Search title, skill, or company</span><Input aria-label="Search title, skill, or company" className="h-10 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="Job title, keyword, or company" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
           <label className="flex min-w-0 items-center gap-2 border-slate-100 px-3 md:border-l"><MapPin className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Location</span><Input aria-label="Location" className="h-10 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="City or remote" value={location} onChange={(event) => setLocation(event.target.value)} /></label>
           <Button type="submit" className="h-10 bg-teal-700 px-5 text-white hover:bg-teal-800"><Search className="size-4" /> Search jobs</Button>
         </form>
@@ -441,6 +445,7 @@ export default function JobsHubPage() {
 
     <nav aria-label="Jobs navigation" className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
       <Button variant="secondary" className="rounded-full"><Search className="size-4" /> Explore opportunities</Button>
+      {!account && <Button variant="outline" className="rounded-full" onClick={() => window.location.assign("/auth/auth2/login")}>Sign in</Button>}
       {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/applications")}><CheckCircle2 className="size-4" /> My applications</Button>}
       {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/campus")}><Users className="size-4" /> Campus recruitment</Button>}
     </nav>
