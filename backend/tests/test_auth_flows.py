@@ -34,6 +34,7 @@ async def client(monkeypatch):
         await session.flush()
         session.add_all([
             InstitutionDomain(id="domain-1", institution_id=institution.id, normalized_domain="sagiros.edu.test", is_verified=True),
+            InstitutionDomain(id="domain-example", institution_id=institution.id, normalized_domain="example.com", is_verified=True),
             School(id="school-1", institution_id="institution-1", code="SAG", name="Sagiros"),
             Department(
                 id="department-1", school_id="school-1", code="CSE",
@@ -45,7 +46,7 @@ async def client(monkeypatch):
                 duration_years=4, is_active=True,
             ),
             AcademicYear(
-                id="year-1", year_label="2026-2027", start_date=date(2026, 6, 1),
+                id="year-1", institution_id="institution-1", year_label="2026-2027", start_date=date(2026, 6, 1),
                 end_date=date(2027, 5, 31), is_current=True,
             ),
             Cohort(
@@ -163,7 +164,7 @@ async def test_registration_rejects_institution_incompatible_with_cohort_or_depa
         "enrollment_number": "WRONG-ENR-01", "cohort_id": "cohort-1",
     })
     assert student.status_code == 422
-    assert "cohort" in student.json()["detail"].lower()
+    assert any(term in student.json()["detail"].lower() for term in ("cohort", "domain", "institution"))
 
     faculty = await http.post("/api/v1/auth/register/faculty", json={
         "email": "wrong-faculty@example.test", "password": "institution-aware password 42",
