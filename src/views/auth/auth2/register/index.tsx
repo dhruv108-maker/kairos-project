@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, GraduationCap, LockKeyhole, Mail, UsersRound } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ interface RegistrationResponse {
 
 const BoxedRegister = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [role, setRole] = useState<RegistrationRole>(searchParams.get("role") === "faculty" ? "faculty" : "student");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -149,9 +150,7 @@ const BoxedRegister = () => {
           <Button type="button" variant="outline" className="w-full" onClick={resendVerification} disabled={isResending}>
             {isResending ? "Requesting email…" : "Resend verification email"}
           </Button>
-          <Button asChild className="w-full">
-            <Link to="/auth/auth2/login">Continue to sign in <ArrowRight className="ml-2 size-4" /></Link>
-          </Button>
+          <Button type="button" className="w-full" onClick={() => navigate("/auth/auth2/login")}>Continue to sign in <ArrowRight className="ml-2 size-4" /></Button>
           <button type="button" onClick={() => { setMessage(""); setVerificationSent(false); setActivationPending(false); }} className="w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
             Register another account
           </button>
