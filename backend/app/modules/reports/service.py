@@ -108,6 +108,22 @@ class ReportService:
         )
         return list(result.scalars().all())
 
+    async def list_supervised(self, account_id: str) -> list[ReportSubmission]:
+        """Return reports belonging only to placements supervised by this faculty account."""
+        faculty_result = await self.db.execute(
+            select(FacultyProfile).where(FacultyProfile.account_id == account_id)
+        )
+        faculty = faculty_result.scalar_one_or_none()
+        if faculty is None:
+            raise ReportWorkflowError(403, "Faculty account required")
+        result = await self.db.execute(
+            select(ReportSubmission)
+            .join(InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id)
+            .where(InternshipPlacement.faculty_supervisor_id == faculty.id)
+            .order_by(ReportSubmission.updated_at.desc())
+        )
+        return list(result.scalars().all())
+
     async def get(self, submission_id: str, account_id: str) -> ReportSubmission:
         submission = await self.db.get(ReportSubmission, submission_id)
         if submission is None:
