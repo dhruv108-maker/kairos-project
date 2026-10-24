@@ -57,12 +57,20 @@ def upgrade() -> None:
         if column["name"] == "full_name"
     )
     if nullable:
-        op.alter_column(
-            "accounts",
-            "full_name",
-            existing_type=sa.String(255),
-            nullable=False,
-        )
+        if bind.dialect.name == "sqlite":
+            with op.batch_alter_table("accounts") as batch:
+                batch.alter_column(
+                    "full_name",
+                    existing_type=sa.String(255),
+                    nullable=False,
+                )
+        else:
+            op.alter_column(
+                "accounts",
+                "full_name",
+                existing_type=sa.String(255),
+                nullable=False,
+            )
 
 
 def downgrade() -> None:
