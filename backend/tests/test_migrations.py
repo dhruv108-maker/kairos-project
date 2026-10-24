@@ -65,6 +65,12 @@ def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_
         engine.dispose()
 
 
+def test_student_cohort_is_optional_and_department_is_persisted():
+    from app.models.academic import StudentProfile
+    assert StudentProfile.__table__.c.cohort_id.nullable is True
+    assert StudentProfile.__table__.c.department_id.nullable is True
+
+
 def test_institution_primary_and_foreign_key_types_follow_string_contract():
     assert isinstance(Institution.__table__.c.id.type, String)
     references = []
@@ -181,6 +187,6 @@ def test_mysql_legacy_numeric_institution_keys_migrate_without_losing_relationsh
             assert connection.exec_driver_sql("SELECT institution_id FROM schools").scalar_one() == "11"
             assert connection.exec_driver_sql("SELECT institution_id FROM academic_years").scalar_one() == "11"
             assert connection.exec_driver_sql("SELECT id, name, is_active FROM cohorts").one() == ("cohort-11", "Legacy Cohort", 0)
-            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "20261024_21"
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "20261024_22"
     finally:
         engine.dispose()
