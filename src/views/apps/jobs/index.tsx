@@ -223,7 +223,7 @@ export default function JobsHub() {
 
         <nav aria-label="Career navigation" className="mb-6 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
           <Button variant="secondary" className="rounded-full bg-teal-50 text-teal-900 hover:bg-teal-100"><Search className="mr-2 h-4 w-4" />Explore opportunities</Button>
-          <span className="inline-flex h-9 items-center rounded-full px-4 text-sm font-medium text-slate-500"><CheckCircle2 className="mr-2 h-4 w-4" />Applications stay in your Kairos workflow</span>
+          <Link to="/jobs/applications" className="inline-flex h-9 items-center rounded-full px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"><CheckCircle2 className="mr-2 h-4 w-4" />My applications</Link>
           <span className="ml-auto hidden text-xs text-slate-500 sm:inline">Find a role that fits your next move</span>
         </nav>
 
