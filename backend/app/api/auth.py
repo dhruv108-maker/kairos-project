@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentAccount, DbSession, account_roles
@@ -85,87 +85,215 @@ async def _send_verification(account: Account, token: str) -> bool:
 
 @router.post("/register/student", response_model=RegistrationResponse, status_code=201)
 async def register_student(payload: StudentRegistration, db: DbSession) -> RegistrationResponse:
+    """Register a student against the deployed MySQL schema.
+
+    The production schema uses BIGINT AUTO_INCREMENT IDs and the tables
+    accounts, students, student_enrollments, account_roles, and roles. It does
+    not contain student_profiles or roles.description.
+    """
+    if len(payload.full_name) > 200:
+        raise HTTPException(status_code=422, detail="Full name must be 200 characters or fewer")
+
     try:
         async with db.begin():
             email_domain = payload.email.rsplit("@", 1)[1].strip().lower().rstrip(".")
             resolved_institution_id = await db.scalar(
-                select(InstitutionDomain.institution_id)
-                .join(Institution, Institution.id == InstitutionDomain.institution_id)
-                .where(
-                    InstitutionDomain.normalized_domain == email_domain,
-                    InstitutionDomain.is_verified.is_(True),
-                    func.upper(Institution.status) == "ACTIVE",
-                )
+                text("""
+                    SELECT i.id
+                    FROM institutions AS i
+                    JOIN institution_domains AS d ON d.institution_id = i.id
+                    WHERE d.normalized_domain = :domain
+                      AND d.is_verified = 1
+                      AND UPPER(i.status) = 'ACTIVE'
+                    LIMIT 1
+                """),
+                {"domain": email_domain},
             )
             if resolved_institution_id is None:
                 raise HTTPException(
                     status_code=422,
                     detail="Your email domain is not verified for an active institution. Contact your institution administrator.",
                 )
-            if payload.institution_id and payload.institution_id != resolved_institution_id:
+            if payload.institution_id and int(payload.institution_id) != int(resolved_institution_id):
                 raise HTTPException(status_code=422, detail="The institution does not match your verified email domain")
+            if not payload.school_id or not payload.department_id:
+                raise HTTPException(status_code=422, detail="Choose a school and department")
 
             department = await db.scalar(
-                select(Department).join(School, School.id == Department.school_id).where(
-                    Department.id == payload.department_id, School.id == payload.school_id,
-                    School.institution_id == resolved_institution_id,
-                    School.is_active.is_(True), Department.is_active.is_(True),
-                )
+                text("""
+                    SELECT d.id
+                    FROM departments AS d
+                    JOIN schools AS s ON s.id = d.school_id
+                    WHERE d.id = :department_id
+                      AND s.id = :school_id
+                      AND s.institution_id = :institution_id
+                      AND s.is_active = 1
+                      AND d.is_active = 1
+                    LIMIT 1
+                """),
+                {
+                    "department_id": payload.department_id,
+                    "school_id": payload.school_id,
+                    "institution_id": resolved_institution_id,
+                },
             )
             if department is None:
                 raise HTTPException(status_code=422, detail="Choose an active school and department from your verified institution.")
+
             valid_programme_id = None
             if payload.programme_id:
-                # Select only the identifier: legacy programme tables do not necessarily
-                # contain optional ORM metadata such as degree_level/duration_years.
-                valid_programme_id = await db.scalar(select(Programme.id).where(
-                    Programme.id == payload.programme_id,
-                    Programme.department_id == payload.department_id,
-                    func.upper(Programme.status) == "ACTIVE",
-                ))
+                valid_programme_id = await db.scalar(
+                    text("""
+                        SELECT p.id
+                        FROM programmes AS p
+                        JOIN departments AS d ON d.id = p.department_id
+                        JOIN schools AS s ON s.id = d.school_id
+                        WHERE p.id = :programme_id
+                          AND p.department_id = :department_id
+                          AND LOWER(p.status) = 'active'
+                          AND s.id = :school_id
+                          AND s.institution_id = :institution_id
+                          AND s.is_active = 1
+                          AND d.is_active = 1
+                        LIMIT 1
+                    """),
+                    {
+                        "programme_id": payload.programme_id,
+                        "department_id": payload.department_id,
+                        "school_id": payload.school_id,
+                        "institution_id": resolved_institution_id,
+                    },
+                )
                 if valid_programme_id is None:
                     raise HTTPException(status_code=422, detail="Choose an active programme within your selected department.")
-            cohort = None
+
+            cohort_id = None
             if payload.cohort_id:
-                cohort = await db.scalar(
-                    select(Cohort).join(Programme, Programme.id == Cohort.programme_id)
-                    .join(Department, Department.id == Programme.department_id)
-                    .join(School, School.id == Department.school_id)
-                    .join(AcademicYear, AcademicYear.id == Cohort.academic_year_id)
-                    .where(
-                        Cohort.id == payload.cohort_id, Department.id == payload.department_id,
-                        (Programme.id == payload.programme_id if payload.programme_id else True),
-                        (Programme.id == payload.programme_id if payload.programme_id else True),
-                        School.id == payload.school_id, School.institution_id == resolved_institution_id,
-                        School.is_active.is_(True), Department.is_active.is_(True), Programme.is_active.is_(True),
-                        AcademicYear.is_current.is_(True), AcademicYear.institution_id == resolved_institution_id,
-                        Cohort.is_active.is_(True),
-                    )
+                cohort = await db.execute(
+                    text("""
+                        SELECT c.id, c.programme_id
+                        FROM cohorts AS c
+                        JOIN programmes AS p ON p.id = c.programme_id
+                        JOIN departments AS d ON d.id = p.department_id
+                        JOIN schools AS s ON s.id = d.school_id
+                        WHERE c.id = :cohort_id
+                          AND LOWER(c.status) = 'active'
+                          AND d.id = :department_id
+                          AND (:programme_id IS NULL OR p.id = :programme_id)
+                          AND s.id = :school_id
+                          AND s.institution_id = :institution_id
+                          AND s.is_active = 1
+                          AND d.is_active = 1
+                          AND LOWER(p.status) = 'active'
+                        LIMIT 1
+                    """),
+                    {
+                        "cohort_id": payload.cohort_id,
+                        "department_id": payload.department_id,
+                        "programme_id": valid_programme_id,
+                        "school_id": payload.school_id,
+                        "institution_id": resolved_institution_id,
+                    },
                 )
+                cohort = cohort.mappings().first()
                 if cohort is None:
                     raise HTTPException(status_code=422, detail="The selected cohort must be active and belong to the selected department and institution.")
-            account = Account(
-                id=str(uuid4()),
-                email=payload.email,
-                password_hash=hash_password(payload.password),
-                full_name=payload.full_name,
-                is_active=True,
-                is_verified=False,
+                cohort_id = cohort["id"]
+                if valid_programme_id is None:
+                    valid_programme_id = cohort["programme_id"]
+
+            account_result = await db.execute(
+                text("""
+                    INSERT INTO accounts (
+                        email, password_hash, display_name, account_status, full_name,
+                        is_active, is_verified
+                    ) VALUES (
+                        :email, :password_hash, :display_name, 'pending', :full_name,
+                        1, 0
+                    )
+                """),
+                {
+                    "email": payload.email,
+                    "password_hash": hash_password(payload.password),
+                    "display_name": payload.full_name,
+                    "full_name": payload.full_name,
+                },
             )
-            profile = StudentProfile(
-                id=str(uuid4()),
-                account_id=account.id,
-                enrollment_number=payload.enrollment_number,
-                department_id=payload.department_id,
-                programme_id=valid_programme_id if valid_programme_id is not None else (cohort.programme_id if cohort is not None else None),
-                cohort_id=cohort.id if cohort is not None else None,
+            account_id = account_result.lastrowid
+            if not account_id:
+                raise RuntimeError("The database did not return the new account ID")
+
+            await db.execute(
+                text("""
+                    INSERT INTO students (account_id, student_number, legal_name)
+                    VALUES (:account_id, :student_number, :legal_name)
+                """),
+                {
+                    "account_id": account_id,
+                    "student_number": payload.enrollment_number,
+                    "legal_name": payload.full_name,
+                },
             )
-            role = await _ensure_role(db, "STUDENT")
-            db.add_all([account, profile])
-            await db.flush()
-            db.add(AccountRole(account_id=account.id, role_id=role.id))
-            token = await _new_verification_token(account)
-            await db.flush()
+
+            if cohort_id is not None:
+                academic_year_id = await db.scalar(
+                    text("""
+                        SELECT id
+                        FROM academic_years
+                        WHERE institution_id = :institution_id
+                          AND starts_on <= CURRENT_DATE()
+                          AND ends_on >= CURRENT_DATE()
+                        ORDER BY starts_on DESC
+                        LIMIT 1
+                    """),
+                    {"institution_id": resolved_institution_id},
+                )
+                if academic_year_id is None:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="No current academic year is configured for this institution, so the student cannot be enrolled in the selected cohort yet.",
+                    )
+                await db.execute(
+                    text("""
+                        INSERT INTO student_enrollments (
+                            student_id, cohort_id, academic_year_id, starts_on, enrollment_status
+                        )
+                        SELECT s.id, :cohort_id, :academic_year_id, CURRENT_DATE(), 'active'
+                        FROM students AS s
+                        WHERE s.account_id = :account_id
+                    """),
+                    {
+                        "cohort_id": cohort_id,
+                        "academic_year_id": academic_year_id,
+                        "account_id": account_id,
+                    },
+                )
+
+            role_id = await db.scalar(
+                text("SELECT id FROM roles WHERE code = 'STUDENT' OR name = 'STUDENT' LIMIT 1")
+            )
+            if role_id is None:
+                role_result = await db.execute(
+                    text("INSERT INTO roles (code, name) VALUES ('STUDENT', 'STUDENT')")
+                )
+                role_id = role_result.lastrowid
+            await db.execute(
+                text("""
+                    INSERT INTO account_roles (account_id, role_id, institution_id)
+                    VALUES (:account_id, :role_id, :institution_id)
+                """),
+                {
+                    "account_id": account_id,
+                    "role_id": role_id,
+                    "institution_id": resolved_institution_id,
+                },
+            )
+
+            token = create_token(str(account_id), "email_verification", timedelta(minutes=30))
+            await db.execute(
+                text("UPDATE accounts SET verification_token = :token_hash WHERE id = :account_id"),
+                {"token_hash": hash_token(token), "account_id": account_id},
+            )
     except HTTPException:
         raise
     except IntegrityError:
@@ -174,9 +302,12 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
             detail="Registration conflicts with an existing account or enrollment number",
         ) from None
 
-    sent = await _send_verification(account, token)
+    sent = await _send_verification(
+        type("VerificationAccount", (), {"email": payload.email})(),
+        token,
+    )
     return RegistrationResponse(
-        account_id=account.id,
+        account_id=str(account_id),
         message=(
             "Account created. Check your email to verify it."
             if sent
