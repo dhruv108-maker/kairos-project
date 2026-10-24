@@ -1,4 +1,7 @@
+import re
+
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentAccount, DbSession
@@ -7,6 +10,8 @@ from app.modules.institutions.schemas import (
     InstitutionStatusUpdate, MembershipUpsert, ProgrammeCreate, ProgrammeUpdate, SchoolCreate, SchoolUpdate,
 )
 from app.modules.institutions.service import InstitutionAccessError, InstitutionService
+from app.models.institutions import Institution
+from app.models.institution_domains import InstitutionDomain
 
 router = APIRouter(prefix="/institutions", tags=["institutions", "academic administration"])
 
@@ -23,6 +28,46 @@ async def _call(operation, db):
 
 def _institution(item):
     return {key: getattr(item, key) for key in ("id", "name", "slug", "status", "contact_email", "website_url", "institution_type", "registration_number", "description", "address", "country", "state", "city", "postal_code", "created_by_account_id", "created_at", "updated_at")}
+
+
+@router.get("/public")
+async def public_institutions(db: DbSession, q: str | None = Query(default=None, max_length=120)):
+    """Minimal public institution directory for registration fallback."""
+    statement = select(Institution).where(Institution.status == "ACTIVE").order_by(Institution.name.asc()).limit(200)
+    if q and q.strip():
+        term = q.strip().replace("%", "\\%").replace("_", "\\_")
+        statement = select(Institution).where(
+            Institution.status == "ACTIVE",
+            Institution.name.ilike(f"%{term}%"),
+        ).order_by(Institution.name.asc()).limit(200)
+    items = (await db.scalars(statement)).all()
+    return {"items": [{"id": item.id, "name": item.name} for item in items]}
+
+
+@router.get("/resolve")
+async def resolve_institution_domain(
+    db: DbSession,
+    email_domain: str = Query(min_length=3, max_length=253),
+):
+    """Resolve only exact, verified domains; never infer from suffixes."""
+    domain = email_domain.strip().lower().rstrip(".")
+    if not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}", domain):
+        raise HTTPException(status_code=422, detail="Enter a valid email domain")
+    rows = (await db.execute(
+        select(Institution.id, Institution.name)
+        .join(InstitutionDomain, InstitutionDomain.institution_id == Institution.id)
+        .where(
+            InstitutionDomain.normalized_domain == domain,
+            InstitutionDomain.is_verified.is_(True),
+            Institution.status == "ACTIVE",
+        )
+        .limit(2)
+    )).all()
+    if len(rows) == 1:
+        return {"status": "matched", "institution": {"id": rows[0].id, "name": rows[0].name}}
+    if len(rows) > 1:
+        return {"status": "ambiguous", "institution": None}
+    return {"status": "not_found", "institution": None}
 
 
 def _membership(item):
