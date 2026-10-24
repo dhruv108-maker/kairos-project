@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
-import { ArrowDownUp, ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays, CheckCircle2, ChevronRight, Clock3, ExternalLink, Filter, MapPin, RefreshCw, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
-import { apiRequest, ApiError } from "@/api/kairos-client";
+import { ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays, CheckCircle2, ChevronRight, Clock3, ExternalLink, Filter, MapPin, RefreshCw, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { apiRequest } from "@/api/kairos-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -205,7 +205,7 @@ export default function JobsHub() {
 
         <nav aria-label="Career navigation" className="mb-6 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
           <Button variant="secondary" className="rounded-full bg-teal-50 text-teal-900 hover:bg-teal-100"><Search className="mr-2 h-4 w-4" />Explore opportunities</Button>
-          <Button asChild variant="ghost" className="rounded-full text-slate-600 hover:text-slate-900"><Link to="/jobs/applications"><CheckCircle2 className="mr-2 h-4 w-4" />My applications</Link></Button>
+          <Link to="/jobs/applications" className="inline-flex h-9 items-center rounded-full px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"><CheckCircle2 className="mr-2 h-4 w-4" />My applications</Link>
           <span className="ml-auto hidden text-xs text-slate-500 sm:inline">Find a role that fits your next move</span>
         </nav>
 
@@ -242,7 +242,7 @@ export default function JobsHub() {
                   <p className="mt-2 text-sm font-medium text-slate-600">{companyName}</p>
                   <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-500">{currentJob.location && <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{currentJob.location}</span>}{currentJob.work_mode && <span>{typeLabel(currentJob.work_mode)}</span>}{currentJob.employment_type && <span>{typeLabel(currentJob.employment_type)}</span>}</div>
                   {salaryLabel(currentJob) && <p className="mt-4 text-sm font-semibold text-slate-900">{salaryLabel(currentJob)}</p>}
-                  <div className="mt-5 flex flex-wrap gap-2">{currentJob.public_application_url ? <Button asChild className="rounded-xl bg-teal-800 hover:bg-teal-900"><a href={currentJob.public_application_url} target="_blank" rel="noopener noreferrer">Apply on company website <ExternalLink className="ml-2 h-4 w-4" /></a></Button> : <Button disabled className="rounded-xl bg-slate-200 text-slate-500">Application link unavailable</Button>}{currentJob.company?.id && <Button asChild variant="outline" className="rounded-xl"><Link to={`/jobs/company/${encodeURIComponent(currentJob.company.id)}`}>Company profile</Link></Button>}</div>
+                  <div className="mt-5 flex flex-wrap gap-2">{currentJob.public_application_url ? <a href={currentJob.public_application_url} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center justify-center rounded-lg bg-teal-800 px-3 text-sm font-medium text-white transition hover:bg-teal-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2">Apply on company website <ExternalLink className="ml-2 h-4 w-4" /></a> : <Button disabled className="rounded-xl bg-slate-200 text-slate-500">Application link unavailable</Button>}{currentJob.company?.id && <Link to={`/jobs/company/${encodeURIComponent(currentJob.company.id)}`} className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">Company profile</Link>}</div>
                   {currentJob.public_application_url && <p className="mt-2 text-[11px] leading-5 text-slate-500">You'll continue on the employer's website. Kairos does not submit or track this external application.</p>}
                 </div>
                 <div className="space-y-6 p-6">
