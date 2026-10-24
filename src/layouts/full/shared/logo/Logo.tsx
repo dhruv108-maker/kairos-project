@@ -1,21 +1,14 @@
+import { Link } from "react-router";
+import LogoIcon from "src/assets/images/logos/logoicon.svg";
 
-import { Link } from 'react-router'
-import LogoIcon from 'src/assets/images/logos/logoicon.svg'
-import { SidebarMenuButton } from 'src/components/ui/sidebar'
+const Logo = () => (
+  <Link
+    to="/"
+    aria-label="Kairos home"
+    className="inline-flex items-center gap-2 rounded-md p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+  >
+    <img src={LogoIcon} alt="" aria-hidden="true" className="size-8" />
+  </Link>
+);
 
-const Logo = () => {
-    return (
-        <Link to={'/'}>
-
-
-            <SidebarMenuButton
-                size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-                <img src={LogoIcon} alt="logo" />
-            </SidebarMenuButton>
-        </Link>
-    )
-}
-
-export default Logo
+export default Logo;
