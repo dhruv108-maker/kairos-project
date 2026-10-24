@@ -67,7 +67,9 @@ const Router = [
       { path: '/apps/blog/edit', element: <BlogEdit /> },
       { path: '/apps/blog/manage-blog', element: <BlogTable /> },
 
-      { path: '/apps/notes', element: <Notes /> },\n\n      { path: '/jobs', element: <JobsHub /> },
+      { path: '/apps/notes', element: <Notes /> },    
+      
+      { path: '/jobs', element: <JobsHub /> },
 
       { path: '/apps/tickets', element: <Tickets /> },
       { path: '/apps/tickets/create', element: <TicketCreate /> },
