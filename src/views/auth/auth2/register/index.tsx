@@ -35,6 +35,8 @@ const BoxedRegister = () => {
   const [showInstitutionPicker, setShowInstitutionPicker] = useState(false);
   const [academicOptions, setAcademicOptions] = useState<AcademicOptions>({ departments: [], cohorts: [] });
   const [academicOptionsLoading, setAcademicOptionsLoading] = useState(false);
+  const [academicOptionsError, setAcademicOptionsError] = useState(false);
+  const [academicOptionsRetry, setAcademicOptionsRetry] = useState(0);
   const [cohortId, setCohortId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [error, setError] = useState("");
@@ -94,15 +96,21 @@ const BoxedRegister = () => {
     setAcademicOptions({ departments: [], cohorts: [] });
     setCohortId("");
     setDepartmentId("");
+    setAcademicOptionsError(false);
     if (!institutionId) { setAcademicOptionsLoading(false); return; }
     let cancelled = false;
     setAcademicOptionsLoading(true);
     apiRequest<AcademicOptions>("/institutions/public/" + encodeURIComponent(institutionId) + "/academic-options")
       .then((result) => { if (!cancelled) setAcademicOptions(result); })
-      .catch(() => { if (!cancelled) setAcademicOptions({ departments: [], cohorts: [] }); })
+      .catch(() => {
+        if (!cancelled) {
+          setAcademicOptions({ departments: [], cohorts: [] });
+          setAcademicOptionsError(true);
+        }
+      })
       .finally(() => { if (!cancelled) setAcademicOptionsLoading(false); });
     return () => { cancelled = true; };
-  }, [institutionId]);
+  }, [institutionId, academicOptionsRetry]);
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
     setCohortId("");
@@ -246,7 +254,7 @@ const BoxedRegister = () => {
                 <UsersRound aria-hidden="true" className="mr-1.5 size-4 shrink-0 sm:mr-2" /> <span>Faculty</span>
               </Button>
             </div>
-            <p className="break-words text-xs leading-5 text-muted-foreground">{role === "student" ? "You’ll need your enrollment number and cohort ID." : "You’ll need your employee code and department ID. Faculty access requires institutional approval."}</p>
+            <p className="break-words text-xs leading-5 text-muted-foreground">{role === "student" ? "You’ll need your enrollment number and to choose an available cohort." : "You’ll need your employee code and department ID. Faculty access requires institutional approval."}</p>
           </div>
 
           <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
@@ -304,7 +312,15 @@ const BoxedRegister = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  {!academicOptionsLoading && institutionId && academicOptions.cohorts.length === 0 ? <p className="text-xs text-muted-foreground">No active cohorts are configured for this institution yet.</p> : null}
+                  {academicOptionsError ? (
+                    <Alert variant="destructive" role="alert">
+                      <AlertDescription className="space-y-2">
+                        <span>We couldn’t load enrollment options. Please try again.</span>
+                        <Button type="button" size="sm" variant="outline" onClick={() => setAcademicOptionsRetry((value) => value + 1)}>Retry loading cohorts</Button>
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+                  {!academicOptionsLoading && !academicOptionsError && institutionId && academicOptions.cohorts.length === 0 ? <p className="text-xs text-muted-foreground">Enrollment options aren’t available yet. Please contact your institution administrator to activate a cohort before registering.</p> : null}
                 </div>
               </div>
             ) : (
@@ -358,7 +374,7 @@ const BoxedRegister = () => {
 
             {error && <Alert id="registration-error" variant="destructive" role="alert" aria-live="polite" className="min-w-0 break-words"><AlertDescription>{error}</AlertDescription></Alert>}
 
-            <Button type="submit" size="lg" className="h-11 w-full whitespace-normal" disabled={isSubmitting}>
+            <Button type="submit" size="lg" className="h-11 w-full whitespace-normal" disabled={isSubmitting || (role === "student" && (academicOptionsLoading || academicOptionsError || !academicOptions.cohorts.some((cohort) => cohort.id === cohortId)))}>
               {isSubmitting ? "Creating your account…" : "Create account"}
               {!isSubmitting && <ArrowRight aria-hidden="true" className="ml-2 size-4" />}
             </Button>
