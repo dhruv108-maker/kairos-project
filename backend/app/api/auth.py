@@ -272,6 +272,33 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                     },
                 )
 
+            # Keep the student-facing profile synchronized with the canonical student
+            # identity and enrollment selected during registration.
+            await db.execute(
+                text("""
+                    INSERT INTO student_profiles (
+                        student_id, account_id, enrollment_number,
+                        department_id, programme_id, cohort_id
+                    )
+                    SELECT s.id, s.account_id, s.student_number,
+                           :department_id, :programme_id, :cohort_id
+                    FROM students AS s
+                    WHERE s.account_id = :account_id
+                    ON DUPLICATE KEY UPDATE
+                        account_id = VALUES(account_id),
+                        enrollment_number = VALUES(enrollment_number),
+                        department_id = VALUES(department_id),
+                        programme_id = VALUES(programme_id),
+                        cohort_id = VALUES(cohort_id)
+                """),
+                {
+                    "department_id": payload.department_id,
+                    "programme_id": valid_programme_id,
+                    "cohort_id": cohort_id,
+                    "account_id": account_id,
+                },
+            )
+
             role_id = await db.scalar(
                 text("SELECT id FROM roles WHERE code = 'STUDENT' OR name = 'STUDENT' LIMIT 1")
             )
