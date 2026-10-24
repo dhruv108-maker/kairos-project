@@ -312,8 +312,8 @@ async def discover_jobs(db: DbSession, q: str | None = Query(default=None, max_l
 
 @public_router.get("/jobs/{job_id}")
 async def public_job_detail(job_id: str, db: DbSession):
-    rows = await EmployerService(db).public_jobs(None, None, None, None, 100, 0)
-    for item, provider in rows:
-        if item.id == job_id:
-            return _job(item, {"id": provider.employer_organization_id, "name": provider.company_name, "website": provider.website})
-    raise HTTPException(status_code=404, detail="Published job not found")
+    try:
+        item, provider = await EmployerService(db).public_job(job_id)
+        return _job(item, {"id": provider.employer_organization_id, "name": provider.company_name, "website": provider.website})
+    except EmployerError as exc:
+        raise _error(exc) from None
