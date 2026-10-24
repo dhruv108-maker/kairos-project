@@ -4,6 +4,8 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.schemas import FacultyRegistration, StudentRegistration
+from app.modules.institutions.schemas import InstitutionDomainCreate
+from pydantic import ValidationError
 from app.models import Account, Base, Institution, InstitutionDomain
 from app.modules.institutions.router import public_institutions, resolve_institution_domain
 
@@ -87,3 +89,8 @@ async def test_ambiguous_domain_match_returns_fallback_without_exposing_ids():
             return AmbiguousResult()
     result = await resolve_institution_domain(AmbiguousSession(), "ambiguous.example.test")
     assert result == {"status": "ambiguous", "institution": None}
+
+def test_domain_registry_input_is_normalized_and_validated():
+    assert InstitutionDomainCreate(domain=" GSFCUNIVERSITY.AC.IN. ").domain == "gsfcuniversity.ac.in"
+    with pytest.raises(ValidationError):
+        InstitutionDomainCreate(domain="not a domain")
