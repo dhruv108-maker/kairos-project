@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import Boolean, Date, TIMESTAMP, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
@@ -112,15 +112,15 @@ class AccountRole(Base):
 
 class StudentProfile(Base):
     __tablename__ = "student_profiles"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False)
-    enrollment_number: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False)
+    enrollment_number: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
     # Department affiliation is established at signup; cohort assignment can happen later.
     department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True, index=True)
     programme_id: Mapped[str | None] = mapped_column(ForeignKey("programmes.id", ondelete="RESTRICT"), nullable=True, index=True)
     cohort_id: Mapped[str | None] = mapped_column(ForeignKey("cohorts.id", ondelete="RESTRICT"), nullable=True)
     current_semester: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
-    cgpa: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))
+    cgpa: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
     account: Mapped[Account] = relationship(back_populates="student_profile")
     cohort: Mapped["Cohort | None"] = relationship(back_populates="students")
     department: Mapped["Department | None"] = relationship()
