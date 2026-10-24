@@ -33,6 +33,7 @@ class RegistrationBase(BaseModel):
 
 
 class StudentRegistration(RegistrationBase):
+    institution_id: str | None = Field(default=None, min_length=1, max_length=36)
     enrollment_number: str = Field(min_length=1, max_length=64)
     cohort_id: str = Field(min_length=1, max_length=36)
 
@@ -46,6 +47,7 @@ class StudentRegistration(RegistrationBase):
 
 
 class FacultyRegistration(RegistrationBase):
+    institution_id: str | None = Field(default=None, min_length=1, max_length=36)
     employee_code: str = Field(min_length=1, max_length=64)
     department_id: str = Field(min_length=1, max_length=36)
     designation: str = Field(min_length=1, max_length=100)
