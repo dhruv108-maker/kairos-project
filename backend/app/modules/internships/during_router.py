@@ -11,8 +11,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import CurrentAccount, DbSession, account_roles, require_role
-from app.models.academic import Account, FacultyProfile, StudentProfile
+from app.models.academic import Account, Department, FacultyProfile, School, StudentProfile
 from app.models.employers import EmployerMembership
+from app.modules.audit.service import AuditService
 from app.models.internship import (
     InternshipApplication,
     InternshipOpportunity,
@@ -120,6 +121,15 @@ def _placements_query():
         .join(InternshipProvider, InternshipProvider.id == InternshipOpportunity.provider_id)
         .join(StudentProfile, StudentProfile.id == InternshipPlacement.student_id)
         .join(Account, Account.id == StudentProfile.account_id)
+    )
+
+
+async def _institution_for_placement(db: AsyncSession, placement: InternshipPlacement) -> str | None:
+    return await db.scalar(
+        select(School.institution_id)
+        .join(Department, Department.school_id == School.id)
+        .join(StudentProfile, StudentProfile.department_id == Department.id)
+        .where(StudentProfile.id == placement.student_id)
     )
 
 
@@ -320,6 +330,11 @@ async def assign_industry_mentor(
     if not await _active_employer_member(db, placement, target.id):
         raise HTTPException(status_code=422, detail="Mentor must be an active member of the internship provider's employer organization")
     placement.industry_mentor_account_id = target.id
+    AuditService(db).record(
+        account.id, await _institution_for_placement(db, placement),
+        "internship.industry_mentor_assigned", "internship_placement", placement.id,
+        {"industry_mentor_account_id": target.id},
+    )
     await db.commit()
     await db.refresh(placement)
     return {"placement_id": placement.id, "industry_mentor_account_id": target.id, "industry_mentor_name": target.full_name}
@@ -367,6 +382,11 @@ async def create_work_log(
         learning_outcomes=payload.learning_outcomes, next_steps=payload.next_steps, status="DRAFT",
     )
     db.add(item)
+    AuditService(db).record(
+        account.id, await _institution_for_placement(db, placement),
+        "internship.work_log_created", "internship_work_log", item.id,
+        {"placement_id": placement.id, "work_date": payload.work_date.isoformat()},
+    )
     await db.commit()
     await db.refresh(item)
     return _work_log_payload(item)
@@ -410,6 +430,11 @@ async def update_work_log(
     for key, value in changes.items():
         setattr(item, key, value)
     item.status = "DRAFT"
+    AuditService(db).record(
+        account.id, await _institution_for_placement(db, placement),
+        "internship.work_log_updated", "internship_work_log", item.id,
+        {"placement_id": placement.id},
+    )
     await db.commit()
     await db.refresh(item)
     reviews = await _reviews_for_logs(db, [item.id])
@@ -432,6 +457,11 @@ async def submit_work_log(work_log_id: str, account: CurrentAccount, db: DbSessi
         raise HTTPException(status_code=422, detail="Work date must fall within the placement dates")
     item.status = "SUBMITTED"
     item.submitted_at = datetime.now(UTC).replace(tzinfo=None)
+    AuditService(db).record(
+        account.id, await _institution_for_placement(db, placement),
+        "internship.work_log_submitted", "internship_work_log", item.id,
+        {"placement_id": placement.id},
+    )
     await db.commit()
     await db.refresh(item)
     reviews = await _reviews_for_logs(db, [item.id])
@@ -465,6 +495,11 @@ async def review_work_log(
         reviewer_role=actor_role, decision=payload.decision, feedback=payload.feedback,
     )
     db.add(review)
+    AuditService(db).record(
+        account.id, await _institution_for_placement(db, placement),
+        "internship.work_log_reviewed", "internship_work_log_review", review.id,
+        {"placement_id": placement.id, "work_log_id": item.id, "reviewer_role": actor_role, "decision": payload.decision},
+    )
     await db.commit()
     await db.refresh(review)
     reviewer = await db.get(Account, account.id)
