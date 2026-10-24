@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   ArrowRight,
   BookOpen,
@@ -31,7 +31,7 @@ interface RegistrationResponse {
 }
 
 const BoxedRegister = () => {
-  const [role, setRole] = useState<RegistrationRole>("student");
+  const [searchParams, setSearchParams] = useSearchParams();\n  const [role, setRole] = useState<RegistrationRole>(searchParams.get("role") === "faculty" ? "faculty" : "student");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [verificationSent, setVerificationSent] = useState<boolean | null>(null);
