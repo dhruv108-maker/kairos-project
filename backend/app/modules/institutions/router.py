@@ -2,7 +2,7 @@ import re
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentAccount, DbSession, require_role
@@ -35,11 +35,11 @@ def _institution(item):
 @router.get("/public")
 async def public_institutions(db: DbSession, q: str | None = Query(default=None, max_length=120)):
     """Minimal public institution directory for registration fallback."""
-    statement = select(Institution).where(Institution.status == "ACTIVE").order_by(Institution.name.asc()).limit(200)
+    statement = select(Institution).where(func.upper(Institution.status) == "ACTIVE").order_by(Institution.name.asc()).limit(200)
     if q and q.strip():
         term = q.strip().replace("%", "\\%").replace("_", "\\_")
         statement = select(Institution).where(
-            Institution.status == "ACTIVE",
+            func.upper(Institution.status) == "ACTIVE",
             Institution.name.ilike(f"%{term}%", escape="\\"),
         ).order_by(Institution.name.asc()).limit(200)
     items = (await db.scalars(statement)).all()
@@ -61,7 +61,7 @@ async def resolve_institution_domain(
         .where(
             InstitutionDomain.normalized_domain == domain,
             InstitutionDomain.is_verified.is_(True),
-            Institution.status == "ACTIVE",
+            func.upper(Institution.status) == "ACTIVE",
         )
         .limit(2)
     )).all()
@@ -75,7 +75,7 @@ async def resolve_institution_domain(
 async def public_academic_options(institution_id: str, db: DbSession):
     """Expose only the active academic choices needed by public registration."""
     institution = await db.get(Institution, institution_id)
-    if institution is None or institution.status != "ACTIVE":
+    if institution is None or (institution.status or "").upper() != "ACTIVE":
         raise HTTPException(status_code=404, detail="Active institution not found")
     departments = (await db.execute(
         select(Department.id, Department.name, Department.code)
@@ -89,7 +89,13 @@ async def public_academic_options(institution_id: str, db: DbSession):
         .join(Department, Department.id == Programme.department_id)
         .join(School, School.id == Department.school_id)
         .join(AcademicYear, AcademicYear.id == Cohort.academic_year_id)
-        .where(School.institution_id == institution_id, School.is_active.is_(True), Department.is_active.is_(True), Programme.is_active.is_(True))
+        .where(
+            School.institution_id == institution_id,
+            School.is_active.is_(True),
+            Department.is_active.is_(True),
+            Programme.is_active.is_(True),
+            AcademicYear.is_current.is_(True),
+        )
         .order_by(Cohort.graduation_year.desc(), Cohort.name.asc())
     )).all()
     return {
@@ -114,7 +120,7 @@ async def register_institution_domain(institution_id: str, payload: InstitutionD
     """Register a domain as verified only through an authenticated platform administrator."""
     await require_role(db, account, "PLATFORM_ADMIN")
     institution = await db.get(Institution, institution_id)
-    if institution is None or institution.status != "ACTIVE":
+    if institution is None or (institution.status or "").upper() != "ACTIVE":
         raise HTTPException(status_code=404, detail="Active institution not found")
     existing = await db.scalar(select(InstitutionDomain.id).where(InstitutionDomain.normalized_domain == payload.domain))
     if existing is not None:
