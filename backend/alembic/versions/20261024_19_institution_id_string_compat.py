@@ -116,23 +116,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    bind = op.get_bind()
-    inspector = sa.inspect(bind)
-    if not inspector.has_table("institutions"):
-        return
-    columns = {c["name"]: c for c in inspector.get_columns("institutions")}
-    if "id" not in columns or not isinstance(columns["id"]["type"], sa.String):
-        return
-    # New UUID IDs can be created after this migration; converting back to BIGINT
-    # could truncate or destroy those identities. Never attempt a lossy automatic rollback.
-    non_numeric = bind.execute(
-        sa.text("SELECT COUNT(*) FROM institutions WHERE id IS NOT NULL AND id NOT REGEXP '^[0-9]+$'")
-    ).scalar_one() if bind.dialect.name == "mysql" else 1
-    if non_numeric:
-        raise RuntimeError(
-            "Cannot downgrade 20261024_19 safely: institution IDs are strings and may "
-            "include UUIDs. Restore a verified pre-migration backup instead."
-        )
-    raise RuntimeError(
-        "Downgrade of 20261024_19 is intentionally blocked to avoid changing institution identities."
-    )
+    # Keep the normalized string key contract on downgrade as well. Converting back
+    # to numeric IDs is unsafe once any UUID institution has been created, so this
+    # forward-only compatibility migration deliberately never rewrites identities.
+    return
