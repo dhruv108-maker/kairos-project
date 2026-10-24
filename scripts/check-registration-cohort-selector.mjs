@@ -41,7 +41,7 @@ assert.ok(institutionRouter.includes('func.upper(Programme.status) == "ACTIVE"')
 assert.ok(!institutionRouter.includes("Cohort.academic_year_id"), "cohort schema must not block registration options");
 assert.ok(institutionRouter.includes('"cohorts": []'));
 assert.ok(authRouter.includes("Department.id == payload.department_id"));
-assert.ok(authRouter.includes("payload.institution_id != resolved_institution_id"), "backend must enforce any explicitly supplied institution ID against the verified domain");
+assert.ok(authRouter.includes("int(payload.institution_id) != int(resolved_institution_id)"), "backend must normalize and enforce any explicitly supplied institution ID against the verified domain");
 assert.ok(authRouter.includes("School.id == payload.school_id"));
 assert.ok(authRouter.includes(`func.upper(Programme.status) == "ACTIVE"`));
 assert.ok(schemas.includes("programme_id: str | None = Field(default=None"));
