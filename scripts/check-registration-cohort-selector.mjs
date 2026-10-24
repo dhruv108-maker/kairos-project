@@ -10,12 +10,13 @@ const apiClient = readFileSync("src/api/kairos-client.ts", "utf8");
 for (const field of ["School / Faculty", "Department", "Programme / Course"]) {
   assert.ok(registration.includes(field), `registration field missing: ${field}`);
 }
-for (const contract of ["school_id: schoolId", "department_id: departmentId", "programme_id: programmeId"]) {
+for (const contract of ["school_id: String(schoolId)", "department_id: String(departmentId)", "programme_id: String(programmeId)"]) {
   assert.ok(registration.includes(contract), `registration payload missing: ${contract}`);
 }
 assert.ok(registration.includes("selectedDepartments.map((department)"));
 assert.ok(registration.includes("selectedProgrammes.map((programme)"));
-assert.ok(registration.includes('String(institutionId)'), "institution ID must be serialized as a string");
+assert.ok(registration.includes('institution_id: String(institutionId)'), "faculty registration must retain its optional institution ID");
+assert.ok(registration.includes("const common = { email: submittedEmail, password, full_name: fullName };"), "student registration must let the backend resolve institution from the verified email domain");
 assert.ok(registration.includes('school_id: String(schoolId)'), "school ID must be serialized as a string");
 assert.ok(registration.includes('department_id: String(departmentId)'), "department ID must be serialized as a string");
 assert.ok(registration.includes('programme_id: String(programmeId)'), "programme ID must be serialized as a string");
@@ -40,6 +41,7 @@ assert.ok(institutionRouter.includes('func.upper(Programme.status) == "ACTIVE"')
 assert.ok(!institutionRouter.includes("Cohort.academic_year_id"), "cohort schema must not block registration options");
 assert.ok(institutionRouter.includes('"cohorts": []'));
 assert.ok(authRouter.includes("Department.id == payload.department_id"));
+assert.ok(authRouter.includes("payload.institution_id != resolved_institution_id"), "backend must enforce any explicitly supplied institution ID against the verified domain");
 assert.ok(authRouter.includes("School.id == payload.school_id"));
 assert.ok(authRouter.includes(`func.upper(Programme.status) == "ACTIVE"`));
 assert.ok(schemas.includes("programme_id: str | None = Field(default=None"));
