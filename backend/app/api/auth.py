@@ -114,6 +114,7 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
             )
             if department is None:
                 raise HTTPException(status_code=422, detail="Choose an active school and department from your verified institution.")
+            valid_programme_id = None
             if payload.programme_id:
                 # Select only the identifier: legacy programme tables do not necessarily
                 # contain optional ORM metadata such as degree_level/duration_years.
@@ -156,7 +157,7 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                 account_id=account.id,
                 enrollment_number=payload.enrollment_number,
                 department_id=payload.department_id,
-                programme_id=programme.id if programme is not None else (cohort.programme_id if cohort is not None else None),
+                programme_id=valid_programme_id if valid_programme_id is not None else (cohort.programme_id if cohort is not None else None),
                 cohort_id=cohort.id if cohort is not None else None,
             )
             role = await _ensure_role(db, "STUDENT")
