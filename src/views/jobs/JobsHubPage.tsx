@@ -129,9 +129,9 @@ function OpportunityCard({ job, selected, onSelect }: { job: Opportunity; select
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <button type="button" onClick={onSelect} className="text-left text-base font-semibold leading-6 text-slate-900 underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700">
+              <Link to={`/jobs/${encodeURIComponent(job.id)}`} className="inline-block text-left text-base font-semibold leading-6 text-slate-900 underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700">
                 {job.title}
-              </button>
+              </Link>
               <p className="mt-0.5 truncate text-sm text-slate-600">{company}</p>
             </div>
             <Badge variant="outline" className="shrink-0 border-slate-200 font-medium capitalize text-slate-600">{opportunityKind(job)}</Badge>
