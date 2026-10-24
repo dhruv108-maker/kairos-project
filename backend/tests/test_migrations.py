@@ -169,7 +169,7 @@ def test_mysql_legacy_numeric_institution_keys_migrate_without_losing_relationsh
         # must restore the ORM contract while preserving legacy school visibility.
         school_columns = {c["name"]: c for c in inspector.get_columns("schools")}
         assert school_columns["is_active"]["nullable"] is False
-        assert str(school_columns["is_active"]["default"]).lower() in {"1", "true"}
+        assert str(school_columns["is_active"]["default"]).lower() in {"1", "'1'", "true"}
         with engine.connect() as connection:
             assert connection.exec_driver_sql(
                 "SELECT id, is_active FROM schools WHERE id = 'school-11'"
