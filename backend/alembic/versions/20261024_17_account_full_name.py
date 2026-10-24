@@ -22,7 +22,7 @@ def _backfill_full_name(columns: set[str]) -> None:
     if "display_name" in columns:
         name_sources.append("NULLIF(TRIM(display_name), '')")
     if "email" in columns:
-        name_sources.append("NULLIF(TRIM(SUBSTRING_INDEX(email, '@', 1)), '')")
+        name_sources.append("NULLIF(TRIM(SUBSTR(email, 1, INSTR(email, '@') - 1)), '')")
     name_sources.append("CAST(id AS CHAR)")
     fallback = ", ".join(name_sources)
     op.execute(
