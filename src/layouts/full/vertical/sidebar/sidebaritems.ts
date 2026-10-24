@@ -42,7 +42,7 @@ const SidebarContent: MenuItem[] = [
     heading: "Workspace",
     items: [
       { id: uniqueId(), name: "Overview", icon: House, url: "/" },
-      { id: uniqueId(), name: "Jobs & Internships", icon: BriefcaseBusiness, url: "/app/jobs" },
+      { id: uniqueId(), name: "Jobs & Internships", icon: BriefcaseBusiness, url: "/jobs" },
       { id: uniqueId(), name: "My Profile", icon: UserRound, url: "/pages/user-profile" },
       { id: uniqueId(), name: "Student Profile", icon: UserRound, url: "/student/profile" },
     ],
