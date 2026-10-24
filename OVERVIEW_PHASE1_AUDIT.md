@@ -39,6 +39,12 @@ The requested consolidated `kairos.md` was not present in the repository tree at
 - A local TypeScript/Vite build, browser accessibility pass, live API verification, and populated/empty/error-state end-to-end test were **not run** in this environment.
 - Before production release, run `npm ci`, `npm run build`, `npm run lint`, and the relevant backend tests in the project environment; then verify each role with real test accounts and institution/employer scopes.
 
+## Semester-wise performance chart addition
+
+- Added a shadcn/Recharts area-chart component to student, faculty, and higher-authority/platform overviews. Students are restricted to the personal scope in the UI; faculty can choose individual student, consolidated mentees, batch/class, department, or school; higher management can choose individual student, batch/class, department, or school.
+- The chart expects `GET /analytics/semester-performance?scope=...` to return `{ items: [{ semester, average, students? }], scope_label?, metric_label?, note? }`. The inspected backend does **not** currently implement this endpoint, and the existing academic model stores a current CGPA plus academic-record grades but does not expose a verified semester-aggregate read contract through the inspected API.
+- Consequently, the chart has explicit loading, error, and no-data states and does not invent sample grades. It will remain unavailable until the backend endpoint is implemented with role- and entity-level authorization and target selectors for individual student, cohort/batch, department, and school scopes. Do not treat this UI-only addition as a completed end-to-end feature.
+
 ## Recommended next module
 
 After resolving the documented API gaps and verifying the overview build, implement the **report submission and review workflow** next. It is shared by students, faculty, and institution administrators and currently has explicit report requirements, submission, version, submit, and review routes.
