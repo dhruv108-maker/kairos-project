@@ -436,6 +436,32 @@ class EmployerService:
         return list(result.all())
 
 
+    async def public_job(self, job_id: str) -> tuple[InternshipOpportunity, InternshipProvider]:
+        campus_link = select(RecruitmentDriveOpportunity.opportunity_id).join(
+            RecruitmentDrive, RecruitmentDrive.id == RecruitmentDriveOpportunity.drive_id
+        ).where(
+            RecruitmentDriveOpportunity.opportunity_id == InternshipOpportunity.id,
+            RecruitmentDrive.status.in_({"PUBLISHED", "ACTIVE"}),
+        ).exists()
+        result = await self.db.execute(
+            select(InternshipOpportunity, InternshipProvider)
+            .join(InternshipProvider, InternshipOpportunity.provider_id == InternshipProvider.id)
+            .join(EmployerOrganization, InternshipProvider.employer_organization_id == EmployerOrganization.id)
+            .where(
+                InternshipOpportunity.id == job_id,
+                ~campus_link,
+                InternshipOpportunity.lifecycle_status == "PUBLISHED",
+                InternshipOpportunity.is_active.is_(True),
+                EmployerOrganization.status == "ACTIVE",
+                InternshipOpportunity.application_deadline >= date.today(),
+            )
+            .limit(1)
+        )
+        row = result.one_or_none()
+        if row is None:
+            raise EmployerError(404, "Published job not found")
+        return row[0], row[1]
+
     async def _application_in_org(self, organization_id: str, actor_id: str, application_id: str, write: bool = False):
         await self.membership(organization_id, actor_id, {"OWNER", "ADMIN", "RECRUITER"} if write else None)
         provider = await self._provider_for_org(organization_id)
