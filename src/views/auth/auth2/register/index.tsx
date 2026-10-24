@@ -13,7 +13,7 @@ type RegistrationRole = "student" | "faculty";
 
 interface InstitutionOption { id: string; name: string; }
 interface InstitutionResolution { status: "matched" | "ambiguous" | "not_found"; institution: InstitutionOption | null; }
-interface AcademicOptions { schools: Array<{ id: string; name: string; code: string }>; departments: Array<{ id: string; name: string; code: string; school_id: string }>; cohorts: Array<{ id: string; name: string; programme_name: string; department_name: string; academic_year: string; graduation_year: number }>; }
+interface AcademicOptions { schools: Array<{ id: string; name: string; code: string }>; departments: Array<{ id: string; name: string; code: string; school_id: string }>; programmes: Array<{ id: string; name: string; code: string; degree_level: string; department_id: string }>; cohorts: Array<{ id: string; name: string; programme_name: string; department_name: string; academic_year: string; graduation_year: number }>; }
 
 interface RegistrationResponse {
   account_id: string;
@@ -34,13 +34,14 @@ const BoxedRegister = () => {
   const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
   const [institutionStatus, setInstitutionStatus] = useState<"idle" | "loading" | "matched" | "fallback" | "error">("idle");
   const [showInstitutionPicker, setShowInstitutionPicker] = useState(false);
-  const [academicOptions, setAcademicOptions] = useState<AcademicOptions>({ schools: [], departments: [], cohorts: [] });
+  const [academicOptions, setAcademicOptions] = useState<AcademicOptions>({ schools: [], departments: [], programmes: [], cohorts: [] });
   const [schoolId, setSchoolId] = useState("");
   const [academicOptionsLoading, setAcademicOptionsLoading] = useState(false);
   const [academicOptionsError, setAcademicOptionsError] = useState(false);
   const [academicOptionsRetry, setAcademicOptionsRetry] = useState(0);
   const [cohortId, setCohortId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+  const [programmeId, setProgrammeId] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [verificationSent, setVerificationSent] = useState(false);
@@ -55,6 +56,7 @@ const BoxedRegister = () => {
     ? email.trim().toLowerCase().split("@").pop() ?? ""
     : "";
   const selectedDepartments = academicOptions.departments.filter((department) => department.school_id === schoolId);
+  const selectedProgrammes = academicOptions.programmes.filter((programme) => programme.department_id === departmentId);
 
   useEffect(() => {
     if (!emailDomain) {
@@ -101,10 +103,11 @@ const BoxedRegister = () => {
   }, [email]);
 
   useEffect(() => {
-    setAcademicOptions({ schools: [], departments: [], cohorts: [] });
+    setAcademicOptions({ schools: [], departments: [], programmes: [], cohorts: [] });
     setSchoolId("");
     setCohortId("");
     setDepartmentId("");
+    setProgrammeId("");
     setAcademicOptionsError(false);
 
     // Public enrollment choices are available only after an exact verified-domain match.
@@ -125,10 +128,11 @@ const BoxedRegister = () => {
       })
       .catch(() => {
         if (!cancelled) {
-          setAcademicOptions({ schools: [], departments: [], cohorts: [] });
+          setAcademicOptions({ schools: [], departments: [], programmes: [], cohorts: [] });
           setSchoolId("");
           setCohortId("");
           setDepartmentId("");
+          setProgrammeId("");
           setAcademicOptionsError(true);
         }
       })
@@ -140,6 +144,7 @@ const BoxedRegister = () => {
     setCohortId("");
     setSchoolId("");
     setDepartmentId("");
+    setProgrammeId("");
     setError("");
     setMessage("");
     setVerificationSent(false);
@@ -183,6 +188,11 @@ const BoxedRegister = () => {
       return;
     }
 
+    if (role === "student" && !academicOptions.programmes.some((programme) => programme.id === programmeId && programme.department_id === departmentId)) {
+      setError("Choose a programme within your selected department.");
+      return;
+    }
+
     const common = { email: submittedEmail, password, full_name: fullName, institution_id: institutionId };
     const payload = role === "student"
       ? {
@@ -190,6 +200,7 @@ const BoxedRegister = () => {
           enrollment_number: String(form.get("enrollment_number") ?? "").trim(),
           school_id: schoolId,
           department_id: departmentId,
+          programme_id: programmeId,
         }
       : {
           ...common,
@@ -332,14 +343,14 @@ const BoxedRegister = () => {
             <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="min-w-0 space-y-2">
                 <Label>School / Faculty</Label>
-                <Select value={schoolId} onValueChange={(value) => { setSchoolId(value ?? ""); setDepartmentId(""); }} disabled={!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || academicOptions.schools.length === 0} required>
+                <Select value={schoolId} onValueChange={(value) => { setSchoolId(value ?? ""); setDepartmentId(""); setProgrammeId(""); }} disabled={!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || academicOptions.schools.length === 0} required>
                   <SelectTrigger className="h-11 w-full min-w-0" aria-label="School"><SelectValue placeholder={academicOptionsLoading ? "Loading schools…" : !verifiedDomainMatch ? "Verify your institution email first" : "Choose your school"} /></SelectTrigger>
                   <SelectContent>{academicOptions.schools.map((school) => <SelectItem key={school.id} value={school.id}>{school.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="min-w-0 space-y-2">
                 <Label>Department</Label>
-                <Select value={departmentId} onValueChange={(value) => setDepartmentId(value ?? "")} disabled={!schoolId || academicOptionsLoading || academicOptionsError || selectedDepartments.length === 0} required>
+                <Select value={departmentId} onValueChange={(value) => { setDepartmentId(value ?? ""); setProgrammeId(""); }} disabled={!schoolId || academicOptionsLoading || academicOptionsError || selectedDepartments.length === 0} required>
                   <SelectTrigger className="h-11 w-full min-w-0" aria-label="Department"><SelectValue placeholder={!schoolId ? "Choose a school first" : academicOptionsLoading ? "Loading departments…" : "Choose your department"} /></SelectTrigger>
                   <SelectContent>{selectedDepartments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}</SelectContent>
                 </Select>
@@ -348,7 +359,16 @@ const BoxedRegister = () => {
             {academicOptionsError ? <Alert variant="destructive" role="alert"><AlertDescription className="space-y-2"><span>We couldn’t load school and department options. Please try again.</span><Button type="button" size="sm" variant="outline" onClick={() => setAcademicOptionsRetry((value) => value + 1)}>Retry loading academic options</Button></AlertDescription></Alert> : null}
             {verifiedDomainMatch && !academicOptionsLoading && !academicOptionsError && academicOptions.schools.length === 0 ? <p className="text-xs text-muted-foreground">No active schools are configured for this institution yet. Please contact your institution administrator.</p> : null}
             {role === "student" ? (
-              <div className="min-w-0 space-y-2"><Label htmlFor="enrollment_number">Enrollment number</Label><Input id="enrollment_number" name="enrollment_number" autoComplete="off" placeholder="Student ID" maxLength={64} required /><p className="text-xs text-muted-foreground">Your institution can assign your cohort after registration.</p></div>
+              <>
+                <div className="min-w-0 space-y-2">
+                  <Label>Programme / Course</Label>
+                  <Select value={programmeId} onValueChange={(value) => setProgrammeId(value ?? "")} disabled={!departmentId || academicOptionsLoading || academicOptionsError || selectedProgrammes.length === 0} required>
+                    <SelectTrigger className="h-11 w-full min-w-0" aria-label="Programme"><SelectValue placeholder={!departmentId ? "Choose a department first" : academicOptionsLoading ? "Loading programmes…" : "Choose your programme"} /></SelectTrigger>
+                    <SelectContent>{selectedProgrammes.map((programme) => <SelectItem key={programme.id} value={programme.id}>{programme.name} · {programme.degree_level}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="min-w-0 space-y-2"><Label htmlFor="enrollment_number">Enrollment number</Label><Input id="enrollment_number" name="enrollment_number" autoComplete="off" placeholder="Student ID" maxLength={64} required /><p className="text-xs text-muted-foreground">Your institution can assign your cohort after registration.</p></div>
+              </>
             ) : (
               <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="min-w-0 space-y-2"><Label htmlFor="employee_code">Employee code</Label><Input id="employee_code" name="employee_code" autoComplete="off" placeholder="Staff ID" maxLength={64} required /></div>
@@ -380,7 +400,7 @@ const BoxedRegister = () => {
 
             {error && <Alert id="registration-error" variant="destructive" role="alert" aria-live="polite" className="min-w-0 break-words"><AlertDescription>{error}</AlertDescription></Alert>}
 
-            <Button type="submit" size="lg" className="h-11 w-full whitespace-normal" disabled={isSubmitting || (role === "student" && (!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || !academicOptions.cohorts.some((cohort) => cohort.id === cohortId)))}>
+            <Button type="submit" size="lg" className="h-11 w-full whitespace-normal" disabled={isSubmitting || !verifiedDomainMatch || academicOptionsLoading || academicOptionsError || !academicOptions.schools.some((school) => school.id === schoolId) || !academicOptions.departments.some((department) => department.id === departmentId && department.school_id === schoolId) || (role === "student" && !academicOptions.programmes.some((programme) => programme.id === programmeId && programme.department_id === departmentId))}>
               {isSubmitting ? "Creating your account…" : "Create account"}
               {!isSubmitting && <ArrowRight aria-hidden="true" className="ml-2 size-4" />}
             </Button>
