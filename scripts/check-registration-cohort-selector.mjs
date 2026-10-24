@@ -29,8 +29,18 @@ assert.ok(!institutionRouter.includes("Cohort.academic_year_id"), "cohort schema
 assert.ok(institutionRouter.includes('"cohorts": []'));
 assert.ok(authRouter.includes("Department.id == payload.department_id"));
 assert.ok(authRouter.includes("School.id == payload.school_id"));
-assert.ok(authRouter.includes("func.upper(Programme.status) == "ACTIVE""));
+assert.ok(authRouter.includes(`func.upper(Programme.status) == "ACTIVE"`));
 assert.ok(schemas.includes("programme_id: str | None = Field(default=None"));
 assert.ok(schemas.includes("cohort_id: str | None = Field(default=None"));
 
-console.log("Registration academic-options regression checks passed.");
+
+const authFrame = readFileSync("src/components/auth/AuthFrame.tsx", "utf8");
+const fullLogo = readFileSync("src/layouts/full/shared/logo/FullLogo.tsx", "utf8");
+const sidebarLogo = readFileSync("src/layouts/full/shared/logo/Logo.tsx", "utf8");
+assert.equal((authFrame.match(/<FullLogo linked=\{false\} \/>/g) ?? []).length, 2, "both auth-frame brand links must use presentational logo markup");
+assert.ok(authFrame.includes('to={brandHref}'), "AuthFrame must preserve its configured brand destination");
+assert.ok(fullLogo.includes("linked = true"), "standalone FullLogo must remain linked by default");
+assert.ok(fullLogo.includes('to="/"'), "standalone FullLogo must navigate home");
+assert.ok(sidebarLogo.includes('<Link') && sidebarLogo.includes('<img'), "sidebar logo remains a home link");
+assert.ok(!sidebarLogo.includes("SidebarMenuButton"), "sidebar logo must not nest a button inside its link");
+\nconsole.log("Registration and logo navigation regression checks passed.");
