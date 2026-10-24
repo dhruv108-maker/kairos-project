@@ -212,7 +212,7 @@ const BoxedRegister = () => {
       return;
     }
 
-    const common = { email: submittedEmail, password, full_name: fullName, institution_id: String(institutionId) };
+    const common = { email: submittedEmail, password, full_name: fullName };
     const payload = role === "student"
       ? {
           ...common,
