@@ -51,11 +51,11 @@ class StudentRegistration(RegistrationBase):
 class FacultyRegistration(RegistrationBase):
     institution_id: str | None = Field(default=None, min_length=1, max_length=36)
     employee_code: str = Field(min_length=1, max_length=64)
-    school_id: str = Field(min_length=1, max_length=36)
+    school_id: str | None = Field(default=None, min_length=1, max_length=36)
     department_id: str = Field(min_length=1, max_length=36)
     designation: str = Field(min_length=1, max_length=100)
 
-    @field_validator("employee_code", "school_id", "department_id", "designation")
+    @field_validator("employee_code", "department_id", "designation")
     @classmethod
     def trim_required_text(cls, value: str) -> str:
         value = value.strip()
