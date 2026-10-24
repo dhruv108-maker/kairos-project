@@ -457,13 +457,13 @@ async def current_user(account: CurrentAccount, db: DbSession) -> AccountPublic:
 async def _send_password_reset(account: Account, token: str) -> bool:
     try:
         message_id = await send_password_reset_email(account.email, token)
-        logger.info("Password reset email accepted by provider; provider_message_id=%s", message_id)
+        logger.warning("PASSWORD_RESET_DIAGNOSTIC outcome=provider_accepted provider_message_id=%s", message_id)
         return True
     except Exception as exc:
         # Keep the public response generic to prevent account enumeration, but make
         # delivery failures diagnosable in backend logs without exposing PII/tokens.
         logger.error(
-            "Password reset email delivery failed; error_type=%s error=%s",
+            "PASSWORD_RESET_DIAGNOSTIC outcome=delivery_failed error_type=%s error=%s",
             type(exc).__name__,
             str(exc)[:300],
         )
@@ -473,13 +473,14 @@ async def _send_password_reset(account: Account, token: str) -> bool:
 @router.post("/password-reset/request", response_model=MessageResponse)
 async def request_password_reset(payload: PasswordResetRequest, db: DbSession) -> MessageResponse:
     # Same response for unknown, disabled, unverified, and eligible accounts.
+    logger.warning("PASSWORD_RESET_DIAGNOSTIC outcome=request_received")
     account = await IdentityService(db).get_account_by_email(payload.email)
     now = datetime.now(UTC).replace(tzinfo=None)
     if account is None:
-        logger.info("Password reset request ignored; account lookup returned no match")
+        logger.warning("PASSWORD_RESET_DIAGNOSTIC outcome=account_not_found")
     elif not account.is_active or not account.is_verified:
-        logger.info(
-            "Password reset request ignored; account is not eligible; active=%s verified=%s",
+        logger.warning(
+            "PASSWORD_RESET_DIAGNOSTIC outcome=account_ineligible active=%s verified=%s",
             account.is_active,
             account.is_verified,
         )
@@ -496,7 +497,7 @@ async def request_password_reset(payload: PasswordResetRequest, db: DbSession) -
                 account.reset_token_expires_at = None
                 await db.commit()
         else:
-            logger.info("Password reset request throttled by an existing unexpired reset token")
+            logger.warning("PASSWORD_RESET_DIAGNOSTIC outcome=throttled_existing_token")
     return MessageResponse(
         message="If an eligible account exists, password reset instructions will be sent when email delivery is available."
     )
