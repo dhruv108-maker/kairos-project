@@ -105,28 +105,32 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
             if payload.institution_id and payload.institution_id != resolved_institution_id:
                 raise HTTPException(status_code=422, detail="The institution does not match your verified email domain")
 
-            cohort = await db.scalar(
-                select(Cohort)
-                .join(Programme, Programme.id == Cohort.programme_id)
-                .join(Department, Department.id == Programme.department_id)
-                .join(School, School.id == Department.school_id)
-                .join(AcademicYear, AcademicYear.id == Cohort.academic_year_id)
-                .where(
-                    Cohort.id == payload.cohort_id,
+            department = await db.scalar(
+                select(Department).join(School, School.id == Department.school_id).where(
+                    Department.id == payload.department_id, School.id == payload.school_id,
                     School.institution_id == resolved_institution_id,
-                    School.is_active.is_(True),
-                    Department.is_active.is_(True),
-                    Programme.is_active.is_(True),
-                    AcademicYear.is_current.is_(True),
-                    AcademicYear.institution_id == resolved_institution_id,
-                    Cohort.is_active.is_(True),
+                    School.is_active.is_(True), Department.is_active.is_(True),
                 )
             )
-            if cohort is None:
-                raise HTTPException(
-                    status_code=422,
-                    detail="Choose an available cohort from your institution. The cohort may be inactive or belong to another institution.",
+            if department is None:
+                raise HTTPException(status_code=422, detail="Choose an active school and department from your verified institution.")
+            cohort = None
+            if payload.cohort_id:
+                cohort = await db.scalar(
+                    select(Cohort).join(Programme, Programme.id == Cohort.programme_id)
+                    .join(Department, Department.id == Programme.department_id)
+                    .join(School, School.id == Department.school_id)
+                    .join(AcademicYear, AcademicYear.id == Cohort.academic_year_id)
+                    .where(
+                        Cohort.id == payload.cohort_id, Department.id == payload.department_id,
+                        School.id == payload.school_id, School.institution_id == resolved_institution_id,
+                        School.is_active.is_(True), Department.is_active.is_(True), Programme.is_active.is_(True),
+                        AcademicYear.is_current.is_(True), AcademicYear.institution_id == resolved_institution_id,
+                        Cohort.is_active.is_(True),
+                    )
                 )
+                if cohort is None:
+                    raise HTTPException(status_code=422, detail="The selected cohort must be active and belong to the selected department and institution.")
             account = Account(
                 id=str(uuid4()),
                 email=payload.email,
@@ -139,7 +143,8 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                 id=str(uuid4()),
                 account_id=account.id,
                 enrollment_number=payload.enrollment_number,
-                cohort_id=payload.cohort_id,
+                department_id=payload.department_id,
+                cohort_id=cohort.id if cohort is not None else None,
             )
             role = await _ensure_role(db, "STUDENT")
             db.add_all([account, profile])
@@ -171,20 +176,19 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
 async def register_faculty(payload: FacultyRegistration, db: DbSession) -> RegistrationResponse:
     try:
         async with db.begin():
-            department = await db.get(Department, payload.department_id)
-            if department is None or not department.is_active:
-                raise HTTPException(status_code=422, detail="Unknown or inactive department_id")
+            department = await db.scalar(select(Department).join(School, School.id == Department.school_id).where(
+                Department.id == payload.department_id, School.id == payload.school_id,
+                School.is_active.is_(True), Department.is_active.is_(True),
+            ))
+            if department is None:
+                raise HTTPException(status_code=422, detail="Choose an active department within the selected school")
+            department_institution_id = await db.scalar(select(School.institution_id).where(School.id == payload.school_id))
             if payload.institution_id:
                 institution = await db.get(Institution, payload.institution_id)
-                department_institution_id = await db.scalar(
-                    select(School.institution_id)
-                    .join(Department, Department.school_id == School.id)
-                    .where(Department.id == payload.department_id)
-                )
                 if institution is None or (institution.status or "").upper() != "ACTIVE":
                     raise HTTPException(status_code=422, detail="Unknown or inactive institution_id")
                 if department_institution_id != institution.id:
-                    raise HTTPException(status_code=422, detail="The selected department does not belong to the selected institution")
+                    raise HTTPException(status_code=422, detail="The selected school and department do not belong to the selected institution")
             account = Account(
                 id=str(uuid4()),
                 email=payload.email,
