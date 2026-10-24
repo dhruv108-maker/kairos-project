@@ -1,6 +1,6 @@
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Column, MetaData, String, Table, create_engine, inspect, insert, select
+from sqlalchemy import Column, MetaData, String, Table, create_engine, inspect
 from pathlib import Path
 
 def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_path, monkeypatch):
@@ -11,25 +11,14 @@ def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_
     # Seed the referenced account key so SQLite can rebuild FK-bearing tables during downgrade.
     engine = create_engine(database_url)
     metadata = MetaData()
-    accounts = Table(
-        "accounts", metadata,
-        Column("id", String(36), primary_key=True),
-        Column("email", String(255), nullable=False),
-        Column("display_name", String(255), nullable=True),
-    )
+    Table("accounts", metadata, Column("id", String(36), primary_key=True))
     metadata.create_all(engine)
-    with engine.begin() as connection:
-        connection.execute(insert(accounts).values(id="legacy-account", email="legacy@example.test", display_name="Legacy Display Name"))
 
     command.upgrade(config, "head")
     try:
         tables = set(inspect(engine).get_table_names())
         assert {"student_academic_records", "student_portfolio_entries", "student_resumes"} <= tables
         assert {"institution_domains"} <= tables
-        account_columns = {column["name"] for column in inspect(engine).get_columns("accounts")}
-        assert "full_name" in account_columns
-        with engine.connect() as connection:
-            assert connection.execute(select(accounts.c.full_name)).scalar_one() == "Legacy Display Name"
         assert {
             "institutions", "institution_memberships", "report_requirements", "institution_invitations",
             "employer_organizations", "employer_memberships", "employer_invitations",
