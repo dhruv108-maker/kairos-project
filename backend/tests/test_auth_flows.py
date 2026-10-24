@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 import pytest_asyncio
@@ -10,8 +10,9 @@ from sqlalchemy.pool import StaticPool
 
 import app.api.auth as auth_module
 from app.api.dependencies import get_db_session
+from app.core.security import create_token
 from app.main import app
-from app.models import Account, Base, Institution, InstitutionDomain
+from app.models import Account, Base, Institution, InstitutionDomain, InstitutionMembership
 from app.models.academic import AcademicYear, Cohort, Department, Programme, School
 
 
@@ -30,9 +31,12 @@ async def client(monkeypatch):
         admin = Account(id="domain-admin", email="admin@example.test", password_hash="x", full_name="Admin", is_active=True, is_verified=True)
         institution = Institution(id="institution-1", name="Sagiros University", slug="sagiros-university", status="ACTIVE", created_by_account_id=admin.id)
         other_institution = Institution(id="institution-2", name="Other University", slug="other-university", status="ACTIVE", created_by_account_id=admin.id)
-        session.add_all([admin, institution, other_institution])
+        regular_member = Account(id="regular-member", email="member@members.test", password_hash="x", full_name="Member", is_active=True, is_verified=True)
+        session.add_all([admin, institution, other_institution, regular_member])
         await session.flush()
         session.add_all([
+            InstitutionMembership(institution_id=institution.id, account_id=admin.id, role="INSTITUTION_ADMIN", status="ACTIVE", invited_by_account_id=admin.id),
+            InstitutionMembership(institution_id=institution.id, account_id=regular_member.id, role="MEMBER", status="ACTIVE", invited_by_account_id=admin.id),
             InstitutionDomain(id="domain-1", institution_id=institution.id, normalized_domain="sagiros.edu.test", is_verified=True),
             InstitutionDomain(id="domain-example", institution_id=institution.id, normalized_domain="example.com", is_verified=True),
             InstitutionDomain(id="domain-example-test", institution_id=institution.id, normalized_domain="example.test", is_verified=True),
@@ -322,3 +326,33 @@ async def test_inactive_cohort_is_hidden_and_cannot_create_student_account(clien
         "cohort_id": "cohort-1",
     })
     assert accepted.status_code == 201, accepted.text
+
+
+@pytest.mark.asyncio
+async def test_only_institution_admin_can_activate_or_deactivate_cohorts(client):
+    http, _ = client
+    admin_token = create_token("domain-admin", "access", timedelta(minutes=15))
+    member_token = create_token("regular-member", "access", timedelta(minutes=15))
+
+    denied = await http.patch(
+        "/api/v1/institutions/institution-1/cohorts/cohort-1",
+        headers={"Authorization": f"Bearer {member_token}"},
+        json={"is_active": False},
+    )
+    assert denied.status_code == 403
+
+    deactivated = await http.patch(
+        "/api/v1/institutions/institution-1/cohorts/cohort-1",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"is_active": False},
+    )
+    assert deactivated.status_code == 200, deactivated.text
+    assert deactivated.json()["is_active"] is False
+
+    activated = await http.patch(
+        "/api/v1/institutions/institution-1/cohorts/cohort-1",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"is_active": True},
+    )
+    assert activated.status_code == 200, activated.text
+    assert activated.json()["is_active"] is True
