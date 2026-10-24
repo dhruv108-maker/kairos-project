@@ -37,8 +37,11 @@ class Programme(TimestampMixin, Base):
     department_id: Mapped[str] = mapped_column(ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False)
     code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    degree_level: Mapped[str] = mapped_column(String(50), nullable=False)
-    duration_years: Mapped[int] = mapped_column(Integer, nullable=False, server_default="4")
+    # The deployed catalogue uses status for public eligibility; degree metadata varies
+    # across legacy schemas and is not required to render the registration selector.
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="ACTIVE")
+    degree_level: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    duration_years: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="4")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
     department: Mapped[Department] = relationship(back_populates="programmes")
     cohorts: Mapped[list["Cohort"]] = relationship(back_populates="programme")
