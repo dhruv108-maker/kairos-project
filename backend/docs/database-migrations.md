@@ -95,3 +95,15 @@ Before enabling student signup in production, an authorized administrator must v
 The repository integration does not provide direct access to the live production database. A push
 does not apply these migrations; deploy the same code release and run Alembic against the intended
 database only after backup and schema/history review.
+
+
+## School activation compatibility
+
+The ORM and institution administration API support `School.is_active`, and public academic
+options intentionally exclude inactive schools. Migration `20261024_21` adds the missing
+`schools.is_active` column to legacy databases when absent, with a non-null true default so
+existing schools remain visible and their department/cohort relationships are preserved. It is
+idempotent for databases where the column already exists. Apply it with the normal Alembic
+upgrade process after taking the standard backup; the application does not migrate the database
+on startup. The MySQL migration regression fixture intentionally starts without this column and
+checks the added field and its backfilled/default visibility.
