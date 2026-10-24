@@ -302,10 +302,12 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
             detail="Registration conflicts with an existing account or enrollment number",
         ) from None
 
-    sent = await _send_verification(
-        type("VerificationAccount", (), {"email": payload.email})(),
-        token,
-    )
+    try:
+        await send_verification_email(payload.email, token)
+        sent = True
+    except Exception:
+        # Do not expose provider internals or secrets to the registration caller.
+        sent = False
     return RegistrationResponse(
         account_id=str(account_id),
         message=(
