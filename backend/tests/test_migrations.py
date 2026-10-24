@@ -181,6 +181,6 @@ def test_mysql_legacy_numeric_institution_keys_migrate_without_losing_relationsh
             assert connection.exec_driver_sql("SELECT institution_id FROM schools").scalar_one() == "11"
             assert connection.exec_driver_sql("SELECT institution_id FROM academic_years").scalar_one() == "11"
             assert connection.exec_driver_sql("SELECT id, name, is_active FROM cohorts").one() == ("cohort-11", "Legacy Cohort", 0)
-            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "20261024_20"
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "20261024_21"
     finally:
         engine.dispose()
