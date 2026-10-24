@@ -38,7 +38,7 @@ async def public_institutions(db: DbSession, q: str | None = Query(default=None,
         term = q.strip().replace("%", "\\%").replace("_", "\\_")
         statement = select(Institution).where(
             Institution.status == "ACTIVE",
-            Institution.name.ilike(f"%{term}%"),
+            Institution.name.ilike(f"%{term}%", escape="\\"),
         ).order_by(Institution.name.asc()).limit(200)
     items = (await db.scalars(statement)).all()
     return {"items": [{"id": item.id, "name": item.name} for item in items]}
@@ -51,7 +51,7 @@ async def resolve_institution_domain(
 ):
     """Resolve only exact, verified domains; never infer from suffixes."""
     domain = email_domain.strip().lower().rstrip(".")
-    if not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}", domain):
+    if not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}", domain):
         raise HTTPException(status_code=422, detail="Enter a valid email domain")
     rows = (await db.execute(
         select(Institution.id, Institution.name)
