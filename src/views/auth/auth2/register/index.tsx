@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import AuthFrame from "@/components/auth/AuthFrame";
 import { apiRequest } from "@/api/kairos-client";
 
@@ -12,6 +13,7 @@ type RegistrationRole = "student" | "faculty";
 
 interface InstitutionOption { id: string; name: string; }
 interface InstitutionResolution { status: "matched" | "ambiguous" | "not_found"; institution: InstitutionOption | null; }
+interface AcademicOptions { departments: Array<{ id: string; name: string; code: string }>; cohorts: Array<{ id: string; name: string; programme_name: string; department_name: string; academic_year: string; graduation_year: number }>; }
 
 interface RegistrationResponse {
   account_id: string;
@@ -31,6 +33,10 @@ const BoxedRegister = () => {
   const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
   const [institutionStatus, setInstitutionStatus] = useState<"idle" | "loading" | "matched" | "fallback" | "error">("idle");
   const [showInstitutionPicker, setShowInstitutionPicker] = useState(false);
+  const [academicOptions, setAcademicOptions] = useState<AcademicOptions>({ departments: [], cohorts: [] });
+  const [academicOptionsLoading, setAcademicOptionsLoading] = useState(false);
+  const [cohortId, setCohortId] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [verificationSent, setVerificationSent] = useState(false);
@@ -84,8 +90,23 @@ const BoxedRegister = () => {
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [showInstitutionPicker, institutionSearch]);
 
+  useEffect(() => {
+    setAcademicOptions({ departments: [], cohorts: [] });
+    setCohortId("");
+    setDepartmentId("");
+    if (!institutionId) { setAcademicOptionsLoading(false); return; }
+    let cancelled = false;
+    setAcademicOptionsLoading(true);
+    apiRequest<AcademicOptions>("/institutions/public/" + encodeURIComponent(institutionId) + "/academic-options")
+      .then((result) => { if (!cancelled) setAcademicOptions(result); })
+      .catch(() => { if (!cancelled) setAcademicOptions({ departments: [], cohorts: [] }); })
+      .finally(() => { if (!cancelled) setAcademicOptionsLoading(false); });
+    return () => { cancelled = true; };
+  }, [institutionId]);
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
+    setCohortId("");
+    setDepartmentId("");
     setError("");
     setMessage("");
     setVerificationSent(false);
@@ -119,18 +140,20 @@ const BoxedRegister = () => {
     }
 
     if (!institutionId) { setError("Select your institution before continuing."); return; }
+    if (role === "student" && !cohortId) { setError("Choose your cohort from the institution’s academic records."); return; }
+    if (role === "faculty" && !departmentId) { setError("Choose your department from the institution’s academic records."); return; }
 
     const common = { email: submittedEmail, password, full_name: fullName, institution_id: institutionId };
     const payload = role === "student"
       ? {
           ...common,
           enrollment_number: String(form.get("enrollment_number") ?? "").trim(),
-          cohort_id: String(form.get("cohort_id") ?? "").trim(),
+          cohort_id: cohortId,
         }
       : {
           ...common,
           employee_code: String(form.get("employee_code") ?? "").trim(),
-          department_id: String(form.get("department_id") ?? "").trim(),
+          department_id: departmentId,
           designation: String(form.get("designation") ?? "").trim(),
         };
 
@@ -272,8 +295,16 @@ const BoxedRegister = () => {
                   <Input id="enrollment_number" name="enrollment_number" autoComplete="off" placeholder="Student ID" maxLength={64} required />
                 </div>
                 <div className="min-w-0 space-y-2">
-                  <Label htmlFor="cohort_id">Cohort ID</Label>
-                  <Input id="cohort_id" name="cohort_id" autoComplete="off" placeholder="Provided by your institution" maxLength={36} required />
+                  <Label>Cohort</Label>
+                  <Select value={cohortId} onValueChange={(value) => setCohortId(value ?? "")} disabled={academicOptionsLoading || academicOptions.cohorts.length === 0} required>
+                    <SelectTrigger className="h-11 w-full min-w-0"><SelectValue placeholder={academicOptionsLoading ? "Loading cohorts…" : "Choose your cohort"} /></SelectTrigger>
+                    <SelectContent>
+                      {academicOptions.cohorts.map((cohort) => (
+                        <SelectItem key={cohort.id} value={cohort.id}>{cohort.name} · {cohort.programme_name} · {cohort.academic_year}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!academicOptionsLoading && institutionId && academicOptions.cohorts.length === 0 ? <p className="text-xs text-muted-foreground">No active cohorts are configured for this institution yet.</p> : null}
                 </div>
               </div>
             ) : (
@@ -289,8 +320,16 @@ const BoxedRegister = () => {
                   </div>
                 </div>
                 <div className="min-w-0 space-y-2">
-                  <Label htmlFor="department_id">Department ID</Label>
-                  <Input id="department_id" name="department_id" autoComplete="off" placeholder="Provided by your institution" maxLength={36} required />
+                  <Label>Department</Label>
+                  <Select value={departmentId} onValueChange={(value) => setDepartmentId(value ?? "")} disabled={academicOptionsLoading || academicOptions.departments.length === 0} required>
+                    <SelectTrigger className="h-11 w-full min-w-0"><SelectValue placeholder={academicOptionsLoading ? "Loading departments…" : "Choose your department"} /></SelectTrigger>
+                    <SelectContent>
+                      {academicOptions.departments.map((department) => (
+                        <SelectItem key={department.id} value={department.id}>{department.name} · {department.code}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!academicOptionsLoading && institutionId && academicOptions.departments.length === 0 ? <p className="text-xs text-muted-foreground">No active departments are configured for this institution yet.</p> : null}
                 </div>
               </>
             )}
