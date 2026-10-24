@@ -84,7 +84,7 @@ const BoxedRegister = () => {
         const result = await apiRequest<InstitutionResolution>("/institutions/resolve?email_domain=" + encodeURIComponent(emailDomain));
         if (cancelled) return;
         if (result.status === "matched" && result.institution) {
-          setInstitutionId(result.institution.id); setInstitutionName(result.institution.name); setVerifiedDomainMatch(true); setInstitutionStatus("matched"); setShowInstitutionPicker(false);
+          setInstitutionId(String(result.institution.id)); setInstitutionName(result.institution.name); setVerifiedDomainMatch(true); setInstitutionStatus("matched"); setShowInstitutionPicker(false);
         } else {
           setInstitutionId(""); setInstitutionName(""); setVerifiedDomainMatch(false); setInstitutionStatus("fallback"); setShowInstitutionPicker(true);
         }
@@ -103,7 +103,7 @@ const BoxedRegister = () => {
       try {
         const q = institutionSearch.trim();
         const result = await apiRequest<{ items: InstitutionOption[] }>("/institutions/public" + (q ? "?q=" + encodeURIComponent(q) : ""));
-        if (!cancelled) setInstitutions(result.items);
+        if (!cancelled) setInstitutions(result.items.map((item) => ({ ...item, id: String(item.id), name: String(item.name ?? "") })));
       } catch { if (!cancelled) setInstitutions([]); }
     }, 200);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -204,20 +204,20 @@ const BoxedRegister = () => {
       return;
     }
 
-    const common = { email: submittedEmail, password, full_name: fullName, institution_id: institutionId };
+    const common = { email: submittedEmail, password, full_name: fullName, institution_id: String(institutionId) };
     const payload = role === "student"
       ? {
           ...common,
           enrollment_number: String(form.get("enrollment_number") ?? "").trim(),
-          school_id: schoolId,
-          department_id: departmentId,
-          programme_id: programmeId,
+          school_id: String(schoolId),
+          department_id: String(departmentId),
+          programme_id: String(programmeId),
         }
       : {
           ...common,
           employee_code: String(form.get("employee_code") ?? "").trim(),
-          school_id: schoolId,
-          department_id: departmentId,
+          school_id: String(schoolId),
+          department_id: String(departmentId),
           designation: String(form.get("designation") ?? "").trim(),
         };
 
@@ -342,7 +342,7 @@ const BoxedRegister = () => {
                   <Input id="institution-search" value={institutionSearch} onChange={(event) => setInstitutionSearch(event.target.value)} placeholder="Search active institutions…" autoComplete="off" />
                   <div className="max-h-48 overflow-y-auto rounded-md border p-1" role="listbox" aria-label="Institutions">
                     {institutions.length ? institutions.map((institution) => (
-                      <Button key={institution.id} type="button" variant="ghost" role="option" aria-selected={institutionId === institution.id} onClick={() => { setInstitutionId(institution.id); setInstitutionName(institution.name); setVerifiedDomainMatch(false); setInstitutionStatus("matched"); setShowInstitutionPicker(false); setInstitutionSearch(""); }} className="flex h-auto w-full items-center justify-start rounded-sm px-3 py-2 text-left text-sm font-normal">
+                      <Button key={institution.id} type="button" variant="ghost" role="option" aria-selected={institutionId === institution.id} onClick={() => { setInstitutionId(String(institution.id)); setInstitutionName(institution.name); setVerifiedDomainMatch(false); setInstitutionStatus("matched"); setShowInstitutionPicker(false); setInstitutionSearch(""); }} className="flex h-auto w-full items-center justify-start rounded-sm px-3 py-2 text-left text-sm font-normal">
                         <span className="min-w-0 flex-1 truncate">{institution.name}</span>
                         {institutionId === institution.id ? <CheckCircle2 aria-hidden="true" className="ml-2 size-4" /> : null}
                       </Button>
