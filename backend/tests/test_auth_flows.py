@@ -207,7 +207,7 @@ async def test_public_academic_options_returns_empty_for_active_institution_with
     http, _ = client
     response = await http.get("/api/v1/institutions/public/institution-2/academic-options")
     assert response.status_code == 200
-    assert response.json() == {"schools": [], "departments": [], "cohorts": []}
+    assert response.json() == {"schools": [], "departments": [], "programmes": [], "cohorts": []}
 
 
 @pytest.mark.asyncio
