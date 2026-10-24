@@ -1,8 +1,9 @@
 from logging.config import fileConfig
+import os
 
 from alembic import context
 from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
@@ -16,6 +17,12 @@ target_metadata = Base.metadata
 
 
 def database_url(drivername: str) -> URL:
+    # Allow isolated migration tests and one-off migration tooling to provide an
+    # explicit URL without mutating the application's normal DB_* configuration.
+    override = os.getenv("ALEMBIC_DATABASE_URL")
+    if override:
+        return make_url(override)
+
     return URL.create(
         drivername=drivername,
         username=settings.DB_USER,
