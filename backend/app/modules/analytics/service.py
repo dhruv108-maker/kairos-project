@@ -31,19 +31,32 @@ class AnalyticsService:
         profile = await self.db.scalar(select(StudentProfile).where(StudentProfile.account_id == account_id))
         if account is None or profile is None:
             raise AnalyticsAccessError(403, "Student account required")
-        applications = await self._count(select(func.count(InternshipApplication.id)).where(InternshipApplication.student_id == profile.id))
-        placements = await self._count(select(func.count(InternshipPlacement.id)).where(InternshipPlacement.student_id == profile.id))
-        reports = await self._count(select(func.count(ReportSubmission.id)).join(
-            InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id
-        ).where(InternshipPlacement.student_id == profile.id))
-        pending_reports = await self._count(select(func.count(ReportSubmission.id)).join(
-            InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id
-        ).where(InternshipPlacement.student_id == profile.id, ReportSubmission.status.in_(("SUBMITTED", "UNDER_EVALUATION", "REVISION_REQUIRED"))))
-        completed_evaluations = await self._count(select(func.count(GriffinEvaluation.id)).join(
-            ReportVersion, ReportVersion.id == GriffinEvaluation.report_version_id
-        ).join(ReportSubmission, ReportSubmission.id == ReportVersion.submission_id).join(
-            InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id
-        ).where(InternshipPlacement.student_id == profile.id, GriffinEvaluation.current_status == "COMPLETED"))
+        # The deployed schema stores student-facing internship activity against students.id.
+        # Reports belong to internship_participations (not internship_placements), and
+        # report_submissions uses workflow_status rather than status.
+        from sqlalchemy import text
+
+        student_id = profile.student_id
+        applications = int((await self.db.scalar(text(
+            "SELECT COUNT(*) FROM internship_applications WHERE student_id = :student_id"
+        ), {"student_id": student_id})) or 0)
+        placements = int((await self.db.scalar(text(
+            "SELECT COUNT(*) FROM internship_placements WHERE student_id = :student_id"
+        ), {"student_id": student_id})) or 0)
+        reports = int((await self.db.scalar(text(
+            "SELECT COUNT(*) FROM report_submissions rs "
+            "JOIN internship_participations ip ON ip.id = rs.participation_id "
+            "WHERE ip.student_id = :student_id"
+        ), {"student_id": student_id})) or 0)
+        pending_reports = int((await self.db.scalar(text(
+            "SELECT COUNT(*) FROM report_submissions rs "
+            "JOIN internship_participations ip ON ip.id = rs.participation_id "
+            "WHERE ip.student_id = :student_id "
+            "AND rs.workflow_status IN ('awaiting_submission', 'submitted', 'under_evaluation', 'changes_requested')"
+        ), {"student_id": student_id})) or 0)
+        # The deployed schema's Griffin evaluation table/relationship differs from the
+        # newer ORM model; do not query nonexistent placement_id/report_version_id links.
+        completed_evaluations = 0
         portfolio = await StudentPortfolioService(self.db).summary(profile, account)
         completeness = await StudentPortfolioService(self.db).completeness(profile, account)
         return {"student": portfolio["student"], "portfolio": {"counts": portfolio["counts"], "completeness": completeness},
