@@ -8,7 +8,6 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import FullLogo from "src/layouts/full/shared/logo/FullLogo";
 
 const steps = [
