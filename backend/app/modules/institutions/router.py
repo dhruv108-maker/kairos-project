@@ -73,48 +73,54 @@ async def resolve_institution_domain(
 
 @router.get("/public/{institution_id}/academic-options")
 async def public_academic_options(institution_id: str, db: DbSession):
-    """Expose only the active academic choices needed by public registration."""
+    """Return institution-scoped active academic choices using the deployed catalogue status fields."""
     institution = await db.get(Institution, institution_id)
     if institution is None or (institution.status or "").upper() != "ACTIVE":
         raise HTTPException(status_code=404, detail="Active institution not found")
-    schools = (await db.execute(select(School.id, School.name, School.code)
-        .where(School.institution_id == institution_id, School.is_active.is_(True))
-        .order_by(School.name.asc()))).all()
+
+    # Do not make optional cohort metadata a prerequisite for the registration form.
+    # Legacy/deployed cohorts and academic_years may not have the newer cohort model
+    # columns, while registration deliberately assigns cohorts after signup.
+    schools = (await db.execute(
+        select(School.id, School.name, School.code)
+        .where(
+            School.institution_id == institution_id,
+            School.is_active.is_(True),
+            func.upper(School.status) == "ACTIVE",
+        )
+        .order_by(School.name.asc())
+    )).all()
     departments = (await db.execute(
         select(Department.id, Department.name, Department.code, Department.school_id)
         .join(School, School.id == Department.school_id)
-        .where(School.institution_id == institution_id, School.is_active.is_(True), Department.is_active.is_(True))
+        .where(
+            School.institution_id == institution_id,
+            School.is_active.is_(True),
+            func.upper(School.status) == "ACTIVE",
+            Department.is_active.is_(True),
+            func.upper(Department.status) == "ACTIVE",
+        )
         .order_by(Department.name.asc())
     )).all()
     programmes = (await db.execute(
         select(Programme.id, Programme.name, Programme.code, Programme.department_id)
         .join(Department, Department.id == Programme.department_id)
         .join(School, School.id == Department.school_id)
-        .where(School.institution_id == institution_id, School.is_active.is_(True), Department.is_active.is_(True), Programme.is_active.is_(True))
-        .order_by(Department.name.asc(), Programme.name.asc())
-    )).all()
-    cohorts = (await db.execute(
-        select(Cohort.id, Cohort.name, Programme.name, Department.name, AcademicYear.year_label, Cohort.graduation_year)
-        .join(Programme, Programme.id == Cohort.programme_id)
-        .join(Department, Department.id == Programme.department_id)
-        .join(School, School.id == Department.school_id)
-        .join(AcademicYear, AcademicYear.id == Cohort.academic_year_id)
         .where(
             School.institution_id == institution_id,
             School.is_active.is_(True),
+            func.upper(School.status) == "ACTIVE",
             Department.is_active.is_(True),
-            Programme.is_active.is_(True),
-            AcademicYear.is_current.is_(True),
-            AcademicYear.institution_id == institution_id,
-            Cohort.is_active.is_(True),
+            func.upper(Department.status) == "ACTIVE",
+            func.upper(Programme.status) == "ACTIVE",
         )
-        .order_by(Cohort.graduation_year.desc(), Cohort.name.asc())
+        .order_by(Department.name.asc(), Programme.name.asc())
     )).all()
     return {
         "schools": [{"id": str(row.id), "name": row.name, "code": row.code} for row in schools],
         "departments": [{"id": str(row.id), "name": row.name, "code": row.code, "school_id": str(row.school_id)} for row in departments],
         "programmes": [{"id": str(row.id), "name": row.name, "code": row.code, "department_id": str(row.department_id)} for row in programmes],
-        "cohorts": [{"id": row[0], "name": row[1], "programme_name": row[2], "department_name": row[3], "academic_year": row[4], "graduation_year": row[5]} for row in cohorts],
+        "cohorts": [],
     }
 
 @router.get("/{institution_id}/domains")
