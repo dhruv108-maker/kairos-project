@@ -117,7 +117,8 @@ export default function JobsHub() {
   const [error, setError] = useState("");
   const [detailError, setDetailError] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [applying, setApplying] = useState(false);\n  const [applyMessage, setApplyMessage] = useState("");
+  const [applying, setApplying] = useState(false);
+  const [applyMessage, setApplyMessage] = useState("");
   const [requestKey, setRequestKey] = useState(0);
 
   const loadJobs = useCallback(async (signal: AbortSignal) => {
@@ -179,10 +180,26 @@ export default function JobsHub() {
 
   const clearFilters = () => { setQuery(""); setLocation(""); setKind(""); setWorkMode(""); setOffset(0); };
   const submitSearch = (event: FormEvent) => { event.preventDefault(); setOffset(0); };
-  const retry = () => setRequestKey((value) => value + 1);\n  const applyToOpportunity = async () => {\n    if (!currentJob) return;\n    setApplying(true);\n    setApplyMessage("");\n    try {\n      await apiRequest(`/internships/opportunities/${encodeURIComponent(currentJob.id)}/applications`, { method: "POST" });\n      setApplyMessage("Your application was submitted successfully.");\n    } catch (err) {\n      if (err instanceof ApiError && err.status === 401) {\n        setApplyMessage("Sign in with your student account to apply.");\n      } else if (err instanceof ApiError && err.status === 409) {\n        setApplyMessage("You have already applied to this opportunity.");\n      } else {\n        setApplyMessage(err instanceof Error ? err.message : "We could not submit your application.");\n      }\n    } finally { setApplying(false); }\n  };
   const currentJob = detail || data?.items.find((item) => item.id === selectedId) || null;
   const companyName = currentJob?.company?.name || "Employer";
-
+  const retry = () => setRequestKey((value) => value + 1);
+  const applyToOpportunity = async () => {
+    if (!currentJob) return;
+    setApplying(true);
+    setApplyMessage("");
+    try {
+      await apiRequest(`/internships/opportunities/${encodeURIComponent(currentJob.id)}/applications`, { method: "POST" });
+      setApplyMessage("Your application was submitted successfully.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setApplyMessage("Sign in with your student account to apply.");
+      } else if (err instanceof ApiError && err.status === 409) {
+        setApplyMessage("You have already applied to this opportunity.");
+      } else {
+        setApplyMessage(err instanceof Error ? err.message : "We could not submit your application.");
+      }
+    } finally { setApplying(false); }
+  };
   return (
     <main className="min-h-screen bg-[#fafbfc] text-slate-900">
       <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-7 sm:px-6 lg:px-8">
