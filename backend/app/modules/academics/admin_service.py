@@ -42,8 +42,8 @@ class AcademicAdminService:
             Account, Account.id == StudentProfile.account_id
         ).join(Department, Department.id == StudentProfile.department_id).join(
             School, School.id == Department.school_id
-        ).outerjoin(Programme, Programme.department_id == Department.id).outerjoin(
-            Cohort, Cohort.programme_id == Programme.id
+        ).outerjoin(Cohort, Cohort.id == StudentProfile.cohort_id).outerjoin(
+            Programme, Programme.id == Cohort.programme_id
         ).where(School.institution_id == institution_id)
         if search:
             term = "%" + search.strip() + "%"
@@ -57,8 +57,8 @@ class AcademicAdminService:
             Account, Account.id == StudentProfile.account_id
         ).join(Department, Department.id == StudentProfile.department_id).join(
             School, School.id == Department.school_id
-        ).outerjoin(Programme, Programme.department_id == Department.id).outerjoin(
-            Cohort, Cohort.programme_id == Programme.id
+        ).outerjoin(Cohort, Cohort.id == StudentProfile.cohort_id).outerjoin(
+            Programme, Programme.id == Cohort.programme_id
         ).where(School.institution_id == institution_id, StudentProfile.id == student_id)
         row = (await self.db.execute(query)).first()
         if row is None:
