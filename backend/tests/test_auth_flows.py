@@ -176,6 +176,7 @@ async def test_faculty_verification_does_not_bypass_approval(client):
         "email": "faculty@example.com",
         "password": "a secure faculty password 42",
         "full_name": "Faculty One",
+        "institution_id": "institution-1",
         "employee_code": "FAC-001",
         "department_id": "department-1",
         "designation": "Lecturer",
