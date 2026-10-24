@@ -29,6 +29,7 @@ const BoxedRegister = () => {
   const [email, setEmail] = useState("");
   const [institutionId, setInstitutionId] = useState("");
   const [institutionName, setInstitutionName] = useState("");
+  const [verifiedDomainMatch, setVerifiedDomainMatch] = useState(false);
   const [institutionSearch, setInstitutionSearch] = useState("");
   const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
   const [institutionStatus, setInstitutionStatus] = useState<"idle" | "loading" | "matched" | "fallback" | "error">("idle");
@@ -55,11 +56,12 @@ const BoxedRegister = () => {
 
   useEffect(() => {
     if (!emailDomain) {
-      setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("idle"); setShowInstitutionPicker(false);
+      setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("idle"); setVerifiedDomainMatch(false); setShowInstitutionPicker(false);
       return;
     }
     setInstitutionId("");
     setInstitutionName("");
+    setVerifiedDomainMatch(false);
     setInstitutionStatus("loading");
     let cancelled = false;
     const timer = window.setTimeout(async () => {
@@ -67,13 +69,13 @@ const BoxedRegister = () => {
         const result = await apiRequest<InstitutionResolution>("/institutions/resolve?email_domain=" + encodeURIComponent(emailDomain));
         if (cancelled) return;
         if (result.status === "matched" && result.institution) {
-          setInstitutionId(result.institution.id); setInstitutionName(result.institution.name); setInstitutionStatus("matched"); setShowInstitutionPicker(false);
+          setInstitutionId(result.institution.id); setInstitutionName(result.institution.name); setVerifiedDomainMatch(true); setInstitutionStatus("matched"); setShowInstitutionPicker(false);
         } else {
-          setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("fallback"); setShowInstitutionPicker(true);
+          setInstitutionId(""); setInstitutionName(""); setVerifiedDomainMatch(false); setInstitutionStatus("fallback"); setShowInstitutionPicker(true);
         }
       } catch {
         if (cancelled) return;
-        setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("error"); setShowInstitutionPicker(true);
+        setInstitutionId(""); setInstitutionName(""); setVerifiedDomainMatch(false); setInstitutionStatus("error"); setShowInstitutionPicker(true);
       }
     }, 350);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -91,6 +93,10 @@ const BoxedRegister = () => {
     }, 200);
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [showInstitutionPicker, institutionSearch]);
+
+  useEffect(() => {
+    setCohortId("");
+  }, [email]);
 
   useEffect(() => {
     setAcademicOptions({ departments: [], cohorts: [] });
@@ -148,6 +154,7 @@ const BoxedRegister = () => {
     }
 
     if (!institutionId) { setError("Select your institution before continuing."); return; }
+    if (!verifiedDomainMatch) { setError("Your institution email domain is not verified. Contact your institution administrator to verify it before registering."); return; }
     if (role === "student" && !cohortId) { setError("Choose your cohort from the institution’s academic records."); return; }
     if (role === "faculty" && !departmentId) { setError("Choose your department from the institution’s academic records."); return; }
 
@@ -231,7 +238,7 @@ const BoxedRegister = () => {
             {isResending ? "Requesting email…" : "Resend verification email"}
           </Button>
           <Button type="button" className="h-11 w-full whitespace-normal" onClick={() => navigate("/auth/auth2/login")}>Continue to sign in <ArrowRight aria-hidden="true" className="ml-2 size-4" /></Button>
-          <button type="button" onClick={() => { setMessage(""); setError(""); setVerificationSent(false); setActivationPending(false); setEmail(""); setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("idle"); setShowInstitutionPicker(false); }} className="w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+          <button type="button" onClick={() => { setMessage(""); setError(""); setVerificationSent(false); setActivationPending(false); setEmail(""); setInstitutionId(""); setInstitutionName(""); setVerifiedDomainMatch(false); setInstitutionStatus("idle"); setShowInstitutionPicker(false); }} className="w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
             Register another account
           </button>
           {error && <Alert variant="destructive" role="alert" aria-live="polite" className="min-w-0 break-words"><AlertDescription>{error}</AlertDescription></Alert>}
@@ -277,7 +284,7 @@ const BoxedRegister = () => {
                 <div className="flex min-w-0 items-center gap-2 rounded-md border border-emerald-600/30 bg-emerald-600/5 px-3 py-2.5">
                   <CheckCircle2 aria-hidden="true" className="size-4 shrink-0 text-emerald-700" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{institutionName}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setInstitutionId(""); setInstitutionName(""); setShowInstitutionPicker(true); setInstitutionSearch(""); }}>Change</Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setInstitutionId(""); setInstitutionName(""); setVerifiedDomainMatch(false); setShowInstitutionPicker(true); setInstitutionSearch(""); }}>Change</Button>
                 </div>
               ) : null}
               {institutionStatus === "fallback" ? <p className="text-xs text-muted-foreground">No unique match found. Select your institution below.</p> : null}
@@ -287,7 +294,7 @@ const BoxedRegister = () => {
                   <Input id="institution-search" value={institutionSearch} onChange={(event) => setInstitutionSearch(event.target.value)} placeholder="Search active institutions…" autoComplete="off" />
                   <div className="max-h-48 overflow-y-auto rounded-md border p-1" role="listbox" aria-label="Institutions">
                     {institutions.length ? institutions.map((institution) => (
-                      <Button key={institution.id} type="button" variant="ghost" role="option" aria-selected={institutionId === institution.id} onClick={() => { setInstitutionId(institution.id); setInstitutionName(institution.name); setInstitutionStatus("matched"); setShowInstitutionPicker(false); setInstitutionSearch(""); }} className="flex h-auto w-full items-center justify-start rounded-sm px-3 py-2 text-left text-sm font-normal">
+                      <Button key={institution.id} type="button" variant="ghost" role="option" aria-selected={institutionId === institution.id} onClick={() => { setInstitutionId(institution.id); setInstitutionName(institution.name); setVerifiedDomainMatch(false); setInstitutionStatus("matched"); setShowInstitutionPicker(false); setInstitutionSearch(""); }} className="flex h-auto w-full items-center justify-start rounded-sm px-3 py-2 text-left text-sm font-normal">
                         <span className="min-w-0 flex-1 truncate">{institution.name}</span>
                         {institutionId === institution.id ? <CheckCircle2 aria-hidden="true" className="ml-2 size-4" /> : null}
                       </Button>
