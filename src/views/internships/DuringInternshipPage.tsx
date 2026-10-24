@@ -634,8 +634,18 @@ export default function DuringInternshipPage() {
             )}
 
             {!isStudent && !selectedPlacement && <EmptyState title="Select an assigned placement" description="Choose one of the placements in Overview to inspect its work logs." />}
+            <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="log-status-filter">Status</Label>
+                <NativeSelect id="log-status-filter" className="w-full" value={logStatusFilter} onChange={(event) => setLogStatusFilter(event.target.value)}>
+                  <option value="ALL">All statuses</option><option value="DRAFT">Draft</option><option value="SUBMITTED">Submitted</option>
+                </NativeSelect>
+              </div>
+              <div className="space-y-2"><Label htmlFor="log-date-from">From date</Label><Input id="log-date-from" type="date" value={logDateFrom} max={logDateTo || undefined} onChange={(event) => setLogDateFrom(event.target.value)} /></div>
+              <div className="space-y-2"><Label htmlFor="log-date-to">To date</Label><Input id="log-date-to" type="date" value={logDateTo} min={logDateFrom || undefined} onChange={(event) => setLogDateTo(event.target.value)} /></div>
+            </div>
             {visibleLogs.length === 0 ? (
-              <EmptyState title={isStudent ? "No work logs yet" : "No work logs for this placement"} description={isStudent ? "Create a draft above to start documenting your internship activity." : "Submitted work logs will appear here when the student records and submits them."} />
+              <EmptyState title={allVisibleLogs.length === 0 ? (isStudent ? "No work logs yet" : "No work logs for this placement") : "No work logs match these filters"} description={allVisibleLogs.length === 0 ? (isStudent ? "Create a draft above to start documenting your internship activity." : "Submitted work logs will appear here when the student records and submits them.") : "Adjust the status or date range to see other logs."} />
             ) : (
               <div className="space-y-3">
                 {visibleLogs.map((item) => {
