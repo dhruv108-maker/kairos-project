@@ -3,6 +3,8 @@ from alembic.config import Config
 from sqlalchemy import Column, MetaData, String, Table, create_engine, inspect, text as sa_text
 from pathlib import Path
 
+from app.models import Base, Institution
+
 def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_path, monkeypatch):
     database_url = f"sqlite:///{tmp_path / 'migration.db'}"
     monkeypatch.setenv("ALEMBIC_DATABASE_URL", database_url)
@@ -58,3 +60,17 @@ def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_
         }.intersection(tables_after_downgrade)
     finally:
         engine.dispose()
+
+
+def test_institution_primary_and_foreign_key_types_follow_string_contract():
+    assert isinstance(Institution.__table__.c.id.type, String)
+    references = []
+    for table in Base.metadata.tables.values():
+        for column in table.columns:
+            for foreign_key in column.foreign_keys:
+                if foreign_key.target_fullname == "institutions.id":
+                    references.append(f"{table.name}.{column.name}")
+                    assert isinstance(column.type, String), (
+                        f"{table.name}.{column.name} must use the same string type as institutions.id"
+                    )
+    assert references, "Expected institution foreign-key relationships to be registered in ORM metadata"
