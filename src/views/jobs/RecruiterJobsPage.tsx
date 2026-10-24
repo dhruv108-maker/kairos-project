@@ -60,8 +60,8 @@ export default function RecruiterJobsPage() {
     : location.pathname.endsWith("/create") ? "create"
     : location.pathname.endsWith("/edit") || /\/jobs\/[^/]+\/edit$/.test(location.pathname) ? "edit"
     : /\/applications\/[^/]+$/.test(location.pathname) ? "application-detail" : "list";
-  const selectedJobId = params.jobId || (section === "edit" ? location.pathname.split("/").at(-2) : undefined);
-  const selectedApplicationId = params.applicationId || (section === "application-detail" ? location.pathname.split("/").at(-1) : undefined);
+  const selectedJobId = params.jobId || (section === "edit" ? location.pathname.split("/")[location.pathname.split("/").length - 2] : undefined);
+  const selectedApplicationId = params.applicationId || (section === "application-detail" ? location.pathname.split("/")[location.pathname.split("/").length - 1] : undefined);
   const org = orgs.find(item => item.id === orgId);
 
   const loadOrgs = useCallback(async () => {
