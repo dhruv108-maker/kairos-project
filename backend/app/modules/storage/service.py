@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.academic import Cohort, Department, FacultyProfile, Programme, School, StudentProfile
+from app.models.academic import Cohort, Department, Programme, School, StudentProfile
 from app.models.evaluation import ReportSubmission, ReportVersion
 from app.models.internship import InternshipPlacement
 from app.models.portfolio import StudentResume
@@ -39,13 +39,49 @@ class StorageService:
         self.root = (root or settings.VPS_STORAGE_PATH).expanduser().resolve()
 
     async def _institution_for_account(self, account_id: str) -> str | None:
-        institution_id = await self.db.scalar(select(School.institution_id).join(Department, Department.school_id == School.id)
-            .join(Programme, Programme.department_id == Department.id).join(Cohort, Cohort.programme_id == Programme.id)
-            .join(StudentProfile, StudentProfile.cohort_id == Cohort.id).where(StudentProfile.account_id == account_id))
+        """Resolve an institution without requiring every optional profile table to exist.
+
+        Student accounts can be linked to their department/programme before cohort
+        assignment. Resolve those canonical relationships first; the storage upload
+        itself must remain usable when an optional faculty profile table has not yet
+        been deployed to an older database.
+        """
+        # Signup establishes department/programme affiliation before a cohort may
+        # exist, so don't make cohort membership a prerequisite for file uploads.
+        institution_id = await self.db.scalar(
+            select(School.institution_id)
+            .join(Department, Department.school_id == School.id)
+            .join(StudentProfile, StudentProfile.department_id == Department.id)
+            .where(StudentProfile.account_id == account_id)
+        )
         if institution_id is not None:
             return institution_id
-        return await self.db.scalar(select(School.institution_id).join(Department, Department.school_id == School.id)
-            .join(FacultyProfile, FacultyProfile.department_id == Department.id).where(FacultyProfile.account_id == account_id))
+
+        institution_id = await self.db.scalar(
+            select(School.institution_id)
+            .join(Department, Department.school_id == School.id)
+            .join(Programme, Programme.department_id == Department.id)
+            .join(StudentProfile, StudentProfile.programme_id == Programme.id)
+            .where(StudentProfile.account_id == account_id)
+        )
+        if institution_id is not None:
+            return institution_id
+
+        institution_id = await self.db.scalar(
+            select(School.institution_id)
+            .join(Department, Department.school_id == School.id)
+            .join(Programme, Programme.department_id == Department.id)
+            .join(Cohort, Cohort.programme_id == Programme.id)
+            .join(StudentProfile, StudentProfile.cohort_id == Cohort.id)
+            .where(StudentProfile.account_id == account_id)
+        )
+        if institution_id is not None:
+            return institution_id
+
+        # Institution attribution is audit metadata, not an upload prerequisite.
+        # Do not query FacultyProfile here: older deployed schemas may not yet have
+        # faculty_profiles, and that must not turn an otherwise valid upload into 500.
+        return None
 
     def _safe_path(self, file_path: str) -> Path:
         path = (self.root / file_path).resolve()
