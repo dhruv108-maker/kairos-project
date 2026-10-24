@@ -1,32 +1,20 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-
 const registration = readFileSync("src/views/auth/auth2/register/index.tsx", "utf8");
 const institutionRouter = readFileSync("backend/app/modules/institutions/router.py", "utf8");
 const authRouter = readFileSync("backend/app/api/auth.py", "utf8");
-
-// Cohort IDs are API-backed form values, never free-text fields in signup.
-assert.doesNotMatch(registration, /<Input[^>]*(?:id|name)=["']cohort_id["']/i);
-assert.doesNotMatch(registration, /<Input[^>]*(?:cohort\s*id|cohort_id)/i);
-assert.doesNotMatch(registration, /(?:enter|type|obtain|ask for)\s+(?:your\s+)?cohort\s*id/i);
-assert.match(registration, /<Select value=\{cohortId\}/);
-assert.match(registration, /<SelectItem key=\{cohort\.id\} value=\{cohort\.id\}>\{cohort\.name\}/);
-assert.match(registration, /cohort_id:\s*cohortId/);
-
-// Only fetch choices after exact verified-domain resolution, cancel stale requests,
-// and discard any selected ID absent from the latest API response.
-assert.match(registration, /if \(!institutionId \|\| !verifiedDomainMatch\)/);
-assert.match(registration, /return \(\) => \{ cancelled = true; \}/);
-assert.match(registration, /setCohortId\(\(selected\) => result\.cohorts\.some/);
-assert.match(registration, /Retry loading cohorts/);
-assert.match(registration, /contact your institution administrator/i);
-
-// Backend options are scoped to active institution structures, active cohorts,
-// and the current academic year; registration repeats those checks independently.
-assert.match(institutionRouter, /AcademicYear\.is_current\.is_\(True\)/);
-assert.match(institutionRouter, /Cohort\.is_active\.is_\(True\)/);
-assert.match(authRouter, /Cohort\.id == payload\.cohort_id/);
-assert.match(authRouter, /AcademicYear\.is_current\.is_\(True\)/);
-assert.match(authRouter, /Cohort\.is_active\.is_\(True\)/);
-
-console.log("Registration cohort selector acceptance checks passed.");
+const schemas = readFileSync("backend/app/api/schemas.py", "utf8");
+assert.match(registration, /<Label>School \/ Faculty<\/Label>/);
+assert.match(registration, /<Label>Department<\/Label>/);
+assert.match(registration, /selectedDepartments\.map\(\(department\)/);
+assert.match(registration, /school_id: schoolId/);
+assert.match(registration, /department_id: departmentId/);
+assert.doesNotMatch(registration, /<Input[^>]*(?:id|name)=[\"'](?:school_id|department_id|cohort_id)[\"']/i);
+assert.doesNotMatch(registration, /<Label>Cohort<\/Label>/);
+assert.match(registration, /Your institution can assign your cohort after registration/);
+assert.match(institutionRouter, /"schools": \[\{"id": str\(row\.id\), "name": row\.name, "code": row\.code\} for row in schools\]/);
+assert.match(institutionRouter, /"school_id": str\(row\.school_id\)/);
+assert.match(authRouter, /Department\.id == payload\.department_id/);
+assert.match(authRouter, /School\.id == payload\.school_id/);
+assert.match(schemas, /cohort_id: str \| None = Field\(default=None/);
+console.log("Registration school/department selector acceptance checks passed.");
