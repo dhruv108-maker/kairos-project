@@ -1,6 +1,6 @@
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Column, MetaData, String, Table, create_engine, inspect
+from sqlalchemy import Column, MetaData, String, Table, create_engine, inspect, text as sa_text
 from pathlib import Path
 
 def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_path, monkeypatch):
@@ -12,13 +12,25 @@ def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_
     engine = create_engine(database_url)
     metadata = MetaData()
     Table("accounts", metadata, Column("id", String(36), primary_key=True))
+    legacy_cohorts = Table(
+        "cohorts", metadata,
+        Column("id", String(36), primary_key=True),
+        Column("name", String(100), nullable=False),
+    )
     metadata.create_all(engine)
+    with engine.begin() as connection:
+        connection.execute(legacy_cohorts.insert().values(id="legacy-cohort", name="Legacy cohort"))
 
     command.upgrade(config, "head")
     try:
         tables = set(inspect(engine).get_table_names())
         assert {"student_academic_records", "student_portfolio_entries", "student_resumes"} <= tables
         assert {"institution_domains"} <= tables
+        cohort_columns = {column["name"]: column for column in inspect(engine).get_columns("cohorts")}
+        assert cohort_columns["is_active"]["nullable"] is False
+        with engine.connect() as connection:
+            legacy = connection.execute(sa_text("SELECT id, name, is_active FROM cohorts WHERE id = 'legacy-cohort'")).one()
+        assert tuple(legacy) == ("legacy-cohort", "Legacy cohort", 0)
         assert {
             "institutions", "institution_memberships", "report_requirements", "institution_invitations",
             "employer_organizations", "employer_memberships", "employer_invitations",
