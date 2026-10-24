@@ -75,6 +75,17 @@ export interface ReportVersion {
   submitted_at: string | null;
 }
 
+export interface GriffinEvaluation {
+  id: string;
+  report_version_id: string;
+  griffin_project_id: string;
+  griffin_report_id: string;
+  griffin_job_id: string | null;
+  current_status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "RETRIED";
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 interface Items<T> { items: T[] }
 interface UploadFileResponse { id: string; original_name: string; file_size_bytes: number; mime_type: string; sha256_hash: string; created_at: string }
 
@@ -128,6 +139,14 @@ export const duringInternshipApi = {
     apiRequest<ReportSubmission>("/reports/" + encodeURIComponent(submissionId) + "/status", {
       method: "PATCH", body: JSON.stringify({ status, feedback_comments: feedbackComments || null }),
     }),
+  evaluationForVersion: (versionId: string) =>
+    apiRequest<{ item: GriffinEvaluation | null }>("/evaluations/report-versions/" + encodeURIComponent(versionId)),
+  requestEvaluation: (versionId: string, projectId: string, reportId: string) =>
+    apiRequest<GriffinEvaluation>("/evaluations/report-versions/" + encodeURIComponent(versionId), {
+      method: "POST", body: JSON.stringify({ griffin_project_id: projectId, griffin_report_id: reportId }),
+    }),
+  evaluationAttempts: (evaluationId: string) =>
+    apiRequest<{ items: Array<{ id: string; attempt_number: number; execution_status: string; error_message: string | null; started_at: string | null; completed_at: string | null }> }>("/evaluations/" + encodeURIComponent(evaluationId) + "/attempts"),
   uploadFile: async (file: File): Promise<UploadFileResponse> => {
     const body = new FormData();
     body.append("file", file);
