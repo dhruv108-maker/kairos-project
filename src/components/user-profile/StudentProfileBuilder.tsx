@@ -12,7 +12,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -231,7 +230,6 @@ export default function StudentProfileBuilder() {
     setEditingAcademicId(item.id);
     setAcademicForm(Object.fromEntries(Object.keys(blankAcademic).map((key) => [key, String(item[key as keyof AcademicEntry] ?? "")])) as typeof blankAcademic);
   };
-  const startNewEntry = (kind: PortfolioKind) => { setEntryKind(kind); setEditingEntryId(null); setEntryForm({ ...blankEntry }); setError(""); };
 
   if (!account?.roles.some((role) => role.toUpperCase() === "STUDENT")) {
     return <div className="mx-auto max-w-4xl p-6"><Card><CardContent className="p-6 text-sm text-muted-foreground">The student profile builder is available to authenticated student accounts.</CardContent></Card></div>;
