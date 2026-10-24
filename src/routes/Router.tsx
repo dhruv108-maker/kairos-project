@@ -41,6 +41,7 @@ const SolarIcon = Loadable(lazy(() => import('../views/icons/iconify')));
 const Login2 = Loadable(lazy(() => import('../views/auth/auth2/login')));
 
 const Register2 = Loadable(lazy(() => import('../views/auth/auth2/register')));
+const Onboarding = Loadable(lazy(() => import('../views/auth/onboarding')));
 const Onboarding = Loadable(lazy(() => import('../views/auth/auth2/onboarding')));
 
 const ForgotPassword2 = Loadable(lazy(() => import('../views/auth/auth2/forgot-password')));
@@ -84,6 +85,7 @@ const Router = [
     element: <BlankLayout />,
     children: [
       { path: '/auth/auth2/login', element: <Login2 /> },
+      { path: '/onboarding', element: <Onboarding /> },
 
       { path: '/auth/auth2/register', element: <Register2 /> },
       { path: '/onboarding', element: <Onboarding /> },
