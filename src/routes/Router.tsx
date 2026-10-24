@@ -3,6 +3,7 @@
 import { lazy } from 'react';
 import { Navigate, createBrowserRouter } from 'react-router';
 import Loadable from '../layouts/full/shared/loadable/Loadable';
+import RequireAuth from '@/components/auth/RequireAuth';
 
 /* ***Layouts**** */
 const FullLayout = Loadable(lazy(() => import('../layouts/full/FullLayout')));
@@ -50,7 +51,7 @@ const Maintainance = Loadable(lazy(() => import('../views/auth/maintenance')));
 const Router = [
   {
     path: '/',
-    element: <FullLayout />,
+    element: <RequireAuth><FullLayout /></RequireAuth>,
     children: [
       { path: '/', element: <ModernDashboard /> },
 
