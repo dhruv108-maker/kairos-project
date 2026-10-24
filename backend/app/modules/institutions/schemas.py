@@ -110,3 +110,4 @@ class CohortUpdate(BaseModel):
     graduation_year: int | None = Field(default=None, ge=2000, le=2200)
     programme_id: str | None = None
     academic_year_id: str | None = None
+    is_active: bool | None = None
