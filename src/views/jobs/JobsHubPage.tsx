@@ -41,7 +41,7 @@ type Opportunity = {
   created_at?: string | null;
   company?: Company | null;
 };
-type PageResult = { items: Opportunity[]; limit: number; offset: number };
+type PageResult = { items: Opportunity[]; limit: number; offset: number; hasMore?: boolean };
 type Application = {
   id: string;
   opportunity_id?: string;
@@ -67,7 +67,7 @@ const PAGE_SIZE = 12;
 const TYPES = [
   { label: "All opportunities", value: "" },
   { label: "Internships", value: "INTERNSHIP" },
-  { label: "Full-time jobs", value: "JOB" },
+  { label: "Jobs", value: "JOB" },
 ];
 const MODES = [
   { label: "Any workplace", value: "" },
@@ -261,11 +261,11 @@ export default function JobsHubPage() {
     if (location.trim()) search.set("location", location.trim());
     if (kind) search.set("opportunity_type", kind);
     if (mode) search.set("work_mode", mode);
-    search.set("limit", String(PAGE_SIZE));
+    search.set("limit", String(PAGE_SIZE + 1));
     search.set("offset", String(offset));
     try {
       const data = await apiRequest<PageResult>(`/jobs?${search.toString()}`, { signal });
-      setResult(data);
+      setResult({ ...data, items: data.items.slice(0, PAGE_SIZE), hasMore: data.items.length > PAGE_SIZE });
       setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : (data.items[0]?.id || ""));
     } catch (err) {
       if (signal?.aborted) return;
@@ -488,7 +488,7 @@ export default function JobsHubPage() {
           : result.items.map((job) => <OpportunityCard key={job.id} job={job} selected={job.id === selectedId} onSelect={() => { setSelectedId(job.id); if (window.matchMedia("(max-width: 1279px)").matches) navigate(`/jobs/${encodeURIComponent(job.id)}`); }} />)}
         <div className="flex items-center justify-between border-t border-slate-200 pt-4">
           <span className="text-xs text-slate-500">Page size {PAGE_SIZE}</span>
-          <div className="flex gap-2"><Button variant="outline" size="sm" disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}><ChevronLeft className="size-4" /> Previous</Button><Button variant="outline" size="sm" disabled={loading || result.items.length < PAGE_SIZE} onClick={() => setOffset(offset + PAGE_SIZE)}>Next <ChevronRight className="size-4" /></Button></div>
+          <div className="flex gap-2"><Button variant="outline" size="sm" disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}><ChevronLeft className="size-4" /> Previous</Button><Button variant="outline" size="sm" disabled={loading || !result.hasMore} onClick={() => setOffset(offset + PAGE_SIZE)}>Next <ChevronRight className="size-4" /></Button></div>
         </div>
       </section>
 
