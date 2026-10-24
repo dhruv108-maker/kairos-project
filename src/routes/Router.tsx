@@ -25,6 +25,7 @@ const BlogTable = Loadable(lazy(() => import('../views/apps/blog/manage-blog')))
 
 const Notes = Loadable(lazy(() => import('../views/apps/notes')));
 const JobsHub = Loadable(lazy(() => import('../views/apps/jobs')));
+const JobApplications = Loadable(lazy(() => import('../views/apps/jobs/applications')));
 
 const Tickets = Loadable(lazy(() => import('../views/apps/tickets')));
 const TicketCreate = Loadable(lazy(() => import('../views/apps/tickets/create')));
@@ -71,6 +72,7 @@ const Router = [
       { path: '/apps/notes', element: <Notes /> },    
       
       { path: '/jobs', element: <JobsHub /> },
+      { path: '/jobs/applications', element: <JobApplications /> },
 
       { path: '/apps/tickets', element: <Tickets /> },
       { path: '/apps/tickets/create', element: <TicketCreate /> },
