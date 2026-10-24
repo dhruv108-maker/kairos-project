@@ -5,6 +5,7 @@ const registration = readFileSync("src/views/auth/auth2/register/index.tsx", "ut
 const institutionRouter = readFileSync("backend/app/modules/institutions/router.py", "utf8");
 const authRouter = readFileSync("backend/app/api/auth.py", "utf8");
 const schemas = readFileSync("backend/app/api/schemas.py", "utf8");
+const apiClient = readFileSync("src/api/kairos-client.ts", "utf8");
 
 for (const field of ["School / Faculty", "Department", "Programme / Course"]) {
   assert.ok(registration.includes(field), `registration field missing: ${field}`);
@@ -14,6 +15,17 @@ for (const contract of ["school_id: schoolId", "department_id: departmentId", "p
 }
 assert.ok(registration.includes("selectedDepartments.map((department)"));
 assert.ok(registration.includes("selectedProgrammes.map((programme)"));
+assert.ok(registration.includes('String(institutionId)'), "institution ID must be serialized as a string");
+assert.ok(registration.includes('school_id: String(schoolId)'), "school ID must be serialized as a string");
+assert.ok(registration.includes('department_id: String(departmentId)'), "department ID must be serialized as a string");
+assert.ok(registration.includes('programme_id: String(programmeId)'), "programme ID must be serialized as a string");
+assert.ok(registration.includes('password !== confirmPassword'), "password confirmation must be checked locally");
+assert.ok(!registration.includes('confirm_password: confirmPassword'), "password confirmation must not be sent to the API");
+assert.ok(registration.includes("academicOptionLabel(school.name, school.code, school.id)"));
+assert.ok(registration.includes("academicOptionLabel(department.name, department.code, department.id)"));
+assert.ok(registration.includes("academicOptionLabel(programme.name, programme.code, programme.id)"));
+assert.ok(apiClient.includes("validationErrors: ApiValidationError[]"));
+assert.ok(apiClient.includes("location ? `${location}: ${item.msg}` : item.msg"), "validation errors must include their backend field location");
 assert.ok(!/name=["'](?:school_id|department_id|cohort_id)["']/.test(registration), "IDs must not be manually entered");
 assert.ok(registration.includes("Your institution can assign your cohort after registration"));
 assert.ok(registration.includes("academicOptionsErrorMessage"));
