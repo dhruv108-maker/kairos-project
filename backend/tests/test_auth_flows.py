@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -14,6 +16,7 @@ from app.core.security import create_token
 from app.main import app
 from app.models import Account, Base, Institution, InstitutionDomain, InstitutionMembership
 from app.models.academic import AcademicYear, Cohort, Department, Programme, School
+from app.modules.institutions.router import public_academic_options
 
 
 @pytest_asyncio.fixture
@@ -40,10 +43,21 @@ async def client(monkeypatch):
             InstitutionDomain(id="domain-1", institution_id=institution.id, normalized_domain="sagiros.edu.test", is_verified=True),
             InstitutionDomain(id="domain-example", institution_id=institution.id, normalized_domain="example.com", is_verified=True),
             InstitutionDomain(id="domain-example-test", institution_id=institution.id, normalized_domain="example.test", is_verified=True),
-            School(id="school-1", institution_id="institution-1", code="SAG", name="Sagiros"),
+            School(id="school-1", institution_id="institution-1", code="SAG", name="Sagiros", is_active=True),
+            School(id="school-inactive", institution_id="institution-1", code="SAG-OLD", name="Inactive School", is_active=False),
             Department(
                 id="department-1", school_id="school-1", code="CSE",
                 name="Computer Science", is_active=True,
+            ),
+            # Each inactive parent/department case is isolated so the public query's
+            # school and department activation predicates are both exercised.
+            Department(
+                id="department-inactive", school_id="school-1", code="OLD",
+                name="Inactive Department", is_active=False,
+            ),
+            Department(
+                id="department-under-inactive-school", school_id="school-inactive", code="HIST",
+                name="Department Under Inactive School", is_active=True,
             ),
             Programme(
                 id="programme-1", department_id="department-1", code="BTECH-CSE",
@@ -162,6 +176,23 @@ async def test_institution_lookup_and_student_registration_preserve_academic_rel
     assert profile.status_code == 200
     assert profile.json()["student"]["cohort_id"] == "cohort-1"
     assert profile.json()["account"]["full_name"] == "Institution Student"
+
+
+@pytest.mark.asyncio
+async def test_public_academic_options_surfaces_database_schema_errors():
+    db = AsyncMock()
+    db.get.return_value = Institution(
+        id="institution-1", name="Sagiros University", slug="sagiros-university",
+        status="ACTIVE", created_by_account_id="domain-admin",
+    )
+    db.execute.side_effect = OperationalError(
+        "SELECT schools.is_active",
+        {},
+        Exception("Unknown column 'schools.is_active' in 'where clause'"),
+    )
+
+    with pytest.raises(OperationalError, match="Unknown column"):
+        await public_academic_options("institution-1", db)
 
 
 @pytest.mark.asyncio
