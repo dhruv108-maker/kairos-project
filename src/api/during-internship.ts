@@ -1,4 +1,4 @@
-import { apiRequest } from "@/api/kairos-client";
+import { apiRequest, getAccessToken } from "@/api/kairos-client";
 
 export type PlacementStatus = "ONGOING" | "COMPLETED" | "TERMINATED";
 export type WorkLogStatus = "DRAFT" | "SUBMITTED";
@@ -105,7 +105,7 @@ export const duringInternshipApi = {
     apiRequest<WorkLog>(base + "/placements/" + encodeURIComponent(placementId) + "/work-logs", {
       method: "POST", body: JSON.stringify(payload),
     }),
-  updateWorkLog: (workLogId: string, payload: Partial<Pick<WorkLog, "work_date" | "duration_minutes" | "work_summary" | "tasks_completed" | "skills_used" | "challenges" | "learning_outcomes" | "next_steps">) =>
+  updateWorkLog: (workLogId: string, payload: Partial<Pick<WorkLog, "work_date" | "duration_minutes" | "work_summary" | "tasks_completed" | "skills_used" | "challenges" | "learning_outcomes" | "next_steps">>) =>
     apiRequest<WorkLog>(base + "/work-logs/" + encodeURIComponent(workLogId), {
       method: "PATCH", body: JSON.stringify(payload),
     }),
@@ -153,10 +153,10 @@ export const duringInternshipApi = {
     return apiRequest<UploadFileResponse>("/storage/upload", { method: "POST", body });
   },
   downloadFile: async (fileId: string): Promise<{ blob: Blob; filename: string }> => {
-    const apiBase = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\\/+$/, "");
+    const apiBase = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/+$/, "");
     const response = await fetch(apiBase + "/storage/" + encodeURIComponent(fileId), {
       headers: (() => {
-        const token = window.sessionStorage.getItem("kairos.access_token");
+        const token = getAccessToken();
         return token ? { Authorization: "Bearer " + token } : {};
       })(),
     });
