@@ -31,8 +31,8 @@ export default function AuthFrame({
           <div className="absolute inset-y-0 left-2/4 border-l border-white" />
           <div className="absolute inset-y-0 left-3/4 border-l border-white" />
         </div>
-        <Link to={brandHref} aria-label="Kairos home" className="relative z-10 inline-flex w-fit max-w-full items-center rounded-md bg-white px-3 py-2.5">
-          <FullLogo />
+        <Link to={brandHref} aria-label={brandHref === "/" ? "Kairos home" : "Kairos onboarding"} className="relative z-10 inline-flex w-fit max-w-full items-center rounded-md bg-white px-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+          <FullLogo linked={false} />
         </Link>
         <div className="relative z-10 min-w-0 max-w-xl py-16">
           <p className="mb-5 flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-zinc-400">
@@ -56,8 +56,8 @@ export default function AuthFrame({
 
       <section className="flex min-h-svh min-w-0 flex-col px-4 py-5 sm:px-8 sm:py-8 lg:min-h-screen lg:px-10 xl:px-16">
         <header className="flex min-w-0 items-center justify-between gap-3 lg:hidden">
-          <Link to={brandHref} aria-label="Kairos home" className="inline-flex min-w-0 max-w-[65%] items-center rounded-md border border-border bg-background px-2.5 py-2">
-            <FullLogo />
+          <Link to={brandHref} aria-label={brandHref === "/" ? "Kairos home" : "Kairos onboarding"} className="inline-flex min-w-0 max-w-[65%] items-center rounded-md border border-border bg-background px-2.5 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            <FullLogo linked={false} />
           </Link>
           <span className="text-right text-xs text-muted-foreground">Secure academic access</span>
         </header>
