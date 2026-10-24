@@ -1,11 +1,10 @@
-"""Restore the account display-name column expected by the ORM.
+"""Add the ORM account name column without losing legacy display names.
 
 Revision ID: 20261024_17
 Revises: 20261022_16
 
-This migration is safe to run against databases whose legacy accounts table
-predates the Account.full_name model field. Existing rows receive a stable
-fallback derived from their email address before the column becomes required.
+Existing account rows are preserved. When a legacy display_name column exists,
+its non-empty value is copied into full_name; email local-part is only a fallback.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -16,6 +15,24 @@ branch_labels = None
 depends_on = None
 
 
+def _backfill_full_name(columns: set[str]) -> None:
+    # Prefer the name already stored for the account. Keep the email-derived
+    # placeholder only for legacy schemas without a usable display_name.
+    name_sources = []
+    if "display_name" in columns:
+        name_sources.append("NULLIF(TRIM(display_name), '')")
+    if "email" in columns:
+        name_sources.append("NULLIF(TRIM(SUBSTRING_INDEX(email, '@', 1)), '')")
+    name_sources.append("CAST(id AS CHAR)")
+    fallback = ", ".join(name_sources)
+    op.execute(
+        sa.text(
+            f"UPDATE accounts SET full_name = COALESCE({fallback}) "
+            "WHERE full_name IS NULL OR TRIM(full_name) = ''"
+        )
+    )
+
+
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
@@ -24,46 +41,28 @@ def upgrade() -> None:
         return
 
     columns = {column["name"] for column in inspector.get_columns("accounts")}
-    # Migration tests may seed a minimal accounts(id) table only to satisfy
-    # foreign keys; it is not the application account schema and has no email
-    # from which to backfill a display name.
-    if "email" not in columns:
+    # Some migration tests seed a minimal accounts(id) table only to satisfy
+    # foreign keys; it is not the application account schema.
+    if "id" not in columns or "email" not in columns:
         return
 
     if "full_name" not in columns:
         op.add_column("accounts", sa.Column("full_name", sa.String(255), nullable=True))
-        # Do not discard existing accounts: use their email local-part as a
-        # deterministic placeholder until the user updates their profile.
-        op.execute(
-            sa.text(
-                "UPDATE accounts SET full_name = "
-                "COALESCE(NULLIF(TRIM(SUBSTRING_INDEX(email, '@', 1)), ''), id) "
-                "WHERE full_name IS NULL OR TRIM(full_name) = ''"
-            )
-        )
+
+    _backfill_full_name(columns | {"full_name"})
+
+    nullable = next(
+        column["nullable"]
+        for column in sa.inspect(bind).get_columns("accounts")
+        if column["name"] == "full_name"
+    )
+    if nullable:
         op.alter_column(
             "accounts",
             "full_name",
             existing_type=sa.String(255),
             nullable=False,
         )
-    else:
-        # Existing databases may already have the column but allow NULL values.
-        op.execute(
-            sa.text(
-                "UPDATE accounts SET full_name = "
-                "COALESCE(NULLIF(TRIM(SUBSTRING_INDEX(email, '@', 1)), ''), id) "
-                "WHERE full_name IS NULL OR TRIM(full_name) = ''"
-            )
-        )
-        nullable = next(column["nullable"] for column in inspector.get_columns("accounts") if column["name"] == "full_name")
-        if nullable:
-            op.alter_column(
-                "accounts",
-                "full_name",
-                existing_type=sa.String(255),
-                nullable=False,
-            )
 
 
 def downgrade() -> None:
