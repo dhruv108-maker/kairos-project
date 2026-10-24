@@ -21,7 +21,12 @@ assert.match(institutionRouter, /"programmes": \[\{"id": str\(row\.id\), "name":
 assert.doesNotMatch(institutionRouter, /select\(Programme\.id, Programme\.name, Programme\.code, Programme\.degree_level/);
 assert.doesNotMatch(institutionRouter, /"degree_level": row\.degree_level/);
 assert.match(registration, /academicOptionsErrorMessage/);
-assert.match(registration, /Retry loading academic options/);\nassert.doesNotMatch(registration, /programme\\.degree_level/);\nassert.match(registration, /academicOptionsError \\|\\| academicOptionsLoading/);
+assert.match(registration, /Retry loading academic options/);
+assert.doesNotMatch(registration, /programme\\.degree_level/);
+assert.match(registration, /isAcademicOptions/);
+assert.match(institutionRouter, /func\\.upper\\(Programme\\.status\\) == "ACTIVE"/);
+assert.doesNotMatch(institutionRouter, /Cohort\\.academic_year_id/);
+assert.match(institutionRouter, /"cohorts": \\[\\]/);
 assert.match(authRouter, /Department\.id == payload\.department_id/);
 assert.match(authRouter, /School\.id == payload\.school_id/);
 assert.match(schemas, /programme_id: str \| None = Field\(default=None/);
