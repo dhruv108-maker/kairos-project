@@ -56,7 +56,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 
 async def _account_public(db, account: Account) -> AccountPublic:
     return AccountPublic(
-        id=account.id,
+        id=str(account.id),
         email=account.email,
         full_name=account.full_name,
         phone_number=account.phone_number,
@@ -438,7 +438,7 @@ async def login(payload: LoginRequest, db: DbSession) -> AuthResponse:
     account.last_login_at = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()
     token = create_token(
-        account.id, "access", timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), token_version=account.token_version
+        str(account.id), "access", timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), token_version=account.token_version
     )
     return AuthResponse(
         access_token=token,
