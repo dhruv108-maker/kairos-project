@@ -54,6 +54,10 @@ async def client(monkeypatch):
                 id="cohort-1", programme_id="programme-1", academic_year_id="year-1",
                 name="B.Tech CSE 2026", graduation_year=2030, is_active=True,
             ),
+            Cohort(
+                id="cohort-inactive", programme_id="programme-1", academic_year_id="year-1",
+                name="B.Tech CSE 2025", graduation_year=2029, is_active=False,
+            ),
         ])
         await session.commit()
 
@@ -289,3 +293,32 @@ async def test_logout_revokes_all_previously_issued_access_tokens(client):
     assert (await http.get("/api/v1/students/me", headers=headers)).status_code == 200
     assert (await http.post("/api/v1/auth/logout", headers=headers)).status_code == 200
     assert (await http.get("/api/v1/students/me", headers=headers)).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_inactive_cohort_is_hidden_and_cannot_create_student_account(client):
+    http, sent_tokens = client
+    options = await http.get("/api/v1/institutions/public/institution-1/academic-options")
+    assert options.status_code == 200
+    assert [item["id"] for item in options.json()["cohorts"]] == ["cohort-1"]
+
+    rejected = await http.post("/api/v1/auth/register/student", json={
+        "email": "inactive-cohort@sagiros.edu.test",
+        "password": "inactive cohort password 42",
+        "full_name": "Inactive Cohort Student",
+        "institution_id": "institution-1",
+        "enrollment_number": "INACTIVE-ENR-01",
+        "cohort_id": "cohort-inactive",
+    })
+    assert rejected.status_code == 422
+    # The same email/enrollment can still be used after correcting the invalid cohort,
+    # proving the rejected request did not leave a partial account/profile behind.
+    accepted = await http.post("/api/v1/auth/register/student", json={
+        "email": "inactive-cohort@sagiros.edu.test",
+        "password": "inactive cohort password 42",
+        "full_name": "Inactive Cohort Student",
+        "institution_id": "institution-1",
+        "enrollment_number": "INACTIVE-ENR-01",
+        "cohort_id": "cohort-1",
+    })
+    assert accepted.status_code == 201, accepted.text
