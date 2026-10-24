@@ -223,7 +223,9 @@ export default function JobsHubPage() {
   const routeLocation = useLocation();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
+  const [queryInput, setQueryInput] = useState(params.get("q") || "");
   const [location, setLocation] = useState(params.get("location") || "");
+  const [locationInput, setLocationInput] = useState(params.get("location") || "");
   const [kind, setKind] = useState(params.get("opportunity_type") || "");
   const [mode, setMode] = useState(params.get("work_mode") || "");
   const [offset, setOffset] = useState(Number(params.get("offset") || 0));
@@ -382,8 +384,17 @@ export default function JobsHubPage() {
     return () => controller.abort();
   }, [isCampusPage, isStudent, selectedCampusDrive]);
 
-  const clearFilters = () => { setQuery(""); setLocation(""); setKind(""); setMode(""); setOffset(0); };
-  const runSearch = (event: FormEvent) => { event.preventDefault(); setOffset(0); void loadJobs(); };
+  const clearFilters = () => { setQuery(""); setQueryInput(""); setLocation(""); setLocationInput(""); setKind(""); setMode(""); setOffset(0); };
+  const runSearch = (event: FormEvent) => {
+    event.preventDefault();
+    const nextQuery = queryInput.trim();
+    const nextLocation = locationInput.trim();
+    const unchanged = nextQuery === query && nextLocation === location && offset === 0;
+    setQuery(nextQuery);
+    setLocation(nextLocation);
+    setOffset(0);
+    if (unchanged) void loadJobs();
+  };
 
   if ((isApplicationsPage || isCampusPage) && !isStudent) {
     return <div className="mx-auto max-w-3xl py-16 text-center"><CircleAlert className="mx-auto size-8 text-slate-400" /><h1 className="mt-4 text-xl font-semibold">Student access required</h1><p className="mt-2 text-sm text-slate-600">This workspace is available only to authenticated student accounts.</p><Button className="mt-5" onClick={() => window.location.assign("/jobs")}>Explore opportunities</Button></div>;
@@ -436,8 +447,8 @@ export default function JobsHubPage() {
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Find your next opportunity</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Discover internships, graduate roles, and opportunities that move your career forward.</p>
         <form onSubmit={runSearch} className="mt-6 grid gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]">
-          <label className="flex min-w-0 items-center gap-2 px-3"><Search className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Search title, skill, or company</span><Input aria-label="Search title, skill, or company" className="h-10 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="Job title, keyword, or company" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-          <label className="flex min-w-0 items-center gap-2 border-slate-100 px-3 md:border-l"><MapPin className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Location</span><Input aria-label="Location" className="h-10 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="City or remote" value={location} onChange={(event) => setLocation(event.target.value)} /></label>
+          <label className="flex min-w-0 items-center gap-2 px-3"><Search className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Search title, skill, or company</span><Input aria-label="Search title, skill, or company" className="h-10 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="Job title, keyword, or company" value={queryInput} onChange={(event) => setQueryInput(event.target.value)} /></label>
+          <label className="flex min-w-0 items-center gap-2 border-slate-100 px-3 md:border-l"><MapPin className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Location</span><Input aria-label="Location" className="h-10 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="City or remote" value={locationInput} onChange={(event) => setLocationInput(event.target.value)} /></label>
           <Button type="submit" className="h-10 bg-teal-700 px-5 text-white hover:bg-teal-800"><Search className="size-4" /> Search jobs</Button>
         </form>
       </div>
@@ -460,7 +471,7 @@ export default function JobsHubPage() {
             <label className="space-y-1.5 text-xs font-medium text-slate-600">Opportunity type<select aria-label="Opportunity type" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={kind} onChange={(event) => { setKind(event.target.value); setOffset(0); }} >{TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
             <label className="space-y-1.5 text-xs font-medium text-slate-600">Workplace<select aria-label="Workplace arrangement" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={mode} onChange={(event) => { setMode(event.target.value); setOffset(0); }} >{MODES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           </div>
-          {(query || location || kind || mode) && <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3"><span className="text-xs text-slate-500">Active filters</span>{query && <Badge variant="secondary">Keyword: {query}<button aria-label="Remove keyword filter" className="ml-1" onClick={() => setQuery("")}><X className="size-3" /></button></Badge>}{location && <Badge variant="secondary">Location: {location}<button aria-label="Remove location filter" className="ml-1" onClick={() => setLocation("")}><X className="size-3" /></button></Badge>}{kind && <Badge variant="secondary">{TYPES.find((item) => item.value === kind)?.label}<button aria-label="Remove type filter" className="ml-1" onClick={() => setKind("")}><X className="size-3" /></button></Badge>}{mode && <Badge variant="secondary">{MODES.find((item) => item.value === mode)?.label}<button aria-label="Remove workplace filter" className="ml-1" onClick={() => setMode("")}><X className="size-3" /></button></Badge>}<Button variant="link" size="sm" onClick={clearFilters}>Clear all</Button></div>}
+          {(query || location || kind || mode) && <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3"><span className="text-xs text-slate-500">Active filters</span>{query && <Badge variant="secondary">Keyword: {query}<button aria-label="Remove keyword filter" className="ml-1" onClick={() => { setQuery(""); setQueryInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{location && <Badge variant="secondary">Location: {location}<button aria-label="Remove location filter" className="ml-1" onClick={() => { setLocation(""); setLocationInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{kind && <Badge variant="secondary">{TYPES.find((item) => item.value === kind)?.label}<button aria-label="Remove type filter" className="ml-1" onClick={() => setKind("")}><X className="size-3" /></button></Badge>}{mode && <Badge variant="secondary">{MODES.find((item) => item.value === mode)?.label}<button aria-label="Remove workplace filter" className="ml-1" onClick={() => setMode("")}><X className="size-3" /></button></Badge>}<Button variant="link" size="sm" onClick={clearFilters}>Clear all</Button></div>}
         </div>
 
         {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><div className="flex items-start gap-2"><CircleAlert className="mt-0.5 size-4 shrink-0" /><div className="flex-1">{error}<div className="mt-3"><Button size="sm" variant="outline" onClick={() => void loadJobs()}>Try again</Button></div></div></div></div>}
