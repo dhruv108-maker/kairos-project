@@ -39,7 +39,6 @@ const BoxedRegister = () => {
   const [academicOptionsLoading, setAcademicOptionsLoading] = useState(false);
   const [academicOptionsError, setAcademicOptionsError] = useState(false);
   const [academicOptionsRetry, setAcademicOptionsRetry] = useState(0);
-  const [cohortId, setCohortId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [programmeId, setProgrammeId] = useState("");
   const [error, setError] = useState("");
@@ -99,7 +98,6 @@ const BoxedRegister = () => {
   }, [showInstitutionPicker, institutionSearch]);
 
   useEffect(() => {
-    setCohortId("");
   }, [email]);
 
   useEffect(() => {
@@ -123,14 +121,12 @@ const BoxedRegister = () => {
         if (cancelled) return;
         setAcademicOptions(result);
         setSchoolId((selected) => result.schools.some((school) => school.id === selected) ? selected : "");
-        setCohortId("");
         setDepartmentId((selected) => result.departments.some((department) => department.id === selected && department.school_id === schoolId) ? selected : "");
       })
       .catch(() => {
         if (!cancelled) {
           setAcademicOptions({ schools: [], departments: [], programmes: [], cohorts: [] });
           setSchoolId("");
-          setCohortId("");
           setDepartmentId("");
           setProgrammeId("");
           setAcademicOptionsError(true);
