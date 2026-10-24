@@ -14,6 +14,7 @@ const BoxedForgotpwd = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setMessage("");
     setError("");
     setIsSubmitting(true);
@@ -26,7 +27,7 @@ const BoxedForgotpwd = () => {
         body: JSON.stringify({ email }),
       });
       setMessage(result.message);
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to request a password reset. Please try again.");
     } finally {
