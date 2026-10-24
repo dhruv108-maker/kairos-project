@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Numeric, String, Text, Enum, func, UniqueConstraint, JSON
+from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Numeric, String, Text, Enum, func, UniqueConstraint, JSON, Integer, Index, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -70,11 +70,53 @@ class InternshipPlacement(Base):
     application_id: Mapped[str] = mapped_column(ForeignKey("internship_applications.id", ondelete="RESTRICT"), unique=True, nullable=False)
     student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="RESTRICT"), nullable=False)
     faculty_supervisor_id: Mapped[str | None] = mapped_column(ForeignKey("faculty_profiles.id", ondelete="SET NULL"))
+    industry_mentor_account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(Enum("ONGOING", "COMPLETED", "TERMINATED", name="internship_placement_status"), nullable=False, server_default="ONGOING")
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+
+class InternshipWorkLog(Base):
+    __tablename__ = "internship_work_logs"
+    __table_args__ = (
+        CheckConstraint("status IN ('DRAFT', 'SUBMITTED')", name="ck_internship_work_log_status"),
+        Index("ix_internship_work_logs_placement_date", "placement_id", "work_date"),
+        Index("ix_internship_work_logs_student_date", "student_id", "work_date"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    placement_id: Mapped[str] = mapped_column(ForeignKey("internship_placements.id", ondelete="CASCADE"), nullable=False)
+    student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False)
+    work_date: Mapped[date] = mapped_column(Date, nullable=False)
+    duration_minutes: Mapped[int | None] = mapped_column(Integer)
+    work_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    tasks_completed: Mapped[str | None] = mapped_column(Text)
+    skills_used: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    challenges: Mapped[str | None] = mapped_column(Text)
+    learning_outcomes: Mapped[str | None] = mapped_column(Text)
+    next_steps: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="DRAFT")
+    submitted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class InternshipWorkLogReview(Base):
+    __tablename__ = "internship_work_log_reviews"
+    __table_args__ = (
+        CheckConstraint("reviewer_role IN ('FACULTY', 'INDUSTRY_MENTOR')", name="ck_work_log_review_role"),
+        CheckConstraint("decision IN ('COMMENTED', 'APPROVED', 'REVISION_REQUIRED')", name="ck_work_log_review_decision"),
+        Index("ix_work_log_reviews_log_role_created", "work_log_id", "reviewer_role", "created_at"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    work_log_id: Mapped[str] = mapped_column(ForeignKey("internship_work_logs.id", ondelete="CASCADE"), nullable=False)
+    reviewer_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    reviewer_role: Mapped[str] = mapped_column(String(20), nullable=False)
+    decision: Mapped[str] = mapped_column(String(30), nullable=False)
+    feedback: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
 
 
 class RecruitmentStageEvent(Base):

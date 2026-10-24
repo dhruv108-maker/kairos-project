@@ -26,6 +26,7 @@ const Notes = Loadable(lazy(() => import('../views/apps/notes')));
 const JobsHub = Loadable(lazy(() => import('../views/jobs/JobsHubPage')));
 const JobDetail = Loadable(lazy(() => import('../views/jobs/JobsHubPage').then((module) => ({ default: module.JobDetailRoute }))));
 const RecruiterJobs = Loadable(lazy(() => import('../views/jobs/RecruiterJobsPage')));
+const DuringInternshipPage = Loadable(lazy(() => import('../views/internships/DuringInternshipPage')));
 const Tickets = Loadable(lazy(() => import('../views/apps/tickets')));
 const TicketCreate = Loadable(lazy(() => import('../views/apps/tickets/create')));
 
@@ -67,6 +68,7 @@ const Router = [
       { path: '/pages/form', element: <FormPage /> },
       { path: '/pages/user-profile', element: <UserProfilePage /> },
       { path: '/student/profile', element: <StudentProfilePage /> },
+      { path: '/internships/during', element: <DuringInternshipPage /> },
       { path: '/icons/iconify', element: <SolarIcon /> },
       { path: '*', element: <Navigate to="/auth/404" /> },
     ],

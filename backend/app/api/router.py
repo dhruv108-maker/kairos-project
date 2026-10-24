@@ -5,6 +5,7 @@ from app.api.faculty import router as faculty_router
 from app.api.internships import router as internships_router
 from app.api.students import router as students_router
 from app.modules.internships.router import router as modular_internships_router
+from app.modules.internships.during_router import router as during_internship_router
 from app.modules.institutions.router import router as institutions_router
 from app.modules.institutions.invitation_router import admin_router as institution_invitation_router, accept_router as institution_invitation_accept_router
 from app.modules.reports.router import router as reports_router, requirement_router as report_requirement_router
@@ -45,3 +46,4 @@ api_router.include_router(public_jobs_router)
 
 # Opt-in modular endpoints live under /api/v1/modules/* while legacy routes remain unchanged.
 api_router.include_router(modular_internships_router, prefix="/modules")
+api_router.include_router(during_internship_router, prefix="/modules")

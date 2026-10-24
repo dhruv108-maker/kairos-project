@@ -61,6 +61,12 @@ async def list_my_report_requirements(account: CurrentAccount, db: DbSession):
     return {"items": [{"requirement": _requirement(item["requirement"]), "submission_status": item["submission_status"]} for item in items]}
 
 
+@router.get("/supervised")
+async def list_supervised_reports(account: CurrentAccount, db: DbSession):
+    items = await _call(ReportService(db).list_supervised(account.id), db)
+    return {"items": [_submission(item) for item in items]}
+
+
 @router.get("/{submission_id}")
 async def get_report(submission_id: str, account: CurrentAccount, db: DbSession):
     item = await _call(ReportService(db).get(submission_id, account.id), db)

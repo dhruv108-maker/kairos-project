@@ -195,3 +195,17 @@ async def test_requirement_deadline_is_enforced(report_session):
     with pytest.raises(ReportWorkflowError) as error:
         await ReportService(report_session).create("student-account", "placement", "Expired", "file1", None, requirement.id)
     assert error.value.status_code == 409
+
+@pytest.mark.asyncio
+async def test_supervised_report_queue_contains_only_assigned_faculty_reports(report_session):
+    service = ReportService(report_session)
+    report = await service.create("student-account", "placement", "Supervised report", "file1", None)
+    await service.submit(report.id, "student-account")
+
+    items = await service.list_supervised("faculty-account")
+    assert [item.id for item in items] == [report.id]
+
+    with pytest.raises(ReportWorkflowError) as error:
+        await service.list_supervised("student-account")
+    assert error.value.status_code == 403
+
