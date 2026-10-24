@@ -40,6 +40,12 @@ async def request_evaluation(version_id: str, payload: EvaluationRequest, accoun
     return _evaluation(item)
 
 
+@router.get("/report-versions/{version_id}")
+async def get_evaluation_for_report_version(version_id: str, account: CurrentAccount, db: DbSession):
+    item = await _call(EvaluationService(db).get_for_report_version(version_id, account.id), db)
+    return {"item": _evaluation(item) if item else None}
+
+
 @router.get("/{evaluation_id}")
 async def get_evaluation(evaluation_id: str, account: CurrentAccount, db: DbSession):
     item = await _call(EvaluationService(db).get_for_faculty(evaluation_id, account.id), db)
