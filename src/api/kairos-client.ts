@@ -92,7 +92,19 @@ export function getCurrentAccount(): Promise<KairosAccount> {
 }
 
 export function signOut(): void {
+  const token = getAccessToken();
   clearAccessToken();
+
+  // Revoke the server-side token version when possible, but never keep the
+  // browser session alive just because the API is temporarily unavailable.
+  if (token) {
+    void fetch(`${API_BASE_URL}/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {
+      // Local logout has already completed; network failure must not restore the session.
+    });
+  }
 }
 
 export async function getRoleDashboard(account: KairosAccount): Promise<unknown> {
