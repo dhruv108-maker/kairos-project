@@ -81,6 +81,12 @@ export default function StudentProfileBuilder() {
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirtyPersonal = useMemo(() => !!cv && (fullName !== cv.profile.full_name || phone !== (cv.profile.phone_number ?? "")), [cv, fullName, phone]);
+  const hasUnsavedForm = dirtyPersonal || Boolean(editingEntryId || editingAcademicId) || Object.values(entryForm).some((value) => value.trim().length > 0) || Object.values(academicForm).some((value) => value.trim().length > 0);
+  const requestClose = () => {
+    if (saving || uploading) return;
+    if (hasUnsavedForm && !window.confirm("You have unsaved changes. Close this profile drawer and discard the current edits?")) return;
+    setDrawerOpen(false); setError(""); setNotice("");
+  };
 
   const refresh = useCallback(async () => {
     const [cvResult, completionResult, resumeResult] = await Promise.all([
@@ -272,12 +278,12 @@ export default function StudentProfileBuilder() {
         </div>
       )}
 
-      <Sheet open={drawerOpen} onOpenChange={(open) => { if (!open && (saving || uploading)) return; setDrawerOpen(open); if (!open) { setError(""); setNotice(""); } }}>
+      <Sheet open={drawerOpen} onOpenChange={(open) => { if (open) setDrawerOpen(true); else requestClose(); }}>
         <SheetContent side="right" showCloseButton={false} className="w-full gap-0 overflow-hidden p-0 sm:max-w-5xl">
           <SheetHeader className="border-b px-5 py-5 sm:px-7">
             <div className="flex items-start justify-between gap-4 pr-8">
               <div><SheetTitle className="text-xl">Build your student profile</SheetTitle><SheetDescription className="mt-1 max-w-2xl">Upload your CV or add your details manually. You stay in control of what gets saved.</SheetDescription></div>
-              <Button variant="ghost" size="icon" aria-label="Close profile drawer" onClick={() => setDrawerOpen(false)} disabled={saving || uploading}><X className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" aria-label="Close profile drawer" onClick={requestClose} disabled={saving || uploading}><X className="h-4 w-4" /></Button>
             </div>
             {completion && <div className="mt-4 flex items-center gap-3"><Progress value={completion.percentage} className="h-2 flex-1" /><span className="text-xs tabular-nums text-muted-foreground">{completion.percentage}% complete</span></div>}
           </SheetHeader>
@@ -346,7 +352,7 @@ export default function StudentProfileBuilder() {
           </div>
           <SheetFooter className="border-t px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-7">
             <p className="text-xs text-muted-foreground">{saving || uploading ? "Working… please keep this panel open." : dirtyPersonal ? "Personal information has unsaved changes." : "Changes are saved when you choose a save action."}</p>
-            <div className="flex gap-2"><Button variant="outline" onClick={() => setDrawerOpen(false)} disabled={saving || uploading}>Close</Button>{activeSection === "personal" && <Button type="submit" form="personal-profile-form" disabled={saving || !dirtyPersonal} className="gap-2">{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save profile</Button>}</div>
+            <div className="flex gap-2"><Button variant="outline" onClick={requestClose} disabled={saving || uploading}>Close</Button>{activeSection === "personal" && <Button type="submit" form="personal-profile-form" disabled={saving || !dirtyPersonal} className="gap-2">{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save profile</Button>}</div>
           </SheetFooter>
         </SheetContent>
       </Sheet>
