@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays, CheckCircle2, ChevronRight, Clock3, ExternalLink, Filter, MapPin, RefreshCw, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
-import { apiRequest } from "@/api/kairos-client";
+import { apiRequest, ApiError } from "@/api/kairos-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -117,6 +117,7 @@ export default function JobsHub() {
   const [error, setError] = useState("");
   const [detailError, setDetailError] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [applying, setApplying] = useState(false);\n  const [applyMessage, setApplyMessage] = useState("");
   const [requestKey, setRequestKey] = useState(0);
 
   const loadJobs = useCallback(async (signal: AbortSignal) => {
@@ -178,7 +179,7 @@ export default function JobsHub() {
 
   const clearFilters = () => { setQuery(""); setLocation(""); setKind(""); setWorkMode(""); setOffset(0); };
   const submitSearch = (event: FormEvent) => { event.preventDefault(); setOffset(0); };
-  const retry = () => setRequestKey((value) => value + 1);
+  const retry = () => setRequestKey((value) => value + 1);\n  const applyToOpportunity = async () => {\n    if (!currentJob) return;\n    setApplying(true);\n    setApplyMessage("");\n    try {\n      await apiRequest(`/internships/opportunities/${encodeURIComponent(currentJob.id)}/applications`, { method: "POST" });\n      setApplyMessage("Your application was submitted successfully.");\n    } catch (err) {\n      if (err instanceof ApiError && err.status === 401) {\n        setApplyMessage("Sign in with your student account to apply.");\n      } else if (err instanceof ApiError && err.status === 409) {\n        setApplyMessage("You have already applied to this opportunity.");\n      } else {\n        setApplyMessage(err instanceof Error ? err.message : "We could not submit your application.");\n      }\n    } finally { setApplying(false); }\n  };
   const currentJob = detail || data?.items.find((item) => item.id === selectedId) || null;
   const companyName = currentJob?.company?.name || "Employer";
 
