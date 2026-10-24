@@ -35,6 +35,7 @@ async def client(monkeypatch):
         session.add_all([
             InstitutionDomain(id="domain-1", institution_id=institution.id, normalized_domain="sagiros.edu.test", is_verified=True),
             InstitutionDomain(id="domain-example", institution_id=institution.id, normalized_domain="example.com", is_verified=True),
+            InstitutionDomain(id="domain-example-test", institution_id=institution.id, normalized_domain="example.test", is_verified=True),
             School(id="school-1", institution_id="institution-1", code="SAG", name="Sagiros"),
             Department(
                 id="department-1", school_id="school-1", code="CSE",
@@ -51,7 +52,7 @@ async def client(monkeypatch):
             ),
             Cohort(
                 id="cohort-1", programme_id="programme-1", academic_year_id="year-1",
-                name="B.Tech CSE 2026", graduation_year=2030,
+                name="B.Tech CSE 2026", graduation_year=2030, is_active=True,
             ),
         ])
         await session.commit()
