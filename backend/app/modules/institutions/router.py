@@ -96,6 +96,7 @@ async def public_academic_options(institution_id: str, db: DbSession):
             Programme.is_active.is_(True),
             AcademicYear.is_current.is_(True),
             AcademicYear.institution_id == institution_id,
+            Cohort.is_active.is_(True),
         )
         .order_by(Cohort.graduation_year.desc(), Cohort.name.asc())
     )).all()
@@ -157,7 +158,7 @@ def _year(item):
 
 
 def _cohort(item):
-    return {"id": item.id, "programme_id": item.programme_id, "academic_year_id": item.academic_year_id, "name": item.name, "graduation_year": item.graduation_year}
+    return {"id": item.id, "programme_id": item.programme_id, "academic_year_id": item.academic_year_id, "name": item.name, "graduation_year": item.graduation_year, "is_active": item.is_active}
 
 
 
@@ -348,7 +349,7 @@ async def delete_academic_year(institution_id: str, year_id: str, account: Curre
 async def update_cohort(institution_id: str, cohort_id: str, payload: CohortUpdate, account: CurrentAccount, db: DbSession):
     data = payload.model_dump(exclude_unset=True)
     item = await _call(InstitutionService(db).update_cohort(institution_id, account.id, cohort_id,
-        data.get("name"), data.get("graduation_year"), data.get("programme_id"), data.get("academic_year_id")), db)
+        data.get("name"), data.get("graduation_year"), data.get("programme_id"), data.get("academic_year_id"), data.get("is_active")), db)
     return _cohort(item)
 
 
