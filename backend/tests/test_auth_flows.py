@@ -133,6 +133,10 @@ async def test_institution_lookup_and_student_registration_preserve_academic_rel
     lookup = await http.get("/api/v1/institutions/resolve", params={"email_domain": "SAGIROS.EDU.TEST."})
     assert lookup.status_code == 200
     assert lookup.json() == {"status": "matched", "institution": {"id": "institution-1", "name": "Sagiros University"}}
+    options = await http.get("/api/v1/institutions/public/institution-1/academic-options")
+    assert options.status_code == 200
+    assert [item["id"] for item in options.json()["departments"]] == ["department-1"]
+    assert [item["id"] for item in options.json()["cohorts"]] == ["cohort-1"]
 
     signup = await http.post("/api/v1/auth/register/student", json={
         "email": "student@sagiros.edu.test", "password": "institution-aware password 42",
