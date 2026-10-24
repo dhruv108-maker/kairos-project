@@ -123,6 +123,15 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                 ))
                 if programme is None:
                     raise HTTPException(status_code=422, detail="Choose an active programme within your selected department.")
+            programme = None
+            if payload.programme_id:
+                programme = await db.scalar(select(Programme).where(
+                    Programme.id == payload.programme_id,
+                    Programme.department_id == payload.department_id,
+                    Programme.is_active.is_(True),
+                ))
+                if programme is None:
+                    raise HTTPException(status_code=422, detail="Choose an active programme within your selected department.")
             cohort = None
             if payload.cohort_id:
                 cohort = await db.scalar(
@@ -132,6 +141,7 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                     .join(AcademicYear, AcademicYear.id == Cohort.academic_year_id)
                     .where(
                         Cohort.id == payload.cohort_id, Department.id == payload.department_id,
+                        (Programme.id == payload.programme_id if payload.programme_id else True),
                         (Programme.id == payload.programme_id if payload.programme_id else True),
                         School.id == payload.school_id, School.institution_id == resolved_institution_id,
                         School.is_active.is_(True), Department.is_active.is_(True), Programme.is_active.is_(True),
