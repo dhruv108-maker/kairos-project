@@ -1,12 +1,13 @@
 import re
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.api.dependencies import CurrentAccount, DbSession
+from app.api.dependencies import CurrentAccount, DbSession, require_role
 from app.modules.institutions.schemas import (
-    AcademicYearCreate, AcademicYearUpdate, CohortCreate, CohortUpdate, DepartmentCreate, DepartmentUpdate, InstitutionCreate, InstitutionRegistrationCreate,
+    AcademicYearCreate, AcademicYearUpdate, CohortCreate, CohortUpdate, DepartmentCreate, DepartmentUpdate, InstitutionCreate, InstitutionDomainCreate, InstitutionRegistrationCreate,
     InstitutionStatusUpdate, MembershipUpsert, ProgrammeCreate, ProgrammeUpdate, SchoolCreate, SchoolUpdate,
 )
 from app.modules.institutions.service import InstitutionAccessError, InstitutionService
@@ -68,6 +69,37 @@ async def resolve_institution_domain(
     if len(rows) > 1:
         return {"status": "ambiguous", "institution": None}
     return {"status": "not_found", "institution": None}
+
+@router.get("/{institution_id}/domains")
+async def list_institution_domains(institution_id: str, account: CurrentAccount, db: DbSession):
+    await require_role(db, account, "PLATFORM_ADMIN")
+    institution = await db.get(Institution, institution_id)
+    if institution is None:
+        raise HTTPException(status_code=404, detail="Institution not found")
+    items = (await db.scalars(
+        select(InstitutionDomain).where(InstitutionDomain.institution_id == institution_id).order_by(InstitutionDomain.normalized_domain.asc())
+    )).all()
+    return {"items": [{"id": item.id, "domain": item.normalized_domain, "verified": item.is_verified} for item in items]}
+
+
+@router.post("/{institution_id}/domains", status_code=status.HTTP_201_CREATED)
+async def register_institution_domain(institution_id: str, payload: InstitutionDomainCreate, account: CurrentAccount, db: DbSession):
+    """Register a domain as verified only through an authenticated platform administrator."""
+    await require_role(db, account, "PLATFORM_ADMIN")
+    institution = await db.get(Institution, institution_id)
+    if institution is None or institution.status != "ACTIVE":
+        raise HTTPException(status_code=404, detail="Active institution not found")
+    existing = await db.scalar(select(InstitutionDomain.id).where(InstitutionDomain.normalized_domain == payload.domain))
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="This domain is already registered")
+    item = InstitutionDomain(id=str(uuid4()), institution_id=institution.id, normalized_domain=payload.domain, is_verified=True)
+    db.add(item)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="This domain is already registered") from None
+    return {"id": item.id, "domain": item.normalized_domain, "verified": item.is_verified}
 
 
 def _membership(item):
