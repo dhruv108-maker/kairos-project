@@ -50,6 +50,19 @@ type Application = {
   opportunity?: Opportunity & { company_name?: string | null };
 };
 
+type CampusDrive = {
+  id: string;
+  name: string;
+  description?: string | null;
+  starts_on?: string | null;
+  ends_on?: string | null;
+  status: string;
+  eligibility?: { status: string; reason_codes: string[] };
+};
+type CampusOpportunity = Opportunity & {
+  eligibility?: { status: string; reason_codes: string[] };
+};
+
 const PAGE_SIZE = 12;
 const TYPES = [
   { label: "All opportunities", value: "" },
@@ -219,6 +232,9 @@ export default function JobsHubPage() {
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [applicationLoading, setApplicationLoading] = useState(false);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [campusDrives, setCampusDrives] = useState<CampusDrive[]>([]);
+  const [selectedCampusDrive, setSelectedCampusDrive] = useState<CampusDrive | null>(null);
+  const [campusOpportunities, setCampusOpportunities] = useState<CampusOpportunity[]>([]);
   const navigate = useNavigate();
   const isStudent = Boolean(account?.roles?.some((role) => role.toUpperCase() === "STUDENT"));
   const isApplicationsPage = routeLocation.pathname === "/jobs/applications";
@@ -318,27 +334,49 @@ export default function JobsHubPage() {
     if (!isCampusPage || !isStudent) return;
     const controller = new AbortController();
     setApplicationLoading(true);
-    apiRequest<{ items: Array<Record<string, unknown>> }>("/students/recruitment-drives", { signal: controller.signal })
+    setApplicationError("");
+    apiRequest<{ items: CampusDrive[] }>("/students/recruitment-drives", { signal: controller.signal })
       .then((data) => {
-        const rows = data.items || [];
-        setApplications(rows.map((drive, index) => ({
-          id: String(drive.id || index),
-          status: String(drive.status || drive.lifecycle_status || "AVAILABLE"),
-          applied_at: typeof drive.start_date === "string" ? drive.start_date : null,
-          opportunity: {
-            id: String(drive.id || index),
-            title: String(drive.name || drive.title || "Campus recruitment drive"),
-            summary: String(drive.description || "View the eligibility details for this institution recruitment drive."),
-            location: String(drive.location || "Campus"),
-            application_deadline: typeof drive.application_deadline === "string" ? drive.application_deadline : null,
-            company: { name: String(drive.institution_name || "Your institution") },
-          },
-        })));
+        if (controller.signal.aborted) return;
+        setCampusDrives(data.items || []);
+        setSelectedCampusDrive(null);
+        setCampusOpportunities([]);
       })
       .catch((err) => { if (!controller.signal.aborted) setApplicationError(errorMessage(err)); })
       .finally(() => { if (!controller.signal.aborted) setApplicationLoading(false); });
     return () => controller.abort();
   }, [isCampusPage, isStudent]);
+
+  useEffect(() => {
+    if (!isCampusPage || !isStudent || !selectedCampusDrive) {
+      setCampusOpportunities([]);
+      return;
+    }
+    const controller = new AbortController();
+    setApplicationLoading(true);
+    setApplicationError("");
+    apiRequest<{ items: Array<Record<string, unknown>> }>(`/students/recruitment-drives/${encodeURIComponent(selectedCampusDrive.id)}/opportunities`, { signal: controller.signal })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        const rows = data.items || [];
+        setCampusOpportunities(rows.map((row) => ({
+          id: String(row.id),
+          title: String(row.title || "Campus opportunity"),
+          summary: typeof row.summary === "string" ? row.summary : null,
+          description: typeof row.description === "string" ? row.description : null,
+          location: typeof row.location === "string" ? row.location : null,
+          application_deadline: typeof row.application_deadline === "string" ? row.application_deadline : null,
+          opportunity_type: typeof row.opportunity_type === "string" ? row.opportunity_type : null,
+          employment_type: typeof row.employment_type === "string" ? row.employment_type : null,
+          work_mode: typeof row.work_mode === "string" ? row.work_mode : null,
+          company: typeof row.company === "string" ? { name: row.company } : null,
+          eligibility: row.eligibility as CampusOpportunity["eligibility"],
+        })));
+      })
+      .catch((err) => { if (!controller.signal.aborted) setApplicationError(errorMessage(err)); })
+      .finally(() => { if (!controller.signal.aborted) setApplicationLoading(false); });
+    return () => controller.abort();
+  }, [isCampusPage, isStudent, selectedCampusDrive]);
 
   const clearFilters = () => { setQuery(""); setLocation(""); setKind(""); setMode(""); setOffset(0); };
   const runSearch = (event: FormEvent) => { event.preventDefault(); setOffset(0); void loadJobs(); };
