@@ -45,6 +45,7 @@ async def test_supports_multiple_verified_domains_for_one_institution(domain_ses
 @pytest.mark.asyncio
 async def test_unknown_and_unverified_domains_do_not_match(domain_session):
     assert (await resolve_institution_domain(domain_session, "unknown.example.test"))["status"] == "not_found"
+    assert (await resolve_institution_domain(domain_session, "gsfcuniversity.ac.in.attacker.test"))["status"] == "not_found"
     assert (await resolve_institution_domain(domain_session, "unverified.example.test"))["status"] == "not_found"
 
 
@@ -75,3 +76,14 @@ def test_faculty_registration_contract_keeps_department_and_institution():
     payload = FacultyRegistration(email="faculty@example.test", password="very-secure-test-password", full_name="Faculty", institution_id="institution-gsfc", employee_code="EMP-1", department_id="department-1", designation="Professor")
     assert payload.institution_id == "institution-gsfc"
     assert payload.department_id == "department-1"
+
+@pytest.mark.asyncio
+async def test_ambiguous_domain_match_returns_fallback_without_exposing_ids():
+    class AmbiguousResult:
+        def all(self):
+            return [("institution-one", "Institution One"), ("institution-two", "Institution Two")]
+    class AmbiguousSession:
+        async def execute(self, statement):
+            return AmbiguousResult()
+    result = await resolve_institution_domain(AmbiguousSession(), "ambiguous.example.test")
+    assert result == {"status": "ambiguous", "institution": None}
