@@ -13,6 +13,7 @@ from app.modules.institutions.schemas import (
 from app.modules.institutions.service import InstitutionAccessError, InstitutionService
 from app.models.institutions import Institution
 from app.models.institution_domains import InstitutionDomain
+from app.models.academic import AcademicYear, Cohort, Department, Programme, School
 
 router = APIRouter(prefix="/institutions", tags=["institutions", "academic administration"])
 
@@ -69,6 +70,32 @@ async def resolve_institution_domain(
     if len(rows) > 1:
         return {"status": "ambiguous", "institution": None}
     return {"status": "not_found", "institution": None}
+
+@router.get("/public/{institution_id}/academic-options")
+async def public_academic_options(institution_id: str, db: DbSession):
+    """Expose only the active academic choices needed by public registration."""
+    institution = await db.get(Institution, institution_id)
+    if institution is None or institution.status != "ACTIVE":
+        raise HTTPException(status_code=404, detail="Active institution not found")
+    departments = (await db.execute(
+        select(Department.id, Department.name, Department.code)
+        .join(School, School.id == Department.school_id)
+        .where(School.institution_id == institution_id, School.is_active.is_(True), Department.is_active.is_(True))
+        .order_by(Department.name.asc())
+    )).all()
+    cohorts = (await db.execute(
+        select(Cohort.id, Cohort.name, Programme.name, Department.name, AcademicYear.year_label, Cohort.graduation_year)
+        .join(Programme, Programme.id == Cohort.programme_id)
+        .join(Department, Department.id == Programme.department_id)
+        .join(School, School.id == Department.school_id)
+        .join(AcademicYear, AcademicYear.id == Cohort.academic_year_id)
+        .where(School.institution_id == institution_id, School.is_active.is_(True), Department.is_active.is_(True), Programme.is_active.is_(True))
+        .order_by(Cohort.graduation_year.desc(), Cohort.name.asc())
+    )).all()
+    return {
+        "departments": [{"id": row.id, "name": row.name, "code": row.code} for row in departments],
+        "cohorts": [{"id": row[0], "name": row[1], "programme_name": row[2], "department_name": row[3], "academic_year": row[4], "graduation_year": row[5]} for row in cohorts],
+    }
 
 @router.get("/{institution_id}/domains")
 async def list_institution_domains(institution_id: str, account: CurrentAccount, db: DbSession):
