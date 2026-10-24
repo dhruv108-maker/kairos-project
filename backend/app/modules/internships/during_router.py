@@ -424,6 +424,10 @@ async def update_work_log(
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
         raise HTTPException(status_code=422, detail="At least one field must be updated")
+    if "work_date" in changes and changes["work_date"] is None:
+        raise HTTPException(status_code=422, detail="work_date cannot be null")
+    if "work_summary" in changes and changes["work_summary"] is None:
+        raise HTTPException(status_code=422, detail="work_summary cannot be null")
     work_date = changes.get("work_date", item.work_date)
     if work_date is not None and (work_date < placement.start_date or work_date > placement.end_date):
         raise HTTPException(status_code=422, detail="Work date must fall within the placement dates")
