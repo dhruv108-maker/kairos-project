@@ -23,7 +23,8 @@ const BlogAdd = Loadable(lazy(() => import('../views/apps/blog/create')));
 const BlogEdit = Loadable(lazy(() => import('../views/apps/blog/edit')));
 const BlogTable = Loadable(lazy(() => import('../views/apps/blog/manage-blog')));
 
-const Notes = Loadable(lazy(() => import('../views/apps/notes')));\nconst JobsHub = Loadable(lazy(() => import('../views/apps/jobs')));
+const Notes = Loadable(lazy(() => import('../views/apps/notes')));
+const JobsHub = Loadable(lazy(() => import('../views/apps/jobs')));
 
 const Tickets = Loadable(lazy(() => import('../views/apps/tickets')));
 const TicketCreate = Loadable(lazy(() => import('../views/apps/tickets/create')));
