@@ -103,7 +103,6 @@ const BoxedRegister = () => {
   useEffect(() => {
     setAcademicOptions({ schools: [], departments: [], programmes: [], cohorts: [] });
     setSchoolId("");
-    setCohortId("");
     setDepartmentId("");
     setProgrammeId("");
     setAcademicOptionsError(false);
@@ -137,7 +136,6 @@ const BoxedRegister = () => {
   }, [institutionId, verifiedDomainMatch, academicOptionsRetry]);
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
-    setCohortId("");
     setSchoolId("");
     setDepartmentId("");
     setProgrammeId("");
