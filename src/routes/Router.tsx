@@ -43,7 +43,9 @@ const Login2 = Loadable(lazy(() => import('../views/auth/auth2/login')));
 const Register2 = Loadable(lazy(() => import('../views/auth/auth2/register')));
 const Onboarding = Loadable(lazy(() => import('../views/auth/onboarding')));
 
-const ForgotPassword2 = Loadable(lazy(() => import('../views/auth/auth2/forgot-password')));\nconst VerifyEmail = Loadable(lazy(() => import('../views/auth/verify-email')));\nconst ResetPassword = Loadable(lazy(() => import('../views/auth/reset-password')));
+const ForgotPassword2 = Loadable(lazy(() => import('../views/auth/auth2/forgot-password')));
+const VerifyEmail = Loadable(lazy(() => import('../views/auth/verify-email')));
+const ResetPassword = Loadable(lazy(() => import('../views/auth/reset-password')));
 
 const TwoSteps2 = Loadable(lazy(() => import('../views/auth/auth2/two-steps')));
 
@@ -89,7 +91,9 @@ const Router = [
       { path: '/signup', element: <Register2 /> },
       { path: '/register', element: <Register2 /> },
 
-      { path: '/auth/auth2/forgot-password', element: <ForgotPassword2 /> },\n      { path: '/verify-email', element: <VerifyEmail /> },\n      { path: '/reset-password', element: <ResetPassword /> },
+      { path: '/auth/auth2/forgot-password', element: <ForgotPassword2 /> },
+      { path: '/verify-email', element: <VerifyEmail /> },
+      { path: '/reset-password', element: <ResetPassword /> },
 
       { path: '/auth/auth2/two-steps', element: <TwoSteps2 /> },
       { path: '/auth/maintenance', element: <Maintainance /> },
