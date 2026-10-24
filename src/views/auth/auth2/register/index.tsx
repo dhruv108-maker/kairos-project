@@ -41,6 +41,7 @@ const BoxedRegister = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
     setError("");
     setMessage("");
 
@@ -123,123 +124,123 @@ const BoxedRegister = () => {
       footer={<>Already have an account? <Link to="/auth/auth2/login" className="font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground">Sign in</Link></>}
     >
       {message ? (
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <div className="flex size-12 items-center justify-center rounded-full border border-border bg-muted">
-            <CheckCircle2 className="size-6" />
+            <CheckCircle2 aria-hidden="true" className="size-6" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-medium text-muted-foreground">REGISTRATION RECEIVED</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Check your inbox</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{message}</p>
+            <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">{message}</p>
           </div>
-          <Alert>
-            <Mail className="size-4" />
+          <Alert className="min-w-0">
+            <Mail aria-hidden="true" className="size-4" />
             <AlertTitle>{verificationSent ? "Verification email sent" : "Email verification may still be needed"}</AlertTitle>
-            <AlertDescription>
-              We’ll send instructions to <span className="font-medium text-foreground">{registeredEmail}</span> when delivery is available. Check your spam folder too.
+            <AlertDescription className="min-w-0 break-words">
+              We’ll send instructions to <span className="break-all font-medium text-foreground">{registeredEmail}</span> when delivery is available. Check your spam folder too.
               {activationPending ? " Faculty access also requires institutional approval." : ""}
             </AlertDescription>
           </Alert>
-          <Button type="button" variant="outline" className="w-full" onClick={resendVerification} disabled={isResending}>
+          <Button type="button" variant="outline" className="h-11 w-full whitespace-normal" onClick={resendVerification} disabled={isResending}>
             {isResending ? "Requesting email…" : "Resend verification email"}
           </Button>
-          <Button type="button" className="w-full" onClick={() => navigate("/auth/auth2/login")}>Continue to sign in <ArrowRight className="ml-2 size-4" /></Button>
+          <Button type="button" className="h-11 w-full whitespace-normal" onClick={() => navigate("/auth/auth2/login")}>Continue to sign in <ArrowRight aria-hidden="true" className="ml-2 size-4" /></Button>
           <button type="button" onClick={() => { setMessage(""); setVerificationSent(false); setActivationPending(false); }} className="w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
             Register another account
           </button>
-          {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+          {error && <Alert variant="destructive" role="alert" aria-live="polite" className="min-w-0 break-words"><AlertDescription>{error}</AlertDescription></Alert>}
         </div>
       ) : (
         <>
-          <div className="mb-6">
+          <div className="mb-6 min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Create your account</p>
             <h1 className="mt-2 text-[1.8rem] font-semibold tracking-[-0.035em]">Get started with Kairos</h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">A few details to connect you to your academic community.</p>
           </div>
 
-          <div className="mb-6 space-y-2">
+          <div className="mb-6 min-w-0 space-y-2">
             <p className="text-sm font-medium">I’m joining as a</p>
-            <div className="grid grid-cols-2 gap-2" role="group" aria-label="Choose account type">
-            <Button type="button" variant={role === "student" ? "default" : "outline"} className="h-10" aria-pressed={role === "student"} onClick={() => handleRoleChange("student")}>
-              <GraduationCap className="mr-2 size-4" /> Student
-            </Button>
-            <Button type="button" variant={role === "faculty" ? "default" : "outline"} className="h-10" aria-pressed={role === "faculty"} onClick={() => handleRoleChange("faculty")}>
-              <UsersRound className="mr-2 size-4" /> Faculty
-            </Button>
+            <div className="grid min-w-0 grid-cols-2 gap-2" role="group" aria-label="Choose account type">
+              <Button type="button" variant={role === "student" ? "default" : "outline"} className="h-10 min-w-0 px-2 text-sm" aria-pressed={role === "student"} onClick={() => handleRoleChange("student")}>
+                <GraduationCap aria-hidden="true" className="mr-1.5 size-4 shrink-0 sm:mr-2" /> <span>Student</span>
+              </Button>
+              <Button type="button" variant={role === "faculty" ? "default" : "outline"} className="h-10 min-w-0 px-2 text-sm" aria-pressed={role === "faculty"} onClick={() => handleRoleChange("faculty")}>
+                <UsersRound aria-hidden="true" className="mr-1.5 size-4 shrink-0 sm:mr-2" /> <span>Faculty</span>
+              </Button>
             </div>
-            <p className="text-xs leading-5 text-muted-foreground">{role === "student" ? "You’ll need your enrollment number and cohort ID." : "You’ll need your employee code and department ID. Faculty access requires institutional approval."}</p>
+            <p className="break-words text-xs leading-5 text-muted-foreground">{role === "student" ? "You’ll need your enrollment number and cohort ID." : "You’ll need your employee code and department ID. Faculty access requires institutional approval."}</p>
           </div>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-2">
+          <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="full_name">Full name</Label>
-              <Input id="full_name" name="full_name" autoComplete="name" placeholder="Your full name" maxLength={255} required className="h-11 rounded-md" />
+              <Input id="full_name" name="full_name" autoComplete="name" placeholder="Your full name" maxLength={255} required />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="email">Email address</Label>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <Mail aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="you@institution.edu" maxLength={255} required className="h-11 rounded-md pl-9" />
+                <Input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="you@institution.edu" maxLength={255} required className="pl-10" />
               </div>
             </div>
 
             {role === "student" ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
+              <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="min-w-0 space-y-2">
                   <Label htmlFor="enrollment_number">Enrollment number</Label>
-                  <Input id="enrollment_number" name="enrollment_number" autoComplete="off" placeholder="Student ID" maxLength={64} required className="h-11" />
+                  <Input id="enrollment_number" name="enrollment_number" autoComplete="off" placeholder="Student ID" maxLength={64} required />
                 </div>
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <Label htmlFor="cohort_id">Cohort ID</Label>
-                  <Input id="cohort_id" name="cohort_id" autoComplete="off" placeholder="Provided by your institution" maxLength={36} required className="h-11" />
+                  <Input id="cohort_id" name="cohort_id" autoComplete="off" placeholder="Provided by your institution" maxLength={36} required />
                 </div>
               </div>
             ) : (
               <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
+                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="min-w-0 space-y-2">
                     <Label htmlFor="employee_code">Employee code</Label>
-                    <Input id="employee_code" name="employee_code" autoComplete="off" placeholder="Staff ID" maxLength={64} required className="h-11" />
+                    <Input id="employee_code" name="employee_code" autoComplete="off" placeholder="Staff ID" maxLength={64} required />
                   </div>
-                  <div className="space-y-2">
+                  <div className="min-w-0 space-y-2">
                     <Label htmlFor="designation">Designation</Label>
-                    <Input id="designation" name="designation" placeholder="e.g. Assistant Professor" maxLength={100} required className="h-11" />
+                    <Input id="designation" name="designation" placeholder="e.g. Assistant Professor" maxLength={100} required />
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <Label htmlFor="department_id">Department ID</Label>
-                  <Input id="department_id" name="department_id" autoComplete="off" placeholder="Provided by your institution" maxLength={36} required className="h-11" />
+                  <Input id="department_id" name="department_id" autoComplete="off" placeholder="Provided by your institution" maxLength={36} required />
                 </div>
               </>
             )}
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <LockKeyhole aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} placeholder="At least 12 characters" required className="h-11 rounded-md pl-9 pr-11" />
-                <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                <Input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} placeholder="At least 12 characters" required aria-describedby="password-hint" className="pl-10 pr-12" />
+                <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} className="absolute right-1.5 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  {showPassword ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">Use 12–128 characters.</p>
+              <p id="password-hint" className="text-xs leading-5 text-muted-foreground">Use 12–128 characters.</p>
             </div>
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="confirm_password">Confirm password</Label>
-              <div className="relative">
-                <Input id="confirm_password" name="confirm_password" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} placeholder="Enter your password again" required className="h-11 rounded-md pr-11" />
-                <button type="button" onClick={() => setShowConfirmPassword((value) => !value)} aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword} className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              <div className="relative min-w-0">
+                <Input id="confirm_password" name="confirm_password" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} placeholder="Enter your password again" required aria-describedby={error ? "registration-error" : undefined} aria-invalid={Boolean(error && error.includes("password"))} className="pr-12" />
+                <button type="button" onClick={() => setShowConfirmPassword((value) => !value)} aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword} className="absolute right-1.5 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  {showConfirmPassword ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}
                 </button>
               </div>
             </div>
 
-                        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+            {error && <Alert id="registration-error" variant="destructive" role="alert" aria-live="polite" className="min-w-0 break-words"><AlertDescription>{error}</AlertDescription></Alert>}
 
-            <Button type="submit" size="lg" className="h-11 w-full rounded-md" disabled={isSubmitting}>
+            <Button type="submit" size="lg" className="h-11 w-full whitespace-normal" disabled={isSubmitting}>
               {isSubmitting ? "Creating your account…" : "Create account"}
-              {!isSubmitting && <ArrowRight className="ml-2 size-4" />}
+              {!isSubmitting && <ArrowRight aria-hidden="true" className="ml-2 size-4" />}
             </Button>
             <p className="text-center text-xs leading-5 text-muted-foreground">
               Email verification is required. Faculty accounts also require institutional approval.
