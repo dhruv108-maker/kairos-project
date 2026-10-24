@@ -24,6 +24,7 @@ const BoxedRegister = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setError("");
     setMessage("");
     setIsSubmitting(true);
@@ -52,7 +53,7 @@ const BoxedRegister = () => {
         body: JSON.stringify(payload),
       });
       setMessage(result.message);
-      event.currentTarget.reset();
+      formElement.reset();
       setRole("student");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed. Please check your details and try again.");
