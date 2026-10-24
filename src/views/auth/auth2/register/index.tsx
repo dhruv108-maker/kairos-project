@@ -41,7 +41,7 @@ const BoxedRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const emailDomain = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())
+  const emailDomain = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
     ? email.trim().toLowerCase().split("@").pop() ?? ""
     : "";
 
@@ -50,9 +50,11 @@ const BoxedRegister = () => {
       setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("idle"); setShowInstitutionPicker(false);
       return;
     }
+    setInstitutionId("");
+    setInstitutionName("");
+    setInstitutionStatus("loading");
     let cancelled = false;
     const timer = window.setTimeout(async () => {
-      setInstitutionStatus("loading");
       try {
         const result = await apiRequest<InstitutionResolution>("/institutions/resolve?email_domain=" + encodeURIComponent(emailDomain));
         if (cancelled) return;
@@ -84,7 +86,6 @@ const BoxedRegister = () => {
 
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
-    setInstitutionId(""); setInstitutionName("");
     setError("");
     setMessage("");
     setVerificationSent(false);
