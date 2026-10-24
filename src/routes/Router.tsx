@@ -24,8 +24,8 @@ const BlogEdit = Loadable(lazy(() => import('../views/apps/blog/edit')));
 const BlogTable = Loadable(lazy(() => import('../views/apps/blog/manage-blog')));
 
 const Notes = Loadable(lazy(() => import('../views/apps/notes')));
-const JobsHub = Loadable(lazy(() => import('../views/apps/jobs')));
-const JobApplications = Loadable(lazy(() => import('../views/apps/jobs/applications')));
+const JobsHub = Loadable(lazy(() => import('../views/jobs/JobsHubPage')));
+const JobDetail = Loadable(lazy(() => import('../views/jobs/JobsHubPage').then((module) => ({ default: module.JobDetailRoute }))));
 
 const Tickets = Loadable(lazy(() => import('../views/apps/tickets')));
 const TicketCreate = Loadable(lazy(() => import('../views/apps/tickets/create')));
@@ -71,8 +71,6 @@ const Router = [
 
       { path: '/apps/notes', element: <Notes /> },    
       
-      { path: '/app/jobs', element: <JobsHub /> },
-      { path: '/jobs/applications', element: <JobApplications /> },
 
       { path: '/apps/tickets', element: <Tickets /> },
       { path: '/apps/tickets/create', element: <TicketCreate /> },
@@ -93,6 +91,9 @@ const Router = [
     element: <BlankLayout />,
     children: [
       { path: '/jobs', element: <JobsHub /> },
+      { path: '/jobs/applications', element: <JobsHub /> },
+      { path: '/jobs/campus', element: <JobsHub /> },
+      { path: '/jobs/:jobId', element: <JobDetail /> },
       { path: '/auth/auth2/login', element: <Login2 /> },
       { path: '/onboarding', element: <Onboarding /> },
       { path: '/auth/auth2/register', element: <Register2 /> },
