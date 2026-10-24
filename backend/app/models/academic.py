@@ -112,6 +112,7 @@ class StudentProfile(Base):
     enrollment_number: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     # Department affiliation is established at signup; cohort assignment can happen later.
     department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True, index=True)
+    programme_id: Mapped[str | None] = mapped_column(ForeignKey("programmes.id", ondelete="RESTRICT"), nullable=True, index=True)
     cohort_id: Mapped[str | None] = mapped_column(ForeignKey("cohorts.id", ondelete="RESTRICT"), nullable=True)
     current_semester: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     cgpa: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))
