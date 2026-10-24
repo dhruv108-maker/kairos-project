@@ -22,6 +22,17 @@ interface RegistrationResponse {
   activation_pending: boolean;
 }
 
+function isAcademicOptions(value: unknown): value is AcademicOptions {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<AcademicOptions>;
+  return Array.isArray(candidate.schools)
+    && Array.isArray(candidate.departments)
+    && Array.isArray(candidate.programmes)
+    && candidate.schools.every((item) => item && typeof item.id === "string" && typeof item.name === "string" && typeof item.code === "string")
+    && candidate.departments.every((item) => item && typeof item.id === "string" && typeof item.name === "string" && typeof item.code === "string" && typeof item.school_id === "string")
+    && candidate.programmes.every((item) => item && typeof item.id === "string" && typeof item.name === "string" && typeof item.code === "string" && typeof item.department_id === "string");
+}
+
 const BoxedRegister = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -120,6 +131,9 @@ const BoxedRegister = () => {
     apiRequest<AcademicOptions>("/institutions/public/" + encodeURIComponent(institutionId) + "/academic-options")
       .then((result) => {
         if (cancelled) return;
+        if (!isAcademicOptions(result)) {
+          throw new Error("The academic options service returned an invalid response. Please retry.");
+        }
         setAcademicOptions(result);
         setSchoolId((selected) => result.schools.some((school) => school.id === selected) ? selected : "");
         setDepartmentId((selected) => result.departments.some((department) => department.id === selected && department.school_id === schoolId) ? selected : "");
