@@ -170,7 +170,7 @@ function DetailPanel({ job, account, appliedIds, onApply, applying }: {
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
           {validExternal && !expired ? (
             <a className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-medium text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2" href={externalUrl!} target="_blank" rel="noopener noreferrer">Apply on company website <ExternalLink className="size-4" /></a>
-          ) : canApply && !externalUrl && !applied && !expired ? (
+          ) : canApply && !validExternal && !applied && !expired ? (
             <Button className="w-full bg-teal-700 text-white hover:bg-teal-800" disabled={applying === job.id} onClick={() => onApply(job)}>
               {applying === job.id ? "Applying…" : "Apply through Kairos"}
             </Button>
@@ -182,7 +182,7 @@ function DetailPanel({ job, account, appliedIds, onApply, applying }: {
 
         </div>
         {validExternal && canApply && <p className="mt-3 flex items-start gap-1.5 text-xs leading-5 text-slate-500"><ExternalLink className="mt-0.5 size-3.5 shrink-0" />You’ll leave Kairos to complete your application on the company website.</p>}
-        {!validExternal && job.public_application_url && <p role="status" className="mt-3 text-xs text-amber-700">The stored application link is invalid. Please use the employer’s instructions below.</p>}
+        {!validExternal && job.public_application_url && <p role="status" className="mt-3 text-xs text-amber-700">The stored external link is invalid. You can still apply through Kairos if eligible.</p>}
         {canApply && !externalUrl && !applied && !expired && <p className="mt-3 text-xs text-slate-500">Your application will be submitted to Kairos using the existing student application workflow.</p>}
       </div>
       <div className="space-y-6 p-5 sm:p-6">
@@ -428,6 +428,8 @@ export function JobDetailRoute() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setError("");
+    setJob(null);
     apiRequest<Opportunity>(`/jobs/${encodeURIComponent(jobId)}`, { signal: controller.signal })
       .then(setJob).catch((err) => { if (!controller.signal.aborted) setError(errorMessage(err)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
