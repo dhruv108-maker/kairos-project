@@ -38,6 +38,7 @@ const BoxedRegister = () => {
   const [schoolId, setSchoolId] = useState("");
   const [academicOptionsLoading, setAcademicOptionsLoading] = useState(false);
   const [academicOptionsError, setAcademicOptionsError] = useState(false);
+  const [academicOptionsErrorMessage, setAcademicOptionsErrorMessage] = useState("");
   const [academicOptionsRetry, setAcademicOptionsRetry] = useState(0);
   const [departmentId, setDepartmentId] = useState("");
   const [programmeId, setProgrammeId] = useState("");
@@ -106,6 +107,7 @@ const BoxedRegister = () => {
     setDepartmentId("");
     setProgrammeId("");
     setAcademicOptionsError(false);
+    setAcademicOptionsErrorMessage("");
 
     // Public enrollment choices are available only after an exact verified-domain match.
     if (!institutionId || !verifiedDomainMatch) {
@@ -122,13 +124,14 @@ const BoxedRegister = () => {
         setSchoolId((selected) => result.schools.some((school) => school.id === selected) ? selected : "");
         setDepartmentId((selected) => result.departments.some((department) => department.id === selected && department.school_id === schoolId) ? selected : "");
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!cancelled) {
           setAcademicOptions({ schools: [], departments: [], programmes: [], cohorts: [] });
           setSchoolId("");
           setDepartmentId("");
           setProgrammeId("");
           setAcademicOptionsError(true);
+          setAcademicOptionsErrorMessage(err instanceof Error ? err.message : "The academic options service is unavailable.");
         }
       })
       .finally(() => { if (!cancelled) setAcademicOptionsLoading(false); });
@@ -350,7 +353,7 @@ const BoxedRegister = () => {
                 </Select>
               </div>
             </div>
-            {academicOptionsError ? <Alert variant="destructive" role="alert"><AlertDescription className="space-y-2"><span>We couldn’t load school and department options. Please try again.</span><Button type="button" size="sm" variant="outline" onClick={() => setAcademicOptionsRetry((value) => value + 1)}>Retry loading academic options</Button></AlertDescription></Alert> : null}
+            {academicOptionsError ? <Alert variant="destructive" role="alert"><AlertDescription className="space-y-2"><span>We couldn’t load academic options. {academicOptionsErrorMessage || "Please try again."}</span><Button type="button" size="sm" variant="outline" onClick={() => setAcademicOptionsRetry((value) => value + 1)}>Retry loading academic options</Button></AlertDescription></Alert> : null}
             {verifiedDomainMatch && !academicOptionsLoading && !academicOptionsError && academicOptions.schools.length === 0 ? <p className="text-xs text-muted-foreground">No active schools are configured for this institution yet. Please contact your institution administrator.</p> : null}
             {role === "student" ? (
               <>
