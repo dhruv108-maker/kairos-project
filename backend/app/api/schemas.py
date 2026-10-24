@@ -37,6 +37,7 @@ class StudentRegistration(RegistrationBase):
     enrollment_number: str = Field(min_length=1, max_length=64)
     school_id: str | None = Field(default=None, min_length=1, max_length=36)
     department_id: str | None = Field(default=None, min_length=1, max_length=36)
+    programme_id: str | None = Field(default=None, min_length=1, max_length=36)
     cohort_id: str | None = Field(default=None, min_length=1, max_length=36)
 
     @field_validator("enrollment_number")
