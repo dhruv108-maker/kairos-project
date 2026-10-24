@@ -27,8 +27,8 @@ def _student(row):
         "full_name": account.full_name, "is_active": account.is_active,
         "is_verified": account.is_verified, "enrollment_number": student.enrollment_number,
         "current_semester": student.current_semester, "cgpa": str(student.cgpa) if student.cgpa is not None else None,
-        "cohort": {"id": cohort.id, "name": cohort.name, "graduation_year": cohort.graduation_year},
-        "programme": {"id": programme.id, "name": programme.name, "degree_level": programme.degree_level},
+        "cohort": ({"id": cohort.id, "name": cohort.name, "graduation_year": cohort.graduation_year} if cohort is not None else None),
+        "programme": ({"id": programme.id, "name": programme.name, "degree_level": programme.degree_level} if programme is not None else None),
         "department": {"id": department.id, "name": department.name},
         "school": {"id": school.id, "name": school.name},
     }
