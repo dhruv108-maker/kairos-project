@@ -77,8 +77,11 @@ async def public_academic_options(institution_id: str, db: DbSession):
     institution = await db.get(Institution, institution_id)
     if institution is None or (institution.status or "").upper() != "ACTIVE":
         raise HTTPException(status_code=404, detail="Active institution not found")
+    schools = (await db.execute(select(School.id, School.name, School.code)
+        .where(School.institution_id == institution_id, School.is_active.is_(True))
+        .order_by(School.name.asc()))).all()
     departments = (await db.execute(
-        select(Department.id, Department.name, Department.code)
+        select(Department.id, Department.name, Department.code, Department.school_id)
         .join(School, School.id == Department.school_id)
         .where(School.institution_id == institution_id, School.is_active.is_(True), Department.is_active.is_(True))
         .order_by(Department.name.asc())
@@ -101,7 +104,8 @@ async def public_academic_options(institution_id: str, db: DbSession):
         .order_by(Cohort.graduation_year.desc(), Cohort.name.asc())
     )).all()
     return {
-        "departments": [{"id": row.id, "name": row.name, "code": row.code} for row in departments],
+        "schools": [{"id": str(row.id), "name": row.name, "code": row.code} for row in schools],
+        "departments": [{"id": str(row.id), "name": row.name, "code": row.code, "school_id": str(row.school_id)} for row in departments],
         "cohorts": [{"id": row[0], "name": row[1], "programme_name": row[2], "department_name": row[3], "academic_year": row[4], "graduation_year": row[5]} for row in cohorts],
     }
 
