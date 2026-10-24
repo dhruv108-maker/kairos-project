@@ -124,6 +124,7 @@ def upgrade():
         })
 
     # Retire rows from the earlier coarse seed; never delete rows referenced by existing accounts.
+    bind.execute(sa.text("UPDATE schools SET is_active=0 WHERE code = :code"), {"code": "GSFC-SOM"})
     old_codes = ["GSFC-CSE", "GSFC-MECH", "GSFC-CHE", "GSFC-FEHS", "GSFC-CHEM", "GSFC-BIOTECH", "GSFC-MICRO", "GSFC-INDCHEM", "GSFC-BBA"]
     bind.execute(sa.text("UPDATE departments SET is_active=0 WHERE code IN :codes").bindparams(
         sa.bindparam("codes", expanding=True)), {"codes": old_codes})
