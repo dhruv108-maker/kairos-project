@@ -129,7 +129,7 @@ async def test_student_signup_verification_login_and_profile(client):
 
 @pytest.mark.asyncio
 async def test_institution_lookup_and_student_registration_preserve_academic_relationships(client):
-    http, _ = client
+    http, sent_tokens = client
     lookup = await http.get("/api/v1/institutions/resolve", params={"email_domain": "SAGIROS.EDU.TEST."})
     assert lookup.status_code == 200
     assert lookup.json() == {"status": "matched", "institution": {"id": "institution-1", "name": "Sagiros University"}}
@@ -140,6 +140,15 @@ async def test_institution_lookup_and_student_registration_preserve_academic_rel
         "enrollment_number": "SAG-ENR-01", "cohort_id": "cohort-1",
     })
     assert signup.status_code == 201, signup.text
+    verified = await http.post("/api/v1/auth/verify-email", json={"token": sent_tokens["student@sagiros.edu.test"]})
+    assert verified.status_code == 200
+    login = await http.post("/api/v1/auth/login", json={"email": "student@sagiros.edu.test", "password": "institution-aware password 42"})
+    assert login.status_code == 200
+    profile = await http.get("/api/v1/students/me", headers={"Authorization": "Bearer " + login.json()["access_token"]})
+    assert profile.status_code == 200
+    assert profile.json()["student"]["cohort_id"] == "cohort-1"
+    assert profile.json()["account"]["full_name"] == "Institution Student"
+
 
 @pytest.mark.asyncio
 async def test_registration_rejects_institution_incompatible_with_cohort_or_department(client):
