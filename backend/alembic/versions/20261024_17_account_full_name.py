@@ -24,6 +24,12 @@ def upgrade() -> None:
         return
 
     columns = {column["name"] for column in inspector.get_columns("accounts")}
+    # Migration tests may seed a minimal accounts(id) table only to satisfy
+    # foreign keys; it is not the application account schema and has no email
+    # from which to backfill a display name.
+    if "email" not in columns:
+        return
+
     if "full_name" not in columns:
         op.add_column("accounts", sa.Column("full_name", sa.String(255), nullable=True))
         # Do not discard existing accounts: use their email local-part as a
