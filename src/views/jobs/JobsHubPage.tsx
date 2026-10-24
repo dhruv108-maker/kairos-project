@@ -168,9 +168,9 @@ function DetailPanel({ job, account, appliedIds, onApply, applying }: {
           {salaryLabel(job) && <Badge variant="outline">{salaryLabel(job)}</Badge>}
         </div>
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          {canApply && validExternal ? (
+          {validExternal && !expired ? (
             <a className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-medium text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2" href={externalUrl!} target="_blank" rel="noopener noreferrer">Apply on company website <ExternalLink className="size-4" /></a>
-          ) : canApply && !applied && !expired ? (
+          ) : canApply && !externalUrl && !applied && !expired ? (
             <Button className="w-full bg-teal-700 text-white hover:bg-teal-800" disabled={applying === job.id} onClick={() => onApply(job)}>
               {applying === job.id ? "Applying…" : "Apply through Kairos"}
             </Button>
