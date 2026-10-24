@@ -27,9 +27,7 @@ class AcademicAdminService:
         self.institutions = InstitutionService(db)
 
     def _student_scope(self, institution_id: str):
-        return select(StudentProfile).join(Cohort, Cohort.id == StudentProfile.cohort_id).join(
-            Programme, Programme.id == Cohort.programme_id
-        ).join(Department, Department.id == Programme.department_id).join(
+        return select(StudentProfile).join(Department, Department.id == StudentProfile.department_id).join(
             School, School.id == Department.school_id
         ).where(School.institution_id == institution_id)
 
@@ -42,10 +40,10 @@ class AcademicAdminService:
         await self.institutions.require_admin(institution_id, actor_id)
         query = select(StudentProfile, Account, Cohort, Programme, Department, School).join(
             Account, Account.id == StudentProfile.account_id
-        ).join(Cohort, Cohort.id == StudentProfile.cohort_id).join(
-            Programme, Programme.id == Cohort.programme_id
-        ).join(Department, Department.id == Programme.department_id).join(
+        ).join(Department, Department.id == StudentProfile.department_id).join(
             School, School.id == Department.school_id
+        ).outerjoin(Programme, Programme.department_id == Department.id).outerjoin(
+            Cohort, Cohort.programme_id == Programme.id
         ).where(School.institution_id == institution_id)
         if search:
             term = "%" + search.strip() + "%"
@@ -57,10 +55,10 @@ class AcademicAdminService:
         await self.institutions.require_admin(institution_id, actor_id)
         query = select(StudentProfile, Account, Cohort, Programme, Department, School).join(
             Account, Account.id == StudentProfile.account_id
-        ).join(Cohort, Cohort.id == StudentProfile.cohort_id).join(
-            Programme, Programme.id == Cohort.programme_id
-        ).join(Department, Department.id == Programme.department_id).join(
+        ).join(Department, Department.id == StudentProfile.department_id).join(
             School, School.id == Department.school_id
+        ).outerjoin(Programme, Programme.department_id == Department.id).outerjoin(
+            Cohort, Cohort.programme_id == Programme.id
         ).where(School.institution_id == institution_id, StudentProfile.id == student_id)
         row = (await self.db.execute(query)).first()
         if row is None:
@@ -70,15 +68,16 @@ class AcademicAdminService:
     async def change_student_cohort(self, institution_id: str, actor_id: str, student_id: str, cohort_id: str, current_semester: int | None):
         await self.institutions.require_admin(institution_id, actor_id)
         await self.get_student(institution_id, actor_id, student_id)
+        student = await self.db.get(StudentProfile, student_id)
         query = select(Cohort).join(Programme, Programme.id == Cohort.programme_id).join(
             Department, Department.id == Programme.department_id
         ).join(School, School.id == Department.school_id).where(
-            Cohort.id == cohort_id, School.institution_id == institution_id
+            Cohort.id == cohort_id, Department.id == student.department_id,
+            School.institution_id == institution_id,
         )
         cohort = await self.db.scalar(query)
         if cohort is None:
-            raise AcademicAdminError(422, "Target cohort must belong to this institution")
-        student = await self.db.get(StudentProfile, student_id)
+            raise AcademicAdminError(422, "Target cohort must belong to the student's department and institution")
         student.cohort_id = cohort_id
         if current_semester is not None:
             student.current_semester = current_semester
