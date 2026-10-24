@@ -1,6 +1,5 @@
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router";
-import { Button } from "@/components/ui/button";
 import FullLogo from "src/layouts/full/shared/logo/FullLogo";
 
 const BoxedRegister = () => (
@@ -17,9 +16,7 @@ const BoxedRegister = () => (
         Contact your institution administrator for the correct student or faculty registration
         process. Faculty accounts also require institutional approval.
       </p>
-      <Button asChild className="mt-6 w-full rounded-lg">
-        <Link to="/auth/auth2/login">Back to sign in</Link>
-      </Button>
+      <Link className="mt-6 flex h-10 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90" to="/auth/auth2/login">Back to sign in</Link>
     </Card>
   </div>
 );
