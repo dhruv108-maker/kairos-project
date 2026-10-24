@@ -7,6 +7,7 @@ from app.models.evaluation import ReportRequirement, ReportSubmission, ReportVer
 from app.models.organizations import Team, TeamMembership, AssessmentCampaign, FacultyAssessmentAssignment
 from app.models.portfolio import StudentAcademicRecord, StudentPortfolioEntry, StudentResume
 from app.models.institutions import Institution, InstitutionMembership, InstitutionInvitation
+from app.models.institution_domains import InstitutionDomain
 from app.models.mentorship import FacultyStudentMentorship
 from app.models.audit import AuditEvent
 from app.models.employers import EmployerOrganization, EmployerMembership, EmployerInvitation, RecruitmentInterview, RecruitmentOffer
@@ -21,7 +22,7 @@ __all__ = [
     "GriffinResultSnapshot", "EvaluationWorkflow", "EvaluationStageResult",
     "FinalEvaluationOutcome", "Team", "TeamMembership", "AssessmentCampaign",
     "FacultyAssessmentAssignment", "StudentAcademicRecord", "StudentPortfolioEntry",
-    "StudentResume", "Institution", "InstitutionMembership", "InstitutionInvitation", "FacultyStudentMentorship", "AuditEvent",
+    "StudentResume", "Institution", "InstitutionMembership", "InstitutionInvitation", "InstitutionDomain", "FacultyStudentMentorship", "AuditEvent",
     "EmployerOrganization", "EmployerMembership", "EmployerInvitation", "RecruitmentInterview", "RecruitmentOffer",
     "RecruitmentDrive", "RecruitmentDriveProgrammeTarget", "RecruitmentDriveCohortTarget",
     "RecruitmentDriveGraduationYearTarget", "RecruitmentDriveParticipation", "RecruitmentDriveOpportunity",
