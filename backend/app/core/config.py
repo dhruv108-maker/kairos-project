@@ -40,6 +40,7 @@ class Settings(BaseSettings):
 
     RESEND_API_KEY: SecretStr | None = None
     RESEND_FROM_EMAIL: str | None = None
+    MAIL_FROM_NAME: str = "Kairos"
 
     JWT_SECRET_KEY: SecretStr
     JWT_ALGORITHM: str = "HS256"
