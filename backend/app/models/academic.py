@@ -63,6 +63,7 @@ class Cohort(Base):
     academic_year_id: Mapped[str] = mapped_column(ForeignKey("academic_years.id", ondelete="RESTRICT"), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     graduation_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
     programme: Mapped[Programme] = relationship(back_populates="cohorts")
     academic_year: Mapped[AcademicYear] = relationship(back_populates="cohorts")
