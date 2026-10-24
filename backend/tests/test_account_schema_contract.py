@@ -1,10 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.dialects import mysql
-from sqlalchemy.orm import configure_mappers
 
 from app.api.schemas import AuthResponse, LoginRequest, StudentRegistration
 from app.models.academic import Account
-from app.modules.identity.service import IdentityService
 
 
 def test_account_model_declares_required_full_name_column():
