@@ -10,7 +10,8 @@ export type SemesterPerformancePoint = {
   semesterLabel: string;
   value: number | null;
   studentCount?: number;
-  academicContext?: string | null;\n  metricScale?: string | null;
+  academicContext?: string | null;
+  metricScale?: string | null;
 };
 
 export type SemesterPerformanceChartProps = {
