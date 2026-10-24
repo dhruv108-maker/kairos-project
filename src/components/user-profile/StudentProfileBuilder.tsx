@@ -66,6 +66,7 @@ export default function StudentProfileBuilder() {
   const [activeSection, setActiveSection] = useState("personal");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -80,6 +81,7 @@ export default function StudentProfileBuilder() {
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirtyPersonal = useMemo(() => !!cv && (fullName !== cv.profile.full_name || phone !== (cv.profile.phone_number ?? "")), [cv, fullName, phone]);
+  const hasUnsavedForm = dirtyPersonal || Boolean(editingEntryId || editingAcademicId) || Object.values(entryForm).some((value) => value.trim().length > 0) || Object.values(academicForm).some((value) => value.trim().length > 0);
   const refresh = useCallback(async () => {
     const [cvResult, completionResult, resumeResult] = await Promise.all([
       apiRequest<CvData>("/students/me/cv"),
@@ -107,7 +109,8 @@ export default function StudentProfileBuilder() {
       setCompletion(completionResult);
       setResumes(resumeResult.items ?? []);
       setError("");
-    }).catch((err: unknown) => { if (alive) setError(errorMessage(err)); })
+      setLoadFailed(false);
+    }).catch((err: unknown) => { if (alive) { setError(errorMessage(err)); setLoadFailed(true); } })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
@@ -244,7 +247,7 @@ export default function StudentProfileBuilder() {
       {notice && <div role="status" className="flex items-start gap-2 rounded-xl border border-teal-700/20 bg-teal-50 p-4 text-sm text-teal-950 dark:bg-teal-950/30 dark:text-teal-100"><Check className="mt-0.5 h-4 w-4 shrink-0" />{notice}</div>}
       {!account?.roles.some((role) => role.toUpperCase() === "STUDENT") ? <Card className="shadow-none"><CardContent className="p-6 text-sm text-muted-foreground">The student profile is available to authenticated student accounts. Please sign in with an account that has the student role.</CardContent></Card> : loading ? <Card className="shadow-none"><CardContent className="space-y-4 p-6"><div className="h-6 w-48 animate-pulse rounded bg-muted" /><div className="h-4 w-3/4 animate-pulse rounded bg-muted" /><div className="h-24 animate-pulse rounded bg-muted/60" /></CardContent></Card> : drawerOpen ? (
         <section className="space-y-5">
-          <div className="flex flex-col justify-between gap-4 border-b pb-5 sm:flex-row sm:items-center"><div><p className="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-300">PROFILE EDITOR</p><h2 className="mt-1 text-2xl font-semibold">{selected.label}</h2><p className="mt-1 text-sm text-muted-foreground">{selected.description}</p></div><Button variant="outline" onClick={() => { setDrawerOpen(false); setError(""); setNotice(""); }} disabled={saving || uploading}>Back to profile</Button></div>
+          <div className="flex flex-col justify-between gap-4 border-b pb-5 sm:flex-row sm:items-center"><div><p className="text-xs font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-300">PROFILE EDITOR</p><h2 className="mt-1 text-2xl font-semibold">{selected.label}</h2><p className="mt-1 text-sm text-muted-foreground">{selected.description}</p></div><Button variant="outline" onClick={() => { if (hasUnsavedForm && !window.confirm("Discard unsaved profile changes?")) return; setDrawerOpen(false); setError(""); setNotice(""); setEditingEntryId(null); setEditingAcademicId(null); setEntryForm({ ...blankEntry }); setAcademicForm({ ...blankAcademic }); }} disabled={saving || uploading}>Back to profile</Button></div>
           <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">
             <nav aria-label="Profile sections" className="flex gap-1 overflow-x-auto rounded-xl border bg-card p-2 xl:flex-col">{sections.map((section) => { const Icon = section.icon; return <button key={section.id} onClick={() => { setActiveSection(section.id); setError(""); setNotice(""); }} className={"flex min-w-max items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted " + (activeSection === section.id ? "bg-teal-50 font-medium text-teal-950 dark:bg-teal-950/40 dark:text-teal-100" : "text-muted-foreground")}><Icon className="h-4 w-4" />{section.label}</button>; })}</nav>
             <div className="min-w-0 space-y-5">
