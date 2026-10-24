@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
+import { Mail } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import FullLogo from "src/layouts/full/shared/logo/FullLogo";
+import { Label } from "@/components/ui/label";
+import AuthFrame from "@/components/auth/AuthFrame";
 import { apiRequest } from "@/api/kairos-client";
 
-const BoxedForgotpwd = () => {
+const ForgotPassword = () => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,7 +19,7 @@ const BoxedForgotpwd = () => {
     setMessage("");
     setError("");
     setIsSubmitting(true);
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     const email = String(form.get("email") ?? "").trim().toLowerCase();
 
     try {
@@ -36,32 +37,33 @@ const BoxedForgotpwd = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-muted px-4 py-10">
-      <div className="flex min-h-[calc(100vh-5rem)] items-center justify-center">
-        <Card className="w-full max-w-md border-none p-6 shadow-lg">
-          <div className="mx-auto mb-6 w-fit"><FullLogo /></div>
-          <p className="mb-5 text-sm text-muted-foreground">
-            Enter the email address associated with your account. If the account is eligible,
-            password reset instructions will be sent when email delivery is available.
-          </p>
-          <form className="w-full space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" autoComplete="email" required />
-            </div>
-            {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}
-            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full rounded-lg" disabled={isSubmitting}>
-              {isSubmitting ? "Sending request…" : "Request password reset"}
-            </Button>
-          </form>
-          <div className="mt-5 text-center text-sm">
-            <Link className="text-primary hover:underline" to="/auth/auth2/login">Back to sign in</Link>
-          </div>
-        </Card>
+    <AuthFrame
+      asideEyebrow="Account recovery"
+      asideTitle="Back to your work, without compromising security."
+      asideDescription="Request a single-use reset link for the email address associated with your Kairos account."
+      footer={<>Remember your password? <Link to="/auth/auth2/login" className="font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground">Sign in</Link></>}
+    >
+      <div className="mb-7">
+        <div className="mb-5 flex size-11 items-center justify-center rounded-md border bg-muted"><Mail className="size-5" /></div>
+        <p className="text-sm font-medium text-muted-foreground">ACCOUNT RECOVERY</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Reset your password</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Enter your account email. If it’s eligible, we’ll send a reset link that expires in 30 minutes.</p>
       </div>
-    </div>
+
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email address</Label>
+          <Input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={255} placeholder="you@institution.edu" required className="h-11" />
+        </div>
+        {message && <Alert><AlertDescription>{message}</AlertDescription></Alert>}
+        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Sending request…" : "Send reset link"}
+        </Button>
+        <p className="text-center text-xs leading-5 text-muted-foreground">For privacy, we use the same response whether or not an eligible account exists.</p>
+      </form>
+    </AuthFrame>
   );
 };
 
-export default BoxedForgotpwd;
+export default ForgotPassword;
