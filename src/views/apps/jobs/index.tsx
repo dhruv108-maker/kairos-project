@@ -40,7 +40,7 @@ type Opportunity = {
   created_at?: string | null;
   company?: Company | null;
 };
-type JobResponse = { items: Opportunity[]; limit: number; offset: number };
+type JobResponse = { items: Opportunity[]; limit: number; offset: number; hasMore?: boolean };
 
 const PAGE_SIZE = 12;
 const typeLabel = (value?: string | null) => (value || "Opportunity").replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -125,7 +125,7 @@ export default function JobsHub() {
   const loadJobs = useCallback(async (signal: AbortSignal) => {
     setLoading(true);
     setError("");
-    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE + 1), offset: String(offset) });
     if (query.trim()) params.set("q", query.trim());
     if (location.trim()) params.set("location", location.trim());
     if (kind) params.set("opportunity_type", kind);
@@ -247,7 +247,7 @@ export default function JobsHub() {
             {!error && loading && <div className="space-y-3">{Array.from({ length: 3 }, (_, index) => <JobSkeleton key={index} />)}</div>}
             {!error && !loading && data?.items.length === 0 && <Card className="rounded-2xl border-dashed border-slate-300 bg-white p-10 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500"><Search className="h-5 w-5" /></div><h3 className="mt-4 text-base font-semibold">No opportunities match your search</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">Try a different keyword or location, or clear your filters to explore more roles.</p><Button variant="outline" onClick={clearFilters} className="mt-5 rounded-xl">Clear filters</Button></Card>}
             {!error && !loading && data && data.items.length > 0 && <div className="space-y-3">{data.items.map((job) => <OpportunityCard key={job.id} job={job} selected={job.id === selectedId} onSelect={() => setSelectedId(job.id)} />)}</div>}
-            {!error && !loading && data && <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3"><span className="text-xs text-slate-500">Page {Math.floor(offset / PAGE_SIZE) + 1}</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}><ArrowLeft className="mr-1.5 h-3.5 w-3.5" />Previous</Button><Button variant="outline" size="sm" disabled={data.items.length < PAGE_SIZE} onClick={() => setOffset(offset + PAGE_SIZE)}>Next<ChevronRight className="ml-1.5 h-3.5 w-3.5" /></Button></div></div>}
+            {!error && !loading && data && <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3"><span className="text-xs text-slate-500">Page {Math.floor(offset / PAGE_SIZE) + 1}</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}><ArrowLeft className="mr-1.5 h-3.5 w-3.5" />Previous</Button><Button variant="outline" size="sm" disabled={!data.hasMore} onClick={() => setOffset(offset + PAGE_SIZE)}>Next<ChevronRight className="ml-1.5 h-3.5 w-3.5" /></Button></div></div>}
             {!detailLoading && !detailError && currentJob && <Card className="mt-4 rounded-2xl border-slate-200 bg-white p-5 xl:hidden"><div className="flex items-start gap-3"><CompanyMark name={companyName} /><div className="min-w-0"><h2 className="text-lg font-semibold leading-snug">{currentJob.title}</h2><p className="mt-1 text-sm text-slate-600">{companyName}{currentJob.location ? " · " + currentJob.location : ""}</p></div></div><Separator className="my-4" /><h3 className="text-sm font-semibold">About the opportunity</h3><p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{currentJob.description || currentJob.summary || "No additional description was provided."}</p>{currentJob.required_skills && currentJob.required_skills.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{currentJob.required_skills.slice(0, 8).map((skill) => <Badge key={skill} variant="secondary" className="bg-slate-100 text-slate-700">{skill}</Badge>)}</div>}{currentJob.public_application_url ? <a href={currentJob.public_application_url} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex h-10 items-center justify-center rounded-lg bg-teal-800 px-4 text-sm font-medium text-white hover:bg-teal-900">Apply on company website <ExternalLink className="ml-2 h-4 w-4" /></a> : <Button disabled={applying} onClick={applyToOpportunity} className="mt-5 rounded-xl bg-teal-800 text-white hover:bg-teal-900">{applying ? "Submitting…" : "Apply through Kairos"}</Button>}{applyMessage && <p role="status" className="mt-3 text-sm text-slate-600">{applyMessage}</p>}</Card>}
           </section>
 
