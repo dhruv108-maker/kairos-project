@@ -497,6 +497,7 @@ export default function JobsHubPage() {
 
     <nav aria-label="Jobs navigation" className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
       <Button variant="secondary" className="rounded-full"><Search className="size-4" /> Explore opportunities</Button>
+      {account && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/")}>Back to workspace</Button>}
       {!account && <Button variant="outline" className="rounded-full" onClick={() => window.location.assign("/auth/auth2/login")}>Sign in</Button>}
       {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/applications")}><CheckCircle2 className="size-4" /> My applications</Button>}
       {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/campus")}><Users className="size-4" /> Campus recruitment</Button>}
