@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams, useParams } from "reac
 import {
   ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays,
   CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, ExternalLink,
-  MapPin, RefreshCw, Search, SlidersHorizontal, Sparkles, Users, X,
+  MapPin, RefreshCw, Search, SlidersHorizontal, Users, X,
 } from "lucide-react";
 import { apiRequest, ApiError, type KairosAccount } from "@/api/kairos-client";
 import { useAuth } from "@/context/auth/AuthContext";
@@ -123,32 +123,32 @@ function OpportunityCard({ job, selected, onSelect }: { job: Opportunity; select
   const company = job.company?.name || "Employer";
   const salary = salaryLabel(job);
   return (
-    <article className={`group rounded-2xl border bg-white p-4 transition hover:border-teal-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)] focus-within:ring-2 focus-within:ring-teal-600/20 ${selected ? "border-teal-500 shadow-sm" : "border-slate-200"}`}>
-      <div className="flex items-start gap-3">
+    <article className={`group rounded-xl border bg-white p-4 transition-colors hover:border-teal-300 focus-within:ring-2 focus-within:ring-teal-700/20 sm:p-5 ${selected ? "border-teal-600 ring-1 ring-teal-600/10" : "border-slate-200"}`}>
+      <div className="flex items-start gap-3 sm:gap-4">
         <CompanyMark name={company} />
         <div className="min-w-0 flex-1">
-          <button type="button" onClick={onSelect} className="text-left font-semibold leading-5 text-slate-900 decoration-teal-600 underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600">
-            {job.title}
-          </button>
-          <p className="mt-1 truncate text-sm text-slate-600">{company}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <button type="button" onClick={onSelect} className="text-left text-base font-semibold leading-6 text-slate-900 underline-offset-4 hover:text-teal-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700">
+                {job.title}
+              </button>
+              <p className="mt-0.5 truncate text-sm text-slate-600">{company}</p>
+            </div>
+            <Badge variant="outline" className="shrink-0 border-slate-200 font-medium capitalize text-slate-600">{opportunityKind(job)}</Badge>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
             {job.location && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{job.location}</span>}
             {job.work_mode && <span className="inline-flex items-center gap-1"><Building2 className="size-3.5" />{job.work_mode.toLowerCase()}</span>}
+            {salary && <span className="font-medium text-slate-700">{salary}</span>}
+          </div>
+          <p className="mt-3 line-clamp-2 text-sm leading-5 text-slate-600">{job.summary || job.description || "Open the opportunity to review the full role details and application instructions."}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2">
+            {(job.required_skills || []).slice(0, 3).map((skill) => <Badge key={skill} variant="secondary" className="rounded-md font-normal text-slate-600">{skill}</Badge>)}
+            {job.application_deadline && <span className="inline-flex items-center gap-1 text-xs text-slate-500"><CalendarDays className="size-3.5" />Closes {dateLabel(job.application_deadline)}</span>}
+            {job.created_at && <span className="text-xs text-slate-500">Posted {dateLabel(job.created_at)}</span>}
+            <Button variant="ghost" size="sm" className="ml-auto h-8 text-teal-800 hover:bg-teal-50 hover:text-teal-900" onClick={onSelect}>View details <ArrowUpRight className="size-3.5" /></Button>
           </div>
         </div>
-        <Badge variant="outline" className="shrink-0 border-slate-200 bg-slate-50 font-medium capitalize text-slate-600">{opportunityKind(job)}</Badge>
-      </div>
-      <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">{job.summary || job.description || "Open the opportunity to review the full role details and application instructions."}</p>
-      {(job.required_skills?.length || salary || job.application_deadline) ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {salary && <span className="text-xs font-medium text-slate-700">{salary}</span>}
-          {(job.required_skills || []).slice(0, 3).map((skill) => <Badge key={skill} variant="secondary" className="font-normal text-slate-600">{skill}</Badge>)}
-          {job.application_deadline && <span className="ml-auto inline-flex items-center gap-1 text-xs text-slate-500"><CalendarDays className="size-3.5" />Closes {dateLabel(job.application_deadline)}</span>}
-        </div>
-      ) : null}
-      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-        <span className="text-xs text-slate-500">{job.created_at ? `Posted ${dateLabel(job.created_at)}` : "Opportunity details available"}</span>
-        <Button variant={selected ? "secondary" : "outline"} size="sm" onClick={onSelect}>View details <ArrowUpRight className="size-3.5" /></Button>
       </div>
     </article>
   );
@@ -481,21 +481,21 @@ export default function JobsHubPage() {
     </main>;
   }
 
-  return <main className="mx-auto max-w-[1440px] space-y-7 py-2">
-    <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-[linear-gradient(115deg,#f8fbfa_0%,#ffffff_58%,#f3f8f7_100%)] px-5 py-8 sm:px-8 sm:py-10">
-      <div className="relative max-w-3xl">
-        <div className="inline-flex items-center gap-2 rounded-full border border-teal-800/10 bg-white/80 px-3 py-1.5 text-xs font-medium text-teal-800"><Sparkles className="size-3.5" /> Your next chapter starts here</div>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Find your next opportunity</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Discover internships, graduate roles, and opportunities that move your career forward.</p>
-        <form onSubmit={runSearch} className="mt-6 grid gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto]">
-          <label className="flex min-w-0 items-center gap-2 px-3"><Search className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Search title, skill, or company</span><Input aria-label="Search title, skill, or company" className="h-10 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="Job title, keyword, or company" value={queryInput} onChange={(event) => setQueryInput(event.target.value)} /></label>
-          <label className="flex min-w-0 items-center gap-2 border-slate-100 px-3 md:border-l"><MapPin className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Location</span><Input aria-label="Location" className="h-10 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="City or remote" value={locationInput} onChange={(event) => setLocationInput(event.target.value)} /></label>
-          <Button type="submit" className="h-10 bg-teal-700 px-5 text-white hover:bg-teal-800"><Search className="size-4" /> Search jobs</Button>
-        </form>
-      </div>
+  return <main className="mx-auto max-w-[1440px] space-y-5 py-1">
+    <section className="space-y-1 border-b border-slate-200 pb-5">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-[28px]">Find your next opportunity</h1>
+      <p className="text-sm leading-6 text-slate-600">Explore internships, graduate roles, and jobs that fit your goals.</p>
+      <form onSubmit={runSearch} className="mt-4 grid gap-2 rounded-xl border border-slate-300 bg-white p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto]">
+        <label className="flex min-w-0 items-center gap-2 px-2"><Search className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Search title, skill, or company</span><Input aria-label="Search title, skill, or company" className="h-9 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="Role, skill, or company" value={queryInput} onChange={(event) => setQueryInput(event.target.value)} /></label>
+        <label className="flex min-w-0 items-center gap-2 px-2 sm:border-l sm:border-slate-200"><MapPin className="size-4 shrink-0 text-slate-400" /><span className="sr-only">Location</span><Input aria-label="Location" className="h-9 border-0 px-0 shadow-none focus-visible:ring-0" placeholder="City or remote" value={locationInput} onChange={(event) => setLocationInput(event.target.value)} /></label>
+        <div className="flex gap-1">
+          {(queryInput || locationInput) && <Button type="button" variant="ghost" className="h-9 px-3" aria-label="Clear search fields" onClick={() => { setQueryInput(""); setLocationInput(""); setQuery(""); setLocation(""); setOffset(0); }}><X className="size-4" /><span className="sm:hidden">Clear</span></Button>}
+          <Button type="submit" className="h-9 bg-teal-700 px-5 text-white hover:bg-teal-800"><Search className="size-4" /> Search</Button>
+        </div>
+      </form>
     </section>
 
-    <nav aria-label="Jobs navigation" className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+    <nav aria-label="Jobs navigation" className="flex flex-wrap items-center gap-1 border-b border-slate-200 pb-3">
       <Button variant="secondary" className="rounded-full"><Search className="size-4" /> Explore opportunities</Button>
       {account && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/")}>Back to workspace</Button>}
       {!account && <Button variant="outline" className="rounded-full" onClick={() => window.location.assign("/auth/auth2/login")}>Sign in</Button>}
@@ -503,17 +503,17 @@ export default function JobsHubPage() {
       {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/campus")}><Users className="size-4" /> Campus recruitment</Button>}
     </nav>
 
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.04fr)_minmax(400px,0.96fr)]">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
       <section className="min-w-0 space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-lg font-semibold text-slate-950">Explore opportunities</h2><p className="mt-1 text-sm text-slate-500">{loading ? "Finding opportunities…" : `${result.items.length ? `${result.offset + 1}–${result.offset + result.items.length}` : "0"} shown · results from Kairos`}</p></div><Button variant="ghost" size="sm" onClick={() => void loadJobs()} disabled={loading}><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Refresh</Button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-base font-semibold text-slate-950">Open opportunities</h2><p className="mt-0.5 text-sm text-slate-500">{loading ? "Loading results…" : `${result.items.length ? `${result.offset + 1}–${result.offset + result.items.length}` : "0"} shown · ${result.hasMore ? "more available" : "end of results"}`}</p></div><Button variant="ghost" size="sm" onClick={() => void loadJobs()} disabled={loading}><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Refresh</Button></div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-3">
-          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700"><SlidersHorizontal className="size-4" /> Refine your search</div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="space-y-1.5 text-xs font-medium text-slate-600">Opportunity type<select aria-label="Opportunity type" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={kind} onChange={(event) => { setKind(event.target.value); setOffset(0); }} >{TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-            <label className="space-y-1.5 text-xs font-medium text-slate-600">Workplace<select aria-label="Workplace arrangement" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={mode} onChange={(event) => { setMode(event.target.value); setOffset(0); }} >{MODES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        <div className="border-y border-slate-200 py-3">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><SlidersHorizontal className="size-3.5" /> Filters</div>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="min-w-40 space-y-1.5 text-xs font-medium text-slate-600">Opportunity type<select aria-label="Opportunity type" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={kind} onChange={(event) => { setKind(event.target.value); setOffset(0); }} >{TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            <label className="min-w-40 space-y-1.5 text-xs font-medium text-slate-600">Workplace<select aria-label="Workplace arrangement" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={mode} onChange={(event) => { setMode(event.target.value); setOffset(0); }} >{MODES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           </div>
-          {(query || location || kind || mode) && <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3"><span className="text-xs text-slate-500">Active filters</span>{query && <Badge variant="secondary">Keyword: {query}<button aria-label="Remove keyword filter" className="ml-1" onClick={() => { setQuery(""); setQueryInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{location && <Badge variant="secondary">Location: {location}<button aria-label="Remove location filter" className="ml-1" onClick={() => { setLocation(""); setLocationInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{kind && <Badge variant="secondary">{TYPES.find((item) => item.value === kind)?.label}<button aria-label="Remove type filter" className="ml-1" onClick={() => setKind("")}><X className="size-3" /></button></Badge>}{mode && <Badge variant="secondary">{MODES.find((item) => item.value === mode)?.label}<button aria-label="Remove workplace filter" className="ml-1" onClick={() => setMode("")}><X className="size-3" /></button></Badge>}<Button variant="link" size="sm" onClick={clearFilters}>Clear all</Button></div>}
+          {(query || location || kind || mode) && <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-xs text-slate-500">Active filters</span>{query && <Badge variant="secondary">Keyword: {query}<button aria-label="Remove keyword filter" className="ml-1" onClick={() => { setQuery(""); setQueryInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{location && <Badge variant="secondary">Location: {location}<button aria-label="Remove location filter" className="ml-1" onClick={() => { setLocation(""); setLocationInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{kind && <Badge variant="secondary">{TYPES.find((item) => item.value === kind)?.label}<button aria-label="Remove type filter" className="ml-1" onClick={() => setKind("")}><X className="size-3" /></button></Badge>}{mode && <Badge variant="secondary">{MODES.find((item) => item.value === mode)?.label}<button aria-label="Remove workplace filter" className="ml-1" onClick={() => setMode("")}><X className="size-3" /></button></Badge>}<Button variant="link" size="sm" onClick={clearFilters}>Clear all</Button></div>}
         </div>
 
         {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><div className="flex items-start gap-2"><CircleAlert className="mt-0.5 size-4 shrink-0" /><div className="flex-1">{error}<div className="mt-3"><Button size="sm" variant="outline" onClick={() => void loadJobs()}>Try again</Button></div></div></div></div>}
