@@ -37,11 +37,14 @@ from app.models.academic import (
     Cohort,
     Department,
     FacultyProfile,
+    Programme,
+    School,
     Role,
     StudentProfile,
 )
 from app.services.email import send_verification_email, send_password_reset_email
 from app.modules.identity.service import IdentityService
+from app.models.institutions import Institution
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -85,6 +88,19 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
             cohort = await db.get(Cohort, payload.cohort_id)
             if cohort is None:
                 raise HTTPException(status_code=422, detail="Unknown cohort_id")
+            if payload.institution_id:
+                institution = await db.get(Institution, payload.institution_id)
+                cohort_institution_id = await db.scalar(
+                    select(School.institution_id)
+                    .join(Department, Department.school_id == School.id)
+                    .join(Programme, Programme.department_id == Department.id)
+                    .join(Cohort, Cohort.programme_id == Programme.id)
+                    .where(Cohort.id == payload.cohort_id)
+                )
+                if institution is None or institution.status != "ACTIVE":
+                    raise HTTPException(status_code=422, detail="Unknown or inactive institution_id")
+                if cohort_institution_id != institution.id:
+                    raise HTTPException(status_code=422, detail="The selected cohort does not belong to the selected institution")
             account = Account(
                 id=str(uuid4()),
                 email=payload.email,
@@ -132,6 +148,17 @@ async def register_faculty(payload: FacultyRegistration, db: DbSession) -> Regis
             department = await db.get(Department, payload.department_id)
             if department is None or not department.is_active:
                 raise HTTPException(status_code=422, detail="Unknown or inactive department_id")
+            if payload.institution_id:
+                institution = await db.get(Institution, payload.institution_id)
+                department_institution_id = await db.scalar(
+                    select(School.institution_id)
+                    .join(Department, Department.school_id == School.id)
+                    .where(Department.id == payload.department_id)
+                )
+                if institution is None or institution.status != "ACTIVE":
+                    raise HTTPException(status_code=422, detail="Unknown or inactive institution_id")
+                if department_institution_id != institution.id:
+                    raise HTTPException(status_code=422, detail="The selected department does not belong to the selected institution")
             account = Account(
                 id=str(uuid4()),
                 email=payload.email,
