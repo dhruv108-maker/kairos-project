@@ -143,10 +143,11 @@ def _row(row: Any, exclude: set[str] | None = None) -> dict[str, Any]:
 @router.get("/me", response_model=StudentProfileResponse)
 async def get_my_student_profile(account: CurrentAccount, db: DbSession) -> StudentProfileResponse:
     profile = await _student(account, db)
+    department = await db.get(Department, profile.department_id) if profile.department_id else None
     return StudentProfileResponse(
         account=await _account_public(db, account),
         student={"id": profile.id, "enrollment_number": profile.enrollment_number,
-                 "school_id": (await db.get(Department, profile.department_id)).school_id if profile.department_id and await db.get(Department, profile.department_id) else None,
+                 "school_id": department.school_id if department else None,
                  "department_id": profile.department_id, "cohort_id": profile.cohort_id,
                  "current_semester": profile.current_semester,
                  "cgpa": str(profile.cgpa) if profile.cgpa is not None else None},
