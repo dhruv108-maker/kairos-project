@@ -1,121 +1,114 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, BarChart3 } from "lucide-react";
+import { useId, useMemo } from "react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { apiRequest } from "@/api/kairos-client";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type PerformancePoint = { semester: string; average: number; students?: number };
-type Scope = "personal" | "student" | "mentees" | "batch" | "department" | "school";
-type PerformanceResponse = { items?: PerformancePoint[]; scope_label?: string; metric_label?: string; note?: string };
-type Props = { role: "student" | "faculty" | "authority" | "platform" };
-
-const chartConfig = {
-  average: { label: "Average performance", color: "var(--chart-1)" },
-} satisfies ChartConfig;
-
-const scopeOptions: Record<Exclude<Props["role"], "student">, { value: Scope; label: string }[]> = {
-  faculty: [
-    { value: "student", label: "Individual student" },
-    { value: "mentees", label: "Mentees consolidated" },
-    { value: "batch", label: "Batch / class" },
-    { value: "department", label: "Department" },
-    { value: "school", label: "School" },
-  ],
-  authority: [
-    { value: "student", label: "Individual student" },
-    { value: "batch", label: "Batch / class" },
-    { value: "department", label: "Department" },
-    { value: "school", label: "School" },
-  ],
-  platform: [
-    { value: "student", label: "Individual student" },
-    { value: "batch", label: "Batch / class" },
-    { value: "department", label: "Department" },
-    { value: "school", label: "School" },
-  ],
+export type SemesterPerformancePoint = {
+  semesterId: string;
+  semesterLabel: string;
+  value: number | null;
+  studentCount?: number;
+  academicContext?: string | null;
 };
 
-export function SemesterPerformanceChart({ role }: Props) {
-  const [scope, setScope] = useState<Scope>(role === "student" ? "personal" : role === "faculty" ? "mentees" : "school");
-  const [data, setData] = useState<PerformancePoint[]>([]);
-  const [scopeLabel, setScopeLabel] = useState("");
-  const [metricLabel, setMetricLabel] = useState("Average performance");
-  const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+export type SemesterPerformanceChartProps = {
+  title?: string;
+  description?: string;
+  data: SemesterPerformancePoint[];
+  metricLabel: string;
+  loading?: boolean;
+  error?: string | null;
+  emptyMessage?: string;
+  partialDataMessage?: string | null;
+  onRetry?: () => void;
+};
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError("");
-    setNote("");
-    // This endpoint is the agreed UI contract for the semester chart. It must enforce
-    // the caller's student/mentorship/cohort/department/school access on the server.
-    apiRequest<PerformanceResponse>(`/analytics/semester-performance?scope=${encodeURIComponent(scope)}`)
-      .then((result) => {
-        if (!active) return;
-        setData(Array.isArray(result.items) ? result.items.filter((item) => Number.isFinite(item.average)) : []);
-        setScopeLabel(result.scope_label ?? "");
-        setMetricLabel(result.metric_label ?? "Average performance");
-        setNote(result.note ?? "");
-      })
-      .catch((err: unknown) => {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : "Semester performance could not be loaded.");
-      })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [scope]);
+const chartConfig = {
+  value: { label: "Performance", color: "var(--chart-1)" },
+} satisfies ChartConfig;
 
-  const description = role === "student"
-    ? "Your own recorded performance, semester by semester."
-    : "Compare recorded performance over semesters within the selected authorized scope.";
-  const options = role === "student" ? [] : scopeOptions[role];
-  const latest = useMemo(() => data.length ? data[data.length - 1] : null, [data]);
+export function SemesterPerformanceChart({
+  title = "Semester-wise Academic Performance",
+  description = "Track your academic performance across semesters.",
+  data,
+  metricLabel,
+  loading = false,
+  error = null,
+  emptyMessage = "Semester-wise performance data is not available yet.",
+  partialDataMessage = null,
+  onRetry,
+}: SemesterPerformanceChartProps) {
+  const generatedId = useId().replace(/:/g, "");
+  const gradientId = `semesterPerformanceFill-${generatedId}`;
+  const validPoints = useMemo(
+    () => data.filter((point) => point.value !== null && Number.isFinite(point.value)),
+    [data],
+  );
+  const hasPartialData = data.some((point) => point.value === null);
+  const latest = validPoints.length ? validPoints[validPoints.length - 1] : null;
+  const previous = validPoints.length > 1 ? validPoints[validPoints.length - 2] : null;
+  const delta = latest && previous ? latest.value! - previous.value! : null;
+  const sameMetricScale = Boolean(latest && previous && latest.metricScale === previous.metricScale);
 
   return (
     <Card className="rounded-xl border-border/80 shadow-none">
-      <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="rounded-lg border border-primary/15 bg-primary/5 p-2 text-primary"><BarChart3 className="h-5 w-5" aria-hidden="true" /></span>
-          <div>
-            <CardTitle className="text-base">Semester-wise performance</CardTitle>
-            <CardDescription className="mt-1">{description}</CardDescription>
-            {scopeLabel && <Badge variant="secondary" className="mt-2">{scopeLabel}</Badge>}
-          </div>
-        </div>
-        {options.length > 0 && (
-          <div className="w-full sm:w-56">
-            <label htmlFor="semester-performance-scope" className="mb-1.5 block text-xs font-medium text-muted-foreground">Performance scope</label>
-            <Select value={scope} onValueChange={(value) => setScope(value as Scope)}>
-              <SelectTrigger id="semester-performance-scope"><SelectValue placeholder="Select scope" /></SelectTrigger>
-              <SelectContent>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-        )}
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent>
-        {loading ? <div className="space-y-3"><Skeleton className="h-56 w-full" /><Skeleton className="h-4 w-2/5" /></div>
-          : error ? <div role="status" className="flex items-start gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-medium text-foreground">Performance data unavailable</p><p className="mt-1">{error}</p></div></div>
-          : data.length ? <>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm"><span className="text-muted-foreground">{metricLabel}</span>{latest && <span className="font-semibold tabular-nums">Latest: {latest.average.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>}</div>
+        {loading ? (
+          <div aria-label="Loading semester performance" className="space-y-3">
+            <Skeleton className="h-56 w-full" />
+            <Skeleton className="h-4 w-2/5" />
+          </div>
+        ) : error ? (
+          <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            <p className="font-medium text-destructive">Performance data could not be loaded</p>
+            <p className="mt-1 text-muted-foreground">{error}</p>
+            {onRetry && <button type="button" onClick={onRetry} className="mt-3 rounded-md border px-3 py-1.5 font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Retry</button>}
+          </div>
+        ) : validPoints.length === 0 ? (
+          <div className="flex min-h-56 flex-col items-center justify-center rounded-lg border border-dashed px-6 py-8 text-center">
+            <p className="font-medium">No semester results available</p>
+            <p className="mt-1 max-w-lg text-sm leading-6 text-muted-foreground">{emptyMessage}</p>
+          </div>
+        ) : (
+          <>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="text-muted-foreground">{metricLabel}</span>
+              {latest && <span className="font-semibold tabular-nums">Latest: {latest.value!.toLocaleString(undefined, { maximumFractionDigits: 3 })}</span>}
+            </div>
             <ChartContainer config={chartConfig} className="h-[260px] w-full aspect-auto">
               <AreaChart accessibilityLayer data={data} margin={{ left: 4, right: 12, top: 12, bottom: 0 }}>
                 <CartesianGrid vertical={false} />
-                <XAxis dataKey="semester" tickLine={false} axisLine={false} tickMargin={8} />
-                <YAxis tickLine={false} axisLine={false} width={36} />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <defs><linearGradient id="semesterPerformanceFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--color-average)" stopOpacity={0.35} /><stop offset="95%" stopColor="var(--color-average)" stopOpacity={0.03} /></linearGradient></defs>
-                <Area dataKey="average" type="monotone" stroke="var(--color-average)" strokeWidth={2} fill="url(#semesterPerformanceFill)" connectNulls={false} />
+                <XAxis dataKey="semesterLabel" tickLine={false} axisLine={false} tickMargin={8} minTickGap={12} />
+                <YAxis tickLine={false} axisLine={false} width={42} />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent formatter={(value) => <span className="font-mono font-medium tabular-nums">{value == null ? "No result" : `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 })} ${metricLabel}`}</span>} />}
+                />
+                <defs>
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0.04} />
+                  </linearGradient>
+                </defs>
+                <Area dataKey="value" name="Performance" type="monotone" stroke="var(--color-value)" strokeWidth={2} fill={`url(#${gradientId})`} connectNulls={false} />
               </AreaChart>
             </ChartContainer>
-            {note && <p className="mt-3 text-xs text-muted-foreground">{note}</p>}
-          </> : <div className="flex min-h-56 flex-col items-center justify-center rounded-lg border border-dashed px-6 py-8 text-center"><BarChart3 className="h-8 w-8 text-muted-foreground/70" /><p className="mt-3 font-medium">No semester performance recorded</p><p className="mt-1 max-w-lg text-sm leading-6 text-muted-foreground">{note || "This chart only displays persisted semester-grade data returned by the authorized performance API. No sample or estimated grades are shown."}</p></div>}
+            {hasPartialData && <p className="mt-3 text-xs text-muted-foreground">{partialDataMessage ?? "Some semesters have no recorded result; missing values are not treated as zero."}</p>}
+          </>
+        )}
       </CardContent>
+      {!loading && !error && latest && previous && delta !== null && sameMetricScale && (
+        <CardFooter className="gap-2 border-t text-sm text-muted-foreground">
+          {delta > 0 ? <TrendingUp className="h-4 w-4 text-emerald-600" aria-hidden="true" /> : delta < 0 ? <TrendingDown className="h-4 w-4 text-destructive" aria-hidden="true" /> : null}
+          <span>Change from previous recorded semester: <strong className="font-medium text-foreground tabular-nums">{delta > 0 ? "+" : ""}{delta.toLocaleString(undefined, { maximumFractionDigits: 3 })} {metricLabel}</strong></span>
+        </CardFooter>
+      )}
     </Card>
   );
 }
