@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import {
   AlertCircle, ArrowUpRight, BookOpen, BriefcaseBusiness, Check, ChevronRight,
   FileText, GraduationCap, Link2, LoaderCircle, Plus, Save, Trash2, UploadCloud,
-  UserRound, Wrench, X,
+  UserRound, Wrench,
 } from "lucide-react";
 import { apiRequest, ApiError } from "@/api/kairos-client";
 import { useAuth } from "@/context/auth/AuthContext";
@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 
 type PortfolioKind = "skills" | "projects" | "experience" | "research" | "certifications" | "awards" | "achievements" | "activities";
 type PortfolioEntry = {
@@ -81,13 +80,6 @@ export default function StudentProfileBuilder() {
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirtyPersonal = useMemo(() => !!cv && (fullName !== cv.profile.full_name || phone !== (cv.profile.phone_number ?? "")), [cv, fullName, phone]);
-  const hasUnsavedForm = dirtyPersonal || Boolean(editingEntryId || editingAcademicId) || Object.values(entryForm).some((value) => value.trim().length > 0) || Object.values(academicForm).some((value) => value.trim().length > 0);
-  const requestClose = () => {
-    if (saving || uploading) return;
-    if (hasUnsavedForm && !window.confirm("You have unsaved changes. Close this profile drawer and discard the current edits?")) return;
-    setDrawerOpen(false); setError(""); setNotice("");
-  };
-
   const refresh = useCallback(async () => {
     const [cvResult, completionResult, resumeResult] = await Promise.all([
       apiRequest<CvData>("/students/me/cv"),
