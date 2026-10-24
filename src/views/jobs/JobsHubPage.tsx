@@ -81,6 +81,13 @@ function dateLabel(value?: string | null) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
+function isDeadlinePassed(value?: string | null) {
+  if (!value) return false;
+  const deadline = value.slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return deadline < today;
+}
 function salaryLabel(job: Opportunity) {
   if (!job.compensation_visible || (job.compensation_min == null && job.compensation_max == null)) return null;
   const currency = job.compensation_currency || "INR";
@@ -153,7 +160,7 @@ function DetailPanel({ job, account, appliedIds, onApply, applying }: {
 }) {
   const company = job.company?.name || "Employer";
   const applied = appliedIds.has(job.id);
-  const expired = Boolean(job.application_deadline && new Date(job.application_deadline).getTime() < Date.now());
+  const expired = isDeadlinePassed(job.application_deadline);
   const externalUrl = job.public_application_url;
   const canApply = account?.roles?.some((role) => role.toUpperCase() === "STUDENT");
   const validExternal = (() => {
