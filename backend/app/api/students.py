@@ -146,7 +146,9 @@ async def get_my_student_profile(account: CurrentAccount, db: DbSession) -> Stud
     return StudentProfileResponse(
         account=await _account_public(db, account),
         student={"id": profile.id, "enrollment_number": profile.enrollment_number,
-                 "cohort_id": profile.cohort_id, "current_semester": profile.current_semester,
+                 "school_id": (await db.get(Department, profile.department_id)).school_id if profile.department_id and await db.get(Department, profile.department_id) else None,
+                 "department_id": profile.department_id, "cohort_id": profile.cohort_id,
+                 "current_semester": profile.current_semester,
                  "cgpa": str(profile.cgpa) if profile.cgpa is not None else None},
     )
 
