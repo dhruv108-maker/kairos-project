@@ -265,8 +265,9 @@ export default function JobsHubPage() {
     search.set("offset", String(offset));
     try {
       const data = await apiRequest<PageResult>(`/jobs?${search.toString()}`, { signal });
-      setResult({ ...data, items: data.items.slice(0, PAGE_SIZE), hasMore: data.items.length > PAGE_SIZE });
-      setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : (data.items[0]?.id || ""));
+      const visibleItems = data.items.slice(0, PAGE_SIZE);
+      setResult({ ...data, items: visibleItems, hasMore: data.items.length > PAGE_SIZE });
+      setSelectedId((current) => current && visibleItems.some((item) => item.id === current) ? current : (visibleItems[0]?.id || ""));
     } catch (err) {
       if (signal?.aborted) return;
       setError(errorMessage(err));
