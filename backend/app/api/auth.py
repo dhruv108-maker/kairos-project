@@ -118,6 +118,7 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                     Department.is_active.is_(True),
                     Programme.is_active.is_(True),
                     AcademicYear.is_current.is_(True),
+                    AcademicYear.institution_id == resolved_institution_id,
                 )
             )
             if cohort is None:
