@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays, CheckCircle2, ChevronRight, Clock3, ExternalLink, Filter, MapPin, RefreshCw, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { apiRequest } from "@/api/kairos-client";
 import { Badge } from "@/components/ui/badge";
