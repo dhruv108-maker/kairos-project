@@ -68,6 +68,12 @@ function humanize(value: string | null | undefined): string {
   return (value || "Not recorded").replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function timestampLabel(value: string | null | undefined): string {
+  if (!value) return "Not recorded";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(parsed);
+}
+
 function dateLabel(value: string | null | undefined): string {
   if (!value) return "Not recorded";
   const parsed = new Date(value + (value.length === 10 ? "T00:00:00" : ""));
@@ -107,6 +113,9 @@ export default function DuringInternshipPage() {
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
   const [placementLogs, setPlacementLogs] = useState<WorkLog[]>([]);
+  const [logStatusFilter, setLogStatusFilter] = useState("ALL");
+  const [logDateFrom, setLogDateFrom] = useState("");
+  const [logDateTo, setLogDateTo] = useState("");
   const [reports, setReports] = useState<ReportSubmission[]>([]);
   const [selectedPlacementId, setSelectedPlacementId] = useState("");
   const [editingLog, setEditingLog] = useState<WorkLog | null>(null);
@@ -134,7 +143,6 @@ export default function DuringInternshipPage() {
 
   const selectedPlacement = placements.find((item) => item.id === selectedPlacementId) || null;
   const selectedReport = reports.find((item) => item.id === reviewingReportId) || null;
-  const displayedLogs = role === "STUDENT" ? workLogs : placementLogs;
 
   const loadWorkspace = useCallback(async () => {
     if (!role) {
@@ -187,6 +195,7 @@ export default function DuringInternshipPage() {
       return;
     }
     try {
+      setPlacementLogs([]);
       const result = await duringInternshipApi.workLogsForPlacement(selectedPlacementId);
       setPlacementLogs(result.items);
     } catch (error) {
@@ -424,7 +433,12 @@ export default function DuringInternshipPage() {
 
   const isStudent = role === "STUDENT";
   const isFaculty = role === "FACULTY";
-  const visibleLogs = role === "STUDENT" ? workLogs : placementLogs;
+  const allVisibleLogs = role === "STUDENT" ? workLogs : placementLogs;
+  const visibleLogs = allVisibleLogs.filter((item) =>
+    (logStatusFilter === "ALL" || item.status === logStatusFilter)
+    && (!logDateFrom || item.work_date >= logDateFrom)
+    && (!logDateTo || item.work_date <= logDateTo)
+  );
 
   return (
     <div className="space-y-6 pb-8">
@@ -648,7 +662,7 @@ export default function DuringInternshipPage() {
                           <div className="space-y-2 rounded-lg bg-muted/40 p-3">
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Review history</p>
                             {item.reviews.map((review) => <div key={review.id} className="border-l-2 pl-3">
-                              <div className="flex flex-wrap items-center gap-2 text-xs"><span className="font-medium">{review.reviewer_name || humanize(review.reviewer_role)}</span><StatusBadge value={review.decision} /><span className="text-muted-foreground">{dateLabel(review.created_at)}</span></div>
+                              <div className="flex flex-wrap items-center gap-2 text-xs"><span className="font-medium">{review.reviewer_name || humanize(review.reviewer_role)}</span><StatusBadge value={review.decision} /><span className="text-muted-foreground">{timestampLabel(review.created_at)}</span></div>
                               <p className="mt-1 whitespace-pre-wrap text-sm">{review.feedback}</p>
                             </div>)}
                           </div>
@@ -792,7 +806,7 @@ export default function DuringInternshipPage() {
                   <div><h2 className="text-base font-semibold">Report feedback</h2><p className="text-sm text-muted-foreground">Report feedback is kept distinct from work-log comments and official evaluation outcomes.</p></div>
                   {reports.filter((item) => item.review_feedback).length === 0 ? <EmptyState title="No report feedback recorded" description="Any persisted report-review feedback will appear here." /> : reports.filter((item) => item.review_feedback).map((item) => (
                     <Card key={item.id} size="sm"><CardContent className="space-y-2 pt-3">
-                      <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{item.title}</span><StatusBadge value={item.status} /><span className="text-xs text-muted-foreground">{dateLabel(item.reviewed_at)}</span></div>
+                      <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{item.title}</span><StatusBadge value={item.status} /><span className="text-xs text-muted-foreground">{timestampLabel(item.reviewed_at)}</span></div>
                       <p className="whitespace-pre-wrap text-sm">{item.review_feedback}</p>
                     </CardContent></Card>
                   ))}
