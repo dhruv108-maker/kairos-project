@@ -34,6 +34,7 @@ from app.core.security import (
 from app.models.academic import (
     Account,
     AccountRole,
+    AcademicYear,
     Cohort,
     Department,
     FacultyProfile,
@@ -45,6 +46,7 @@ from app.models.academic import (
 from app.services.email import send_verification_email, send_password_reset_email
 from app.modules.identity.service import IdentityService
 from app.models.institutions import Institution
+from app.models.institution_domains import InstitutionDomain
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -85,22 +87,44 @@ async def _send_verification(account: Account, token: str) -> bool:
 async def register_student(payload: StudentRegistration, db: DbSession) -> RegistrationResponse:
     try:
         async with db.begin():
-            cohort = await db.get(Cohort, payload.cohort_id)
-            if cohort is None:
-                raise HTTPException(status_code=422, detail="Unknown cohort_id")
-            if payload.institution_id:
-                institution = await db.get(Institution, payload.institution_id)
-                cohort_institution_id = await db.scalar(
-                    select(School.institution_id)
-                    .join(Department, Department.school_id == School.id)
-                    .join(Programme, Programme.department_id == Department.id)
-                    .join(Cohort, Cohort.programme_id == Programme.id)
-                    .where(Cohort.id == payload.cohort_id)
+            email_domain = payload.email.rsplit("@", 1)[1].strip().lower().rstrip(".")
+            resolved_institution_id = await db.scalar(
+                select(InstitutionDomain.institution_id)
+                .join(Institution, Institution.id == InstitutionDomain.institution_id)
+                .where(
+                    InstitutionDomain.normalized_domain == email_domain,
+                    InstitutionDomain.is_verified.is_(True),
+                    Institution.status == "ACTIVE",
                 )
-                if institution is None or institution.status != "ACTIVE":
-                    raise HTTPException(status_code=422, detail="Unknown or inactive institution_id")
-                if cohort_institution_id != institution.id:
-                    raise HTTPException(status_code=422, detail="The selected cohort does not belong to the selected institution")
+            )
+            if resolved_institution_id is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Your email domain is not verified for an active institution. Contact your institution administrator.",
+                )
+            if payload.institution_id and payload.institution_id != resolved_institution_id:
+                raise HTTPException(status_code=422, detail="The institution does not match your verified email domain")
+
+            cohort = await db.scalar(
+                select(Cohort)
+                .join(Programme, Programme.id == Cohort.programme_id)
+                .join(Department, Department.id == Programme.department_id)
+                .join(School, School.id == Department.school_id)
+                .join(AcademicYear, AcademicYear.id == Cohort.academic_year_id)
+                .where(
+                    Cohort.id == payload.cohort_id,
+                    School.institution_id == resolved_institution_id,
+                    School.is_active.is_(True),
+                    Department.is_active.is_(True),
+                    Programme.is_active.is_(True),
+                    AcademicYear.is_current.is_(True),
+                )
+            )
+            if cohort is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Choose an available cohort from your institution. The cohort may be inactive or belong to another institution.",
+                )
             account = Account(
                 id=str(uuid4()),
                 email=payload.email,
