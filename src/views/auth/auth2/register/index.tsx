@@ -200,7 +200,7 @@ const BoxedRegister = () => {
             {isResending ? "Requesting email…" : "Resend verification email"}
           </Button>
           <Button type="button" className="h-11 w-full whitespace-normal" onClick={() => navigate("/auth/auth2/login")}>Continue to sign in <ArrowRight aria-hidden="true" className="ml-2 size-4" /></Button>
-          <button type="button" onClick={() => { setMessage(""); setVerificationSent(false); setActivationPending(false); }} className="w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+          <button type="button" onClick={() => { setMessage(""); setError(""); setVerificationSent(false); setActivationPending(false); setEmail(""); setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("idle"); setShowInstitutionPicker(false); }} className="w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
             Register another account
           </button>
           {error && <Alert variant="destructive" role="alert" aria-live="polite" className="min-w-0 break-words"><AlertDescription>{error}</AlertDescription></Alert>}
@@ -240,13 +240,13 @@ const BoxedRegister = () => {
             </div>
 
             <div className="min-w-0 space-y-2">
-              <Label htmlFor="institution-search">Institution</Label>
+              <Label>Institution</Label>
               {institutionStatus === "loading" ? <p className="text-sm text-muted-foreground" role="status">Checking institutional domain…</p> : null}
               {institutionStatus === "matched" && institutionName && !showInstitutionPicker ? (
                 <div className="flex min-w-0 items-center gap-2 rounded-md border border-emerald-600/30 bg-emerald-600/5 px-3 py-2.5">
                   <CheckCircle2 aria-hidden="true" className="size-4 shrink-0 text-emerald-700" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{institutionName}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setShowInstitutionPicker(true); setInstitutionSearch(""); }}>Change</Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setInstitutionId(""); setInstitutionName(""); setShowInstitutionPicker(true); setInstitutionSearch(""); }}>Change</Button>
                 </div>
               ) : null}
               {institutionStatus === "fallback" ? <p className="text-xs text-muted-foreground">No unique match found. Select your institution below.</p> : null}
@@ -256,10 +256,10 @@ const BoxedRegister = () => {
                   <Input id="institution-search" value={institutionSearch} onChange={(event) => setInstitutionSearch(event.target.value)} placeholder="Search active institutions…" autoComplete="off" />
                   <div className="max-h-48 overflow-y-auto rounded-md border p-1" role="listbox" aria-label="Institutions">
                     {institutions.length ? institutions.map((institution) => (
-                      <button key={institution.id} type="button" role="option" aria-selected={institutionId === institution.id} onClick={() => { setInstitutionId(institution.id); setInstitutionName(institution.name); setInstitutionStatus("matched"); setShowInstitutionPicker(false); setInstitutionSearch(""); }} className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <Button key={institution.id} type="button" variant="ghost" role="option" aria-selected={institutionId === institution.id} onClick={() => { setInstitutionId(institution.id); setInstitutionName(institution.name); setInstitutionStatus("matched"); setShowInstitutionPicker(false); setInstitutionSearch(""); }} className="flex h-auto w-full items-center justify-start rounded-sm px-3 py-2 text-left text-sm font-normal">
                         <span className="min-w-0 flex-1 truncate">{institution.name}</span>
                         {institutionId === institution.id ? <CheckCircle2 aria-hidden="true" className="ml-2 size-4" /> : null}
-                      </button>
+                      </Button>
                     )) : <p className="px-3 py-4 text-center text-sm text-muted-foreground">No active institutions found.</p>}
                   </div>
                 </div>
