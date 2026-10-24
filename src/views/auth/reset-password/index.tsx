@@ -19,6 +19,7 @@ const ResetPassword = () => {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setError("");
     setMessage("");
     const form = new FormData(event.currentTarget);
@@ -45,7 +46,7 @@ const ResetPassword = () => {
         body: JSON.stringify({ token, new_password: password }),
       });
       setMessage(result.message);
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to reset your password. Request a new link and try again.");
     } finally {
