@@ -114,23 +114,15 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
             )
             if department is None:
                 raise HTTPException(status_code=422, detail="Choose an active school and department from your verified institution.")
-            programme = None
             if payload.programme_id:
-                programme = await db.scalar(select(Programme).where(
+                # Select only the identifier: legacy programme tables do not necessarily
+                # contain optional ORM metadata such as degree_level/duration_years.
+                valid_programme_id = await db.scalar(select(Programme.id).where(
                     Programme.id == payload.programme_id,
                     Programme.department_id == payload.department_id,
-                    Programme.is_active.is_(True),
+                    func.upper(Programme.status) == "ACTIVE",
                 ))
-                if programme is None:
-                    raise HTTPException(status_code=422, detail="Choose an active programme within your selected department.")
-            programme = None
-            if payload.programme_id:
-                programme = await db.scalar(select(Programme).where(
-                    Programme.id == payload.programme_id,
-                    Programme.department_id == payload.department_id,
-                    Programme.is_active.is_(True),
-                ))
-                if programme is None:
+                if valid_programme_id is None:
                     raise HTTPException(status_code=422, detail="Choose an active programme within your selected department.")
             cohort = None
             if payload.cohort_id:
