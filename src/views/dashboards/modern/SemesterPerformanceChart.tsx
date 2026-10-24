@@ -50,7 +50,7 @@ export function SemesterPerformanceChart({
   const latest = validPoints.length ? validPoints[validPoints.length - 1] : null;
   const previous = validPoints.length > 1 ? validPoints[validPoints.length - 2] : null;
   const delta = latest && previous ? latest.value! - previous.value! : null;
-  const sameMetricScale = Boolean(latest && previous && latest.metricScale === previous.metricScale);
+  const sameMetricScale = Boolean(latest?.metricScale && previous?.metricScale && latest.metricScale === previous.metricScale);
 
   return (
     <Card className="rounded-xl border-border/80 shadow-none">
