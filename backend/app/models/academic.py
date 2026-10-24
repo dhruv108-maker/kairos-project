@@ -110,11 +110,14 @@ class StudentProfile(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False)
     enrollment_number: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    cohort_id: Mapped[str] = mapped_column(ForeignKey("cohorts.id", ondelete="RESTRICT"), nullable=False)
+    # Department affiliation is established at signup; cohort assignment can happen later.
+    department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True, index=True)
+    cohort_id: Mapped[str | None] = mapped_column(ForeignKey("cohorts.id", ondelete="RESTRICT"), nullable=True)
     current_semester: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     cgpa: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))
     account: Mapped[Account] = relationship(back_populates="student_profile")
-    cohort: Mapped[Cohort] = relationship(back_populates="students")
+    cohort: Mapped["Cohort | None"] = relationship(back_populates="students")
+    department: Mapped["Department | None"] = relationship()
 
 
 class FacultyProfile(Base):
