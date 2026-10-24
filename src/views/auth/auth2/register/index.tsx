@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, GraduationCap, LockKeyhole, Mail, UsersRound } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AuthFrame from "@/components/auth/AuthFrame";
@@ -31,7 +30,6 @@ const BoxedRegister = () => {
   const [isResending, setIsResending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
@@ -59,10 +57,6 @@ const BoxedRegister = () => {
     }
     if (password !== confirmPassword) {
       setError("The passwords do not match. Please check and try again.");
-      return;
-    }
-    if (!acceptedTerms) {
-      setError("Please confirm that you agree to the applicable terms and privacy policy.");
       return;
     }
     if (!fullName || !email) {
@@ -95,7 +89,6 @@ const BoxedRegister = () => {
       setVerificationSent(result.verification_email_sent);
       setActivationPending(result.activation_pending);
       formElement.reset();
-      setAcceptedTerms(false);
       setShowPassword(false);
       setShowConfirmPassword(false);
     } catch (err) {
@@ -124,9 +117,9 @@ const BoxedRegister = () => {
 
   return (
     <AuthFrame
-      asideEyebrow="Join your academic community"
-      asideTitle="The right tools for your role. One connected academic space."
-      asideDescription="Create your Kairos identity with the student or faculty details your institution uses to connect your account."
+      asideEyebrow="Your academic community"
+      asideTitle="One academic identity. A more connected experience."
+      asideDescription="Create your account with the details your institution uses, then verify your email to get started."
       footer={<>Already have an account? <Link to="/auth/auth2/login" className="font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground">Sign in</Link></>}
     >
       {message ? (
@@ -158,31 +151,35 @@ const BoxedRegister = () => {
         </div>
       ) : (
         <>
-          <div className="mb-7">
-            <p className="text-sm font-medium text-muted-foreground">CREATE AN ACCOUNT</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Get started with Kairos</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Use the academic details provided by your institution.</p>
+          <div className="mb-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Create your account</p>
+            <h1 className="mt-2 text-[1.8rem] font-semibold tracking-[-0.035em]">Get started with Kairos</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">A few details to connect you to your academic community.</p>
           </div>
 
-          <div className="mb-6 grid grid-cols-2 gap-2" role="group" aria-label="Choose account type">
+          <div className="mb-6 space-y-2">
+            <p className="text-sm font-medium">I’m joining as a</p>
+            <div className="grid grid-cols-2 gap-2" role="group" aria-label="Choose account type">
             <Button type="button" variant={role === "student" ? "default" : "outline"} className="h-10" aria-pressed={role === "student"} onClick={() => handleRoleChange("student")}>
               <GraduationCap className="mr-2 size-4" /> Student
             </Button>
             <Button type="button" variant={role === "faculty" ? "default" : "outline"} className="h-10" aria-pressed={role === "faculty"} onClick={() => handleRoleChange("faculty")}>
               <UsersRound className="mr-2 size-4" /> Faculty
             </Button>
+            </div>
+            <p className="text-xs leading-5 text-muted-foreground">{role === "student" ? "You’ll need your enrollment number and cohort ID." : "You’ll need your employee code and department ID. Faculty access requires institutional approval."}</p>
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="full_name">Full name</Label>
-              <Input id="full_name" name="full_name" autoComplete="name" placeholder="Your full name" maxLength={255} required className="h-11" />
+              <Input id="full_name" name="full_name" autoComplete="name" placeholder="Your full name" maxLength={255} required className="h-11 rounded-md" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
               <div className="relative">
                 <Mail aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="you@institution.edu" maxLength={255} required className="h-11 pl-9" />
+                <Input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="you@institution.edu" maxLength={255} required className="h-11 rounded-md pl-9" />
               </div>
             </div>
 
@@ -220,7 +217,7 @@ const BoxedRegister = () => {
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <LockKeyhole aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} placeholder="At least 12 characters" required className="h-11 pl-9 pr-11" />
+                <Input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} placeholder="At least 12 characters" required className="h-11 rounded-md pl-9 pr-11" />
                 <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
@@ -231,28 +228,21 @@ const BoxedRegister = () => {
             <div className="space-y-2">
               <Label htmlFor="confirm_password">Confirm password</Label>
               <div className="relative">
-                <Input id="confirm_password" name="confirm_password" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} placeholder="Enter your password again" required className="h-11 pr-11" />
+                <Input id="confirm_password" name="confirm_password" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} placeholder="Enter your password again" required className="h-11 rounded-md pr-11" />
                 <button type="button" onClick={() => setShowConfirmPassword((value) => !value)} aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword} className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-start gap-2.5 pt-1">
-              <Checkbox id="terms" checked={acceptedTerms} onCheckedChange={(checked) => setAcceptedTerms(checked === true)} className="mt-0.5" />
-              <Label htmlFor="terms" className="cursor-pointer text-sm font-normal leading-5 text-muted-foreground">
-                I agree to the applicable terms and privacy policy.
-              </Label>
-            </div>
+                        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
-            {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-
-            <Button type="submit" size="lg" className="h-11 w-full" disabled={isSubmitting}>
+            <Button type="submit" size="lg" className="h-11 w-full rounded-md" disabled={isSubmitting}>
               {isSubmitting ? "Creating your account…" : "Create account"}
               {!isSubmitting && <ArrowRight className="ml-2 size-4" />}
             </Button>
             <p className="text-center text-xs leading-5 text-muted-foreground">
-              By creating an account, you’ll receive an email verification link. Faculty accounts also require institutional approval.
+              Email verification is required. Faculty accounts also require institutional approval.
             </p>
           </form>
         </>
