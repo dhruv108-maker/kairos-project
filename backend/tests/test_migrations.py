@@ -32,6 +32,12 @@ def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_
         assert {"student_academic_records", "student_portfolio_entries", "student_resumes"} <= tables
         assert {"institution_domains"} <= tables
         cohort_columns = {column["name"]: column for column in inspect(engine).get_columns("cohorts")}
+        for table_name in ("schools", "departments"):
+            if table_name in tables:
+                activation = {column["name"]: column for column in inspect(engine).get_columns(table_name)}
+                assert "is_active" in activation, f"{table_name}.is_active must exist after migrations"
+                assert activation["is_active"]["nullable"] is False
+                assert str(activation["is_active"].get("default")).strip("'() ").lower() in {"1", "true"}
         assert cohort_columns["is_active"]["nullable"] is False
         with engine.connect() as connection:
             legacy = connection.execute(sa_text("SELECT id, name, is_active FROM cohorts WHERE id = 'legacy-cohort'")).one()
@@ -188,6 +194,6 @@ def test_mysql_legacy_numeric_institution_keys_migrate_without_losing_relationsh
             assert connection.exec_driver_sql("SELECT institution_id FROM schools").scalar_one() == "11"
             assert connection.exec_driver_sql("SELECT institution_id FROM academic_years").scalar_one() == "11"
             assert connection.exec_driver_sql("SELECT id, name, is_active FROM cohorts").one() == ("cohort-11", "Legacy Cohort", 0)
-            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "20261024_23"
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == "20261024_24"
     finally:
         engine.dispose()
