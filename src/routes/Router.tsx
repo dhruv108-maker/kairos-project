@@ -30,6 +30,7 @@ const BlogTable = Loadable(lazy(() => import('../views/apps/blog/manage-blog')))
 const Notes = Loadable(lazy(() => import('../views/apps/notes')));
 const JobsHub = Loadable(lazy(() => import('../views/jobs/JobsHubPage')));
 const JobDetail = Loadable(lazy(() => import('../views/jobs/JobsHubPage').then((module) => ({ default: module.JobDetailRoute }))));
+const RecruiterJobs = Loadable(lazy(() => import('../views/jobs/RecruiterJobsPage')));
 const Tickets = Loadable(lazy(() => import('../views/apps/tickets')));
 const TicketCreate = Loadable(lazy(() => import('../views/apps/tickets/create')));
 
@@ -83,6 +84,11 @@ const Router = [
       { path: '/jobs/applications', element: <JobsHub /> },
       { path: '/jobs/campus', element: <JobsHub /> },
       { path: '/jobs/:jobId', element: <JobDetail /> },
+      { path: '/jobs/recruiter', element: <RecruiterJobs /> },
+      { path: '/jobs/recruiter/create', element: <RecruiterJobs /> },
+      { path: '/jobs/recruiter/:jobId/edit', element: <RecruiterJobs /> },
+      { path: '/jobs/recruiter/applications', element: <RecruiterJobs /> },
+      { path: '/jobs/recruiter/applications/:applicationId', element: <RecruiterJobs /> },
     ],
   },
   {
