@@ -39,11 +39,38 @@ The requested consolidated `kairos.md` was not present in the repository tree at
 - A local TypeScript/Vite build, browser accessibility pass, live API verification, and populated/empty/error-state end-to-end test were **not run** in this environment.
 - Before production release, run `npm ci`, `npm run build`, `npm run lint`, and the relevant backend tests in the project environment; then verify each role with real test accounts and institution/employer scopes.
 
-## Semester-wise performance chart addition
+## Semester-wise academic performance — data audit and component
 
-- Added a shadcn/Recharts area-chart component to student, faculty, and higher-authority/platform overviews. Students are restricted to the personal scope in the UI; faculty can choose individual student, consolidated mentees, batch/class, department, or school; higher management can choose individual student, batch/class, department, or school.
-- The chart expects `GET /analytics/semester-performance?scope=...` to return `{ items: [{ semester, average, students? }], scope_label?, metric_label?, note? }`. The inspected backend does **not** currently implement this endpoint, and the existing academic model stores a current CGPA plus academic-record grades but does not expose a verified semester-aggregate read contract through the inspected API.
-- Consequently, the chart has explicit loading, error, and no-data states and does not invent sample grades. It will remain unavailable until the backend endpoint is implemented with role- and entity-level authorization and target selectors for individual student, cohort/batch, department, and school scopes. Do not treat this UI-only addition as a completed end-to-end feature.
+### Data audit findings
+
+- `StudentProfile.cgpa` is a nullable `Numeric(4, 2)` field representing current CGPA. The schema does not document it as a semester-by-semester history and it must not be plotted as SGPA.
+- `StudentAcademicRecord` stores `semester` as optional text, `grade_value`, `grade_max`, and `grading_scale`, linked to a student profile. These are general academic-record fields; the inspected model does not define the value as SGPA or define a canonical semester-result record.
+- `GET /students/me/dashboard` returns dashboard, portfolio, internship and report aggregates, not semester grades.
+- `GET /institutions/{institution_id}/students` and student detail routes expose institution-admin student context, including current CGPA, but no authorized semester-grade-history endpoint.
+- `GET /faculty/me/dashboard` and `GET /institutions/{institution_id}/dashboard` return operational counts, not semester-level academic aggregates.
+- The existing mentorship service supports institution-admin-managed faculty/student mentorship records. No faculty-authorized mentee grade-history endpoint or cohort/department/school semester aggregation endpoint was found.
+- `PLATFORM_ADMIN` and `INSTITUTION_ADMIN` must remain distinct. The inspected institution dashboard uses `InstitutionService.require_admin(institution_id, account_id)`; there is no verified platform-admin cross-institution academic aggregate endpoint.
+
+### Implemented in this pass
+
+- Added `src/views/dashboards/modern/SemesterPerformanceChart.tsx` as a **reusable, typed presentation component** using the existing shadcn `ChartContainer`, `ChartConfig`, `ChartTooltip`, `ChartTooltipContent`, card primitives, Recharts `AreaChart`, `Area`, `CartesianGrid`, `XAxis`, and `YAxis`.
+- The component accepts typed data and state through props; it has loading, populated, empty, error/retry, partial-data, stable gradient ID, and sample-count-ready point fields. It does not fetch data or embed example grades.
+- Latest-versus-previous change is shown only when both values exist and both points explicitly declare the same metric scale.
+- The chart is intentionally **not mounted into role dashboards yet**. The earlier proposed `/analytics/semester-performance` URL was not an existing backend contract and has been removed from the component/dashboard integration. This avoids a guaranteed failing request and prevents UI controls from implying permissions the API does not enforce.
+
+### Required API contract before role integration
+
+- Student: authenticated self-only semester result history; no student ID accepted from the client.
+- Faculty: authorized individual-student result history, faculty-assigned mentee aggregate, assigned cohort/batch aggregate, and explicitly permitted department/school aggregate. Server must verify faculty/student/cohort/organization relationships for every request.
+- Institution administrator: aggregates only within the institution for which `require_admin` succeeds, with school/department/cohort filtering validated server-side.
+- Platform administrator: separate explicit platform-admin authorization and aggregate-only cross-institution responses; no implicit reuse of institution-admin permissions.
+- Response must define the actual metric, scale/grade system, semester identity/label, valid sample count, and null/missing-result semantics. Group averages must exclude missing values and must not combine incompatible grading scales.
+- Until those endpoints and tests exist, the role-specific views and live selectors are **not complete**. Do not infer SGPA from CGPA or present generic `grade_value` records as semester results without a documented semantic contract.
+
+### Verification status
+
+- Relevant models, route registration, routers, services, and UI chart primitives inspected on `release-branch`.
+- No local TypeScript/Vite build, lint, backend tests, live API tests, or browser permission tests were run in this environment. The chart component and docs are committed, but the end-to-end academic analytics feature is not complete.
 
 ## Recommended next module
 
