@@ -113,8 +113,16 @@ class AccountRole(Base):
 class StudentProfile(Base):
     __tablename__ = "student_profiles"
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    student_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False)
     enrollment_number: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
+    profile_photo_url: Mapped[str | None] = mapped_column(String(500))
+    bio: Mapped[str | None] = mapped_column(Text)
+    linkedin_url: Mapped[str | None] = mapped_column(String(500))
+    github_url: Mapped[str | None] = mapped_column(String(500))
+    portfolio_url: Mapped[str | None] = mapped_column(String(500))
+    profile_visibility: Mapped[str] = mapped_column(String(20), nullable=False, server_default="private")
+    is_profile_complete: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Department affiliation is established at signup; cohort assignment can happen later.
     department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True, index=True)
     programme_id: Mapped[str | None] = mapped_column(ForeignKey("programmes.id", ondelete="RESTRICT"), nullable=True, index=True)
