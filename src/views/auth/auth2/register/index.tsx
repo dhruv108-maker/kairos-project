@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, GraduationCap, LockKeyhole, Mail, UsersRound } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -9,6 +9,9 @@ import AuthFrame from "@/components/auth/AuthFrame";
 import { apiRequest } from "@/api/kairos-client";
 
 type RegistrationRole = "student" | "faculty";
+
+interface InstitutionOption { id: string; name: string; }
+interface InstitutionResolution { status: "matched" | "ambiguous" | "not_found"; institution: InstitutionOption | null; }
 
 interface RegistrationResponse {
   account_id: string;
@@ -21,6 +24,13 @@ const BoxedRegister = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [role, setRole] = useState<RegistrationRole>(searchParams.get("role") === "faculty" ? "faculty" : "student");
+  const [email, setEmail] = useState("");
+  const [institutionId, setInstitutionId] = useState("");
+  const [institutionName, setInstitutionName] = useState("");
+  const [institutionSearch, setInstitutionSearch] = useState("");
+  const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
+  const [institutionStatus, setInstitutionStatus] = useState<"idle" | "loading" | "matched" | "fallback" | "error">("idle");
+  const [showInstitutionPicker, setShowInstitutionPicker] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [verificationSent, setVerificationSent] = useState(false);
@@ -31,8 +41,50 @@ const BoxedRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const emailDomain = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())
+    ? email.trim().toLowerCase().split("@").pop() ?? ""
+    : "";
+
+  useEffect(() => {
+    if (!emailDomain) {
+      setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("idle"); setShowInstitutionPicker(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setInstitutionStatus("loading");
+      try {
+        const result = await apiRequest<InstitutionResolution>("/institutions/resolve?email_domain=" + encodeURIComponent(emailDomain));
+        if (cancelled) return;
+        if (result.status === "matched" && result.institution) {
+          setInstitutionId(result.institution.id); setInstitutionName(result.institution.name); setInstitutionStatus("matched"); setShowInstitutionPicker(false);
+        } else {
+          setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("fallback"); setShowInstitutionPicker(true);
+        }
+      } catch {
+        if (cancelled) return;
+        setInstitutionId(""); setInstitutionName(""); setInstitutionStatus("error"); setShowInstitutionPicker(true);
+      }
+    }, 350);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [emailDomain]);
+
+  useEffect(() => {
+    if (!showInstitutionPicker) return;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        const q = institutionSearch.trim();
+        const result = await apiRequest<{ items: InstitutionOption[] }>("/institutions/public" + (q ? "?q=" + encodeURIComponent(q) : ""));
+        if (!cancelled) setInstitutions(result.items);
+      } catch { if (!cancelled) setInstitutions([]); }
+    }, 200);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [showInstitutionPicker, institutionSearch]);
+
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
+    setInstitutionId(""); setInstitutionName("");
     setError("");
     setMessage("");
     setVerificationSent(false);
@@ -47,7 +99,7 @@ const BoxedRegister = () => {
 
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const email = String(form.get("email") ?? "").trim().toLowerCase();
+    const submittedEmail = String(form.get("email") ?? "").trim().toLowerCase();
     const password = String(form.get("password") ?? "");
     const confirmPassword = String(form.get("confirm_password") ?? "");
     const fullName = String(form.get("full_name") ?? "").trim();
@@ -60,12 +112,14 @@ const BoxedRegister = () => {
       setError("The passwords do not match. Please check and try again.");
       return;
     }
-    if (!fullName || !email) {
+    if (!fullName || !submittedEmail) {
       setError("Enter your name and a valid email address to continue.");
       return;
     }
 
-    const common = { email, password, full_name: fullName };
+    if (!institutionId) { setError("Select your institution before continuing."); return; }
+
+    const common = { email: submittedEmail, password, full_name: fullName, institution_id: institutionId };
     const payload = role === "student"
       ? {
           ...common,
@@ -85,7 +139,7 @@ const BoxedRegister = () => {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setRegisteredEmail(email);
+      setRegisteredEmail(submittedEmail);
       setMessage(result.message);
       setVerificationSent(result.verification_email_sent);
       setActivationPending(result.activation_pending);
@@ -180,10 +234,36 @@ const BoxedRegister = () => {
               <Label htmlFor="email">Email address</Label>
               <div className="relative min-w-0">
                 <Mail aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="you@institution.edu" maxLength={255} required className="pl-10" />
+                <Input id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="you@institution.edu" maxLength={255} required className="pl-10" />
               </div>
             </div>
 
+            <div className="min-w-0 space-y-2">
+              <Label htmlFor="institution-search">Institution</Label>
+              {institutionStatus === "loading" ? <p className="text-sm text-muted-foreground" role="status">Checking institutional domain…</p> : null}
+              {institutionStatus === "matched" && institutionName && !showInstitutionPicker ? (
+                <div className="flex min-w-0 items-center gap-2 rounded-md border border-emerald-600/30 bg-emerald-600/5 px-3 py-2.5">
+                  <CheckCircle2 aria-hidden="true" className="size-4 shrink-0 text-emerald-700" />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{institutionName}</span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setShowInstitutionPicker(true); setInstitutionSearch(""); }}>Change</Button>
+                </div>
+              ) : null}
+              {institutionStatus === "fallback" ? <p className="text-xs text-muted-foreground">No unique match found. Select your institution below.</p> : null}
+              {institutionStatus === "error" ? <Alert variant="destructive"><AlertDescription>Lookup unavailable. Search and select your institution.</AlertDescription></Alert> : null}
+              {showInstitutionPicker ? (
+                <div className="space-y-2">
+                  <Input id="institution-search" value={institutionSearch} onChange={(event) => setInstitutionSearch(event.target.value)} placeholder="Search active institutions…" autoComplete="off" />
+                  <div className="max-h-48 overflow-y-auto rounded-md border p-1" role="listbox" aria-label="Institutions">
+                    {institutions.length ? institutions.map((institution) => (
+                      <button key={institution.id} type="button" role="option" aria-selected={institutionId === institution.id} onClick={() => { setInstitutionId(institution.id); setInstitutionName(institution.name); setInstitutionStatus("matched"); setShowInstitutionPicker(false); setInstitutionSearch(""); }} className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <span className="min-w-0 flex-1 truncate">{institution.name}</span>
+                        {institutionId === institution.id ? <CheckCircle2 aria-hidden="true" className="ml-2 size-4" /> : null}
+                      </button>
+                    )) : <p className="px-3 py-4 text-center text-sm text-muted-foreground">No active institutions found.</p>}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             {role === "student" ? (
               <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="min-w-0 space-y-2">
