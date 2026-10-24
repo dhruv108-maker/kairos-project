@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 import app.api.auth as auth_module
 from app.api.dependencies import get_db_session
 from app.main import app
-from app.models import Base
+from app.models import Account, Base, Institution, InstitutionDomain
 from app.models.academic import AcademicYear, Cohort, Department, Programme, School
 
 
@@ -27,8 +27,14 @@ async def client(monkeypatch):
 
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with session_factory() as session:
+        admin = Account(id="domain-admin", email="admin@example.test", password_hash="x", full_name="Admin", is_active=True, is_verified=True)
+        institution = Institution(id="institution-1", name="Sagiros University", slug="sagiros-university", status="ACTIVE", created_by_account_id=admin.id)
+        other_institution = Institution(id="institution-2", name="Other University", slug="other-university", status="ACTIVE", created_by_account_id=admin.id)
+        session.add_all([admin, institution, other_institution])
+        await session.flush()
         session.add_all([
-            School(id="school-1", code="SAG", name="Sagiros"),
+            InstitutionDomain(id="domain-1", institution_id=institution.id, normalized_domain="sagiros.edu.test", is_verified=True),
+            School(id="school-1", institution_id="institution-1", code="SAG", name="Sagiros"),
             Department(
                 id="department-1", school_id="school-1", code="CSE",
                 name="Computer Science", is_active=True,
@@ -120,6 +126,39 @@ async def test_student_signup_verification_login_and_profile(client):
     )
     assert escalation.status_code == 422
 
+
+@pytest.mark.asyncio
+async def test_institution_lookup_and_student_registration_preserve_academic_relationships(client):
+    http, _ = client
+    lookup = await http.get("/api/v1/institutions/resolve", params={"email_domain": "SAGIROS.EDU.TEST."})
+    assert lookup.status_code == 200
+    assert lookup.json() == {"status": "matched", "institution": {"id": "institution-1", "name": "Sagiros University"}}
+
+    signup = await http.post("/api/v1/auth/register/student", json={
+        "email": "student@sagiros.edu.test", "password": "institution-aware password 42",
+        "full_name": "Institution Student", "institution_id": "institution-1",
+        "enrollment_number": "SAG-ENR-01", "cohort_id": "cohort-1",
+    })
+    assert signup.status_code == 201, signup.text
+
+@pytest.mark.asyncio
+async def test_registration_rejects_institution_incompatible_with_cohort_or_department(client):
+    http, _ = client
+    student = await http.post("/api/v1/auth/register/student", json={
+        "email": "wrong-student@example.test", "password": "institution-aware password 42",
+        "full_name": "Wrong Institution Student", "institution_id": "institution-2",
+        "enrollment_number": "WRONG-ENR-01", "cohort_id": "cohort-1",
+    })
+    assert student.status_code == 422
+    assert "cohort" in student.json()["detail"].lower()
+
+    faculty = await http.post("/api/v1/auth/register/faculty", json={
+        "email": "wrong-faculty@example.test", "password": "institution-aware password 42",
+        "full_name": "Wrong Institution Faculty", "institution_id": "institution-2",
+        "employee_code": "WRONG-EMP-01", "department_id": "department-1", "designation": "Lecturer",
+    })
+    assert faculty.status_code == 422
+    assert "department" in faculty.json()["detail"].lower()
 
 @pytest.mark.asyncio
 async def test_faculty_verification_does_not_bypass_approval(client):
