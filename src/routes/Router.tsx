@@ -71,7 +71,7 @@ const Router = [
 
       { path: '/apps/notes', element: <Notes /> },    
       
-      { path: '/jobs', element: <JobsHub /> },
+      { path: '/app/jobs', element: <JobsHub /> },
       { path: '/jobs/applications', element: <JobApplications /> },
 
       { path: '/apps/tickets', element: <Tickets /> },
@@ -92,6 +92,7 @@ const Router = [
     path: '/',
     element: <BlankLayout />,
     children: [
+      { path: '/jobs', element: <JobsHub /> },
       { path: '/auth/auth2/login', element: <Login2 /> },
       { path: '/onboarding', element: <Onboarding /> },
       { path: '/auth/auth2/register', element: <Register2 /> },
