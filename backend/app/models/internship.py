@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import Boolean, Date, TIMESTAMP, ForeignKey, Numeric, String, Text, Enum, func, UniqueConstraint, JSON
+from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Numeric, String, Text, Enum, func, UniqueConstraint, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -57,7 +57,7 @@ class InternshipApplication(Base):
     __table_args__ = (UniqueConstraint("opportunity_id", "student_id", name="uq_student_opportunity"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     opportunity_id: Mapped[str] = mapped_column(ForeignKey("internship_opportunities.id", ondelete="RESTRICT"), nullable=False)
-    student_id: Mapped[str] = mapped_column(ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False)
+    student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False)
     status: Mapped[str] = mapped_column(Enum("APPLIED", "SHORTLISTED", "OFFERED", "REJECTED", "WITHDRAWN", name="internship_application_status"), nullable=False, server_default="APPLIED")
     recruitment_stage: Mapped[str] = mapped_column(String(20), nullable=False, server_default="SUBMITTED", index=True)
     applied_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
@@ -68,7 +68,7 @@ class InternshipPlacement(Base):
     __tablename__ = "internship_placements"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     application_id: Mapped[str] = mapped_column(ForeignKey("internship_applications.id", ondelete="RESTRICT"), unique=True, nullable=False)
-    student_id: Mapped[str] = mapped_column(ForeignKey("student_profiles.id", ondelete="RESTRICT"), nullable=False)
+    student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="RESTRICT"), nullable=False)
     faculty_supervisor_id: Mapped[str | None] = mapped_column(ForeignKey("faculty_profiles.id", ondelete="SET NULL"))
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
