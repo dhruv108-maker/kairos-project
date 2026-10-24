@@ -10,6 +10,8 @@ def test_application_registers_legacy_and_modular_routes() -> None:
 
     # Existing API surface remains mounted at the configured v1 prefix.
     assert "/api/v1/auth/login" in paths
+    assert "/api/v1/institutions/resolve" in paths
+    assert "/api/v1/institutions/public" in paths
     assert "/api/v1/students/me" in paths
     assert "/api/v1/internships/opportunities" in paths
 
