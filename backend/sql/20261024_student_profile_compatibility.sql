@@ -31,8 +31,7 @@ JOIN programmes AS pr ON pr.id = c.programme_id
 JOIN departments AS d ON d.id = pr.department_id
 SET p.cohort_id = c.id,
     p.programme_id = pr.id,
-    p.department_id = d.id,
-    p.current_semester = COALESCE(se.semester_id, p.current_semester)
+    p.department_id = d.id
 WHERE LOWER(se.enrollment_status) = 'active';
 
 ALTER TABLE student_profiles
