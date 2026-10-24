@@ -95,6 +95,7 @@ async def public_academic_options(institution_id: str, db: DbSession):
             Department.is_active.is_(True),
             Programme.is_active.is_(True),
             AcademicYear.is_current.is_(True),
+            AcademicYear.institution_id == institution_id,
         )
         .order_by(Cohort.graduation_year.desc(), Cohort.name.asc())
     )).all()
