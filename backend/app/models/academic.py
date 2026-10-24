@@ -16,6 +16,7 @@ class School(TimestampMixin, Base):
     institution_id: Mapped[str | None] = mapped_column(ForeignKey("institutions.id", ondelete="RESTRICT"))
     code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="ACTIVE")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
     departments: Mapped[list["Department"]] = relationship(back_populates="school")
 
@@ -26,6 +27,7 @@ class Department(TimestampMixin, Base):
     school_id: Mapped[str] = mapped_column(ForeignKey("schools.id", ondelete="RESTRICT"), nullable=False)
     code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="ACTIVE")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
     school: Mapped[School] = relationship(back_populates="departments")
     programmes: Mapped[list["Programme"]] = relationship(back_populates="department")
