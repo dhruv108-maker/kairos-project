@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS student_academic_records (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Resumes are included because the same portfolio module exposes resume endpoints.
+-- The deployed schema does not currently contain a `storage_files` table, so do not
+-- declare a foreign key to it here. Keep the storage_file_id index; add the FK only
+-- after the canonical storage table and its ID type are present in this deployment.
 CREATE TABLE IF NOT EXISTS student_resumes (
     id VARCHAR(36) NOT NULL,
     student_profile_id BIGINT UNSIGNED NOT NULL,
@@ -75,11 +78,10 @@ CREATE TABLE IF NOT EXISTS student_resumes (
     PRIMARY KEY (id),
     UNIQUE KEY uq_student_resume_storage (student_profile_id, storage_file_id),
     KEY ix_student_resumes_student_profile_id (student_profile_id),
-    KEY ix_student_resumes_storage_file_id (storage_file_id),
+    KEY ix_student_resumes_storage_file_id (storage_file_id)
     CONSTRAINT fk_student_resumes_profile
         FOREIGN KEY (student_profile_id) REFERENCES student_profiles (id) ON DELETE CASCADE,
-    CONSTRAINT fk_student_resumes_storage_file
-        FOREIGN KEY (storage_file_id) REFERENCES storage_files (id) ON DELETE RESTRICT
+    -- No storage FK yet: storage_files is absent from the deployed schema.
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 SHOW TABLES LIKE 'student_portfolio_entries';
