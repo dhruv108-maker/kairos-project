@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import FullLogo from "src/layouts/full/shared/logo/FullLogo";
 
 const steps = [
@@ -97,9 +96,9 @@ const Onboarding = () => (
           <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900"><CheckCircle2 className="h-4 w-4" /> Have your institution details ready</p>
           <p className="mt-1 text-sm leading-6 text-emerald-800">If you do not know your cohort or department ID, ask your institution administrator before registering.</p>
         </div>
-        <Button asChild className="mt-6 h-12 w-full rounded-xl bg-indigo-600 text-sm font-semibold text-white hover:bg-indigo-700">
-          <Link to="/auth/auth2/register">Create your account <ArrowRight className="ml-2 h-4 w-4" /></Link>
-        </Button>
+        <Link to="/auth/auth2/register" className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2">
+          Create your account <ArrowRight className="ml-2 h-4 w-4" />
+        </Link>
       </section>
     </div>
     <footer className="relative z-10 mx-auto max-w-7xl px-5 pb-8 text-center text-xs text-slate-500 sm:px-8 lg:px-10">
