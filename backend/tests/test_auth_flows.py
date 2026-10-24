@@ -105,7 +105,7 @@ async def test_student_signup_verification_login_and_profile(client):
         "password": "a secure student password 42",
         "full_name": "Student One",
         "enrollment_number": "ENR-001",
-        "cohort_id": "cohort-1",
+        "school_id": "school-1", "department_id": "department-1",
     })
     assert signup.status_code == 201
     assert signup.json()["verification_email_sent"] is True
@@ -133,6 +133,8 @@ async def test_student_signup_verification_login_and_profile(client):
     profile = await http.get("/api/v1/students/me", headers=headers)
     assert profile.status_code == 200
     assert profile.json()["student"]["enrollment_number"] == "ENR-001"
+    assert profile.json()["student"]["cohort_id"] is None
+    assert profile.json()["student"]["department_id"] == "department-1"
     assert profile.json()["account"]["roles"] == ["STUDENT"]
 
     update = await http.patch(
@@ -159,13 +161,15 @@ async def test_institution_lookup_and_student_registration_preserve_academic_rel
     assert lookup.json() == {"status": "matched", "institution": {"id": "institution-1", "name": "Sagiros University"}}
     options = await http.get("/api/v1/institutions/public/institution-1/academic-options")
     assert options.status_code == 200
+    assert [item["id"] for item in options.json()["schools"]] == ["school-1"]
     assert [item["id"] for item in options.json()["departments"]] == ["department-1"]
+    assert options.json()["departments"][0]["school_id"] == "school-1"
     assert [item["id"] for item in options.json()["cohorts"]] == ["cohort-1"]
 
     signup = await http.post("/api/v1/auth/register/student", json={
         "email": "student@sagiros.edu.test", "password": "institution-aware password 42",
         "full_name": "Institution Student", "institution_id": "institution-1",
-        "enrollment_number": "SAG-ENR-01", "cohort_id": "cohort-1",
+        "enrollment_number": "SAG-ENR-01", "school_id": "school-1", "department_id": "department-1", "cohort_id": "cohort-1",
     })
     assert signup.status_code == 201, signup.text
     verified = await http.post("/api/v1/auth/verify-email", json={"token": sent_tokens["student@sagiros.edu.test"]})
@@ -200,7 +204,7 @@ async def test_public_academic_options_returns_empty_for_active_institution_with
     http, _ = client
     response = await http.get("/api/v1/institutions/public/institution-2/academic-options")
     assert response.status_code == 200
-    assert response.json() == {"departments": [], "cohorts": []}
+    assert response.json() == {"schools": [], "departments": [], "cohorts": []}
 
 
 @pytest.mark.asyncio
@@ -209,7 +213,7 @@ async def test_registration_rejects_institution_incompatible_with_cohort_or_depa
     student = await http.post("/api/v1/auth/register/student", json={
         "email": "wrong-student@example.test", "password": "institution-aware password 42",
         "full_name": "Wrong Institution Student", "institution_id": "institution-2",
-        "enrollment_number": "WRONG-ENR-01", "cohort_id": "cohort-1",
+        "enrollment_number": "WRONG-ENR-01", "school_id": "school-1", "department_id": "department-1", "cohort_id": "cohort-1",
     })
     assert student.status_code == 422
     assert any(term in student.json()["detail"].lower() for term in ("cohort", "domain", "institution"))
@@ -217,7 +221,7 @@ async def test_registration_rejects_institution_incompatible_with_cohort_or_depa
     faculty = await http.post("/api/v1/auth/register/faculty", json={
         "email": "wrong-faculty@example.test", "password": "institution-aware password 42",
         "full_name": "Wrong Institution Faculty", "institution_id": "institution-2",
-        "employee_code": "WRONG-EMP-01", "department_id": "department-1", "designation": "Lecturer",
+        "employee_code": "WRONG-EMP-01", "school_id": "school-1", "department_id": "department-1", "designation": "Lecturer",
     })
     assert faculty.status_code == 422
     assert "department" in faculty.json()["detail"].lower()
@@ -231,6 +235,7 @@ async def test_faculty_verification_does_not_bypass_approval(client):
         "full_name": "Faculty One",
         "institution_id": "institution-1",
         "employee_code": "FAC-001",
+        "school_id": "school-1",
         "department_id": "department-1",
         "designation": "Lecturer",
     })
@@ -258,7 +263,7 @@ async def test_duplicate_email_and_enrollment_are_rejected_atomically(client):
         "password": "a secure student password 42",
         "full_name": "Student One",
         "enrollment_number": "ENR-DUP",
-        "cohort_id": "cohort-1",
+        "school_id": "school-1", "department_id": "department-1", "cohort_id": "cohort-1",
     }
     assert (await http.post("/api/v1/auth/register/student", json=payload)).status_code == 201
 
@@ -289,7 +294,7 @@ async def test_password_reset_is_single_use_and_revokes_old_access_tokens(client
         "password": "original secure password 42",
         "full_name": "Reset User",
         "enrollment_number": "ENR-RESET",
-        "cohort_id": "cohort-1",
+        "school_id": "school-1", "department_id": "department-1", "cohort_id": "cohort-1",
     })
     assert signup.status_code == 201
     assert (await http.post("/api/v1/auth/verify-email", json={"token": verification_tokens["reset@example.com"]})).status_code == 200
@@ -327,7 +332,7 @@ async def test_logout_revokes_all_previously_issued_access_tokens(client):
         "password": "secure logout password 42",
         "full_name": "Logout User",
         "enrollment_number": "ENR-LOGOUT",
-        "cohort_id": "cohort-1",
+        "school_id": "school-1", "department_id": "department-1", "cohort_id": "cohort-1",
     })
     assert signup.status_code == 201
     assert (await http.post("/api/v1/auth/verify-email", json={"token": verification_tokens["logout@example.com"]})).status_code == 200
@@ -362,7 +367,7 @@ async def test_inactive_cohort_is_hidden_and_cannot_create_student_account(clien
         "full_name": "Inactive Cohort Student",
         "institution_id": "institution-1",
         "enrollment_number": "INACTIVE-ENR-01",
-        "cohort_id": "cohort-1",
+        "school_id": "school-1", "department_id": "department-1", "cohort_id": "cohort-1",
     })
     assert accepted.status_code == 201, accepted.text
 
