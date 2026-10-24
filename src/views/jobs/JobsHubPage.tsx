@@ -232,7 +232,7 @@ export default function JobsHubPage() {
   const initialJobId = useRef(params.get("job") || "");
   const [deepLinkedJob, setDeepLinkedJob] = useState<Opportunity | null>(null);
   const [deepLinkError, setDeepLinkError] = useState("");
-  const [query, setQuery = useState(params.get("q") || "");
+  const [query, setQuery] = useState(params.get("q") || "");
   const [queryInput, setQueryInput] = useState(params.get("q") || "");
   const [location, setLocation] = useState(params.get("location") || "");
   const [locationInput, setLocationInput] = useState(params.get("location") || "");
