@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays, CheckCircle2, ChevronRight, Clock3, ExternalLink, Filter, MapPin, RefreshCw, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { apiRequest, ApiError } from "@/api/kairos-client";
@@ -104,6 +104,7 @@ function JobSkeleton() {
 
 export default function JobsHub() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const requestedJobId = useRef(searchParams.get("job") || "");
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [location, setLocation] = useState(searchParams.get("location") || "");
   const [kind, setKind] = useState(searchParams.get("opportunity_type") || "");
@@ -133,7 +134,7 @@ export default function JobsHub() {
       const result = await apiRequest<JobResponse>(`/jobs?${params.toString()}`, { signal });
       if (signal.aborted) return;
       setData(result);
-      setSelectedId((current) => result.items.some((item) => item.id === current) ? current : result.items[0]?.id || "");
+      setSelectedId((current) => result.items.some((item) => item.id === current) || (current && current === requestedJobId.current) ? current : result.items[0]?.id || "");
     } catch (err) {
       if (signal.aborted) return;
       setError(err instanceof Error ? err.message : "We couldn't load opportunities. Please try again.");
