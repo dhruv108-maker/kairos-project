@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams, useParams } from "react-router";
 import {
   ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays,
   CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, ExternalLink,
@@ -81,7 +81,7 @@ function companyInitials(name?: string | null) {
   return (name || "Kairos").trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
 function opportunityKind(job: Opportunity) {
-  return (job.opportunity_type || job.employment_type || "OPPORTUNITY").replaceAll("_", " ").toLowerCase();
+  return (job.opportunity_type || job.employment_type || "OPPORTUNITY").replace(/_/g, " ").toLowerCase();
 }
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -164,14 +164,12 @@ function DetailPanel({ job, account, appliedIds, onApply, applying }: {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Badge variant="secondary" className="capitalize">{opportunityKind(job)}</Badge>
-          {job.lifecycle_status && <Badge variant="outline">{job.lifecycle_status.toLowerCase().replaceAll("_", " ")}</Badge>}
+          {job.lifecycle_status && <Badge variant="outline">{job.lifecycle_status.toLowerCase().replace(/_/g, " ")}</Badge>}
           {salaryLabel(job) && <Badge variant="outline">{salaryLabel(job)}</Badge>}
         </div>
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
           {canApply && validExternal ? (
-            <Button asChild className="w-full bg-teal-700 text-white hover:bg-teal-800">
-              <a href={externalUrl!} target="_blank" rel="noopener noreferrer" onClick={() => undefined}>Apply on company website <ExternalLink className="size-4" /></a>
-            </Button>
+            <a className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-medium text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2" href={externalUrl!} target="_blank" rel="noopener noreferrer">Apply on company website <ExternalLink className="size-4" /></a>
           ) : canApply && !applied && !expired ? (
             <Button className="w-full bg-teal-700 text-white hover:bg-teal-800" disabled={applying === job.id} onClick={() => onApply(job)}>
               {applying === job.id ? "Applying…" : "Apply through Kairos"}
@@ -205,6 +203,7 @@ function DetailPanel({ job, account, appliedIds, onApply, applying }: {
 
 export default function JobsHubPage() {
   const { account } = useAuth();
+  const routeLocation = useLocation();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
   const [location, setLocation] = useState(params.get("location") || "");
@@ -222,8 +221,8 @@ export default function JobsHubPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const navigate = useNavigate();
   const isStudent = Boolean(account?.roles?.some((role) => role.toUpperCase() === "STUDENT"));
-  const isApplicationsPage = window.location.pathname === "/jobs/applications";
-  const isCampusPage = window.location.pathname === "/jobs/campus";
+  const isApplicationsPage = routeLocation.pathname === "/jobs/applications";
+  const isCampusPage = routeLocation.pathname === "/jobs/campus";
 
   const loadJobs = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -290,7 +289,7 @@ export default function JobsHubPage() {
     try {
       await apiRequest(`/modules/internships/opportunities/${encodeURIComponent(job.id)}/applications`, { method: "POST" });
       setAppliedIds((current) => new Set(current).add(job.id));
-      setApplications((current) => [{ id: `pending-refresh-${job.id}`, opportunity_id: job.id, status: "SUBMITTED", applied_at: new Date().toISOString(), opportunity: job }, ...current]);
+      setApplications((current) => [{ id: `pending-refresh-${job.id}`, opportunity_id: job.id, status: "APPLIED", applied_at: new Date().toISOString(), opportunity: job }, ...current]);
     } catch (err) {
       setApplicationError(errorMessage(err));
     } finally {
@@ -358,7 +357,7 @@ export default function JobsHubPage() {
       {applicationError && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert className="mt-0.5 size-4 shrink-0" />{applicationError}</div>}
       {applicationLoading ? <div className="grid gap-3">{[1,2,3].map((n) => <div key={n} className="h-28 animate-pulse rounded-2xl border bg-slate-100" />)}</div>
         : applications.length === 0 ? <Card className="border-dashed"><CardContent className="flex flex-col items-center py-14 text-center"><BriefcaseBusiness className="size-9 text-slate-300" /><h2 className="mt-4 font-semibold text-slate-900">{campus ? "No campus drives available" : "Your application journey starts here"}</h2><p className="mt-2 max-w-md text-sm leading-6 text-slate-500">{campus ? "There are no recruitment drives available to show right now." : "When you apply to an opportunity through Kairos, its current status will appear here."}</p><Button className="mt-5" onClick={() => window.location.assign("/jobs")}>Explore opportunities</Button></CardContent></Card>
-        : <div className="grid gap-3">{applications.map((app) => <Card key={app.id} className="border-slate-200"><CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center"><CompanyMark name={app.opportunity?.company?.name} /><div className="min-w-0 flex-1"><h2 className="font-semibold text-slate-900">{app.opportunity?.title || "Opportunity"}</h2><p className="mt-1 text-sm text-slate-500">{app.opportunity?.company?.name || "Employer"}{app.opportunity?.location ? ` · ${app.opportunity.location}` : ""}</p><p className="mt-2 text-xs text-slate-500">{campus ? "Drive status" : "Applied"} · {dateLabel(app.applied_at) || "Date not supplied"}</p></div><Badge variant="outline" className="w-fit">{app.status.replaceAll("_", " ")}</Badge>{!campus && app.opportunity?.id && <Button variant="outline" onClick={() => navigate(`/jobs/${encodeURIComponent(app.opportunity!.id!)}`)}>View opportunity</Button>}</CardContent></Card>)}</div>}
+        : <div className="grid gap-3">{applications.map((app) => <Card key={app.id} className="border-slate-200"><CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center"><CompanyMark name={app.opportunity?.company?.name} /><div className="min-w-0 flex-1"><h2 className="font-semibold text-slate-900">{app.opportunity?.title || "Opportunity"}</h2><p className="mt-1 text-sm text-slate-500">{app.opportunity?.company?.name || "Employer"}{app.opportunity?.location ? ` · ${app.opportunity.location}` : ""}</p><p className="mt-2 text-xs text-slate-500">{campus ? "Drive status" : "Applied"} · {dateLabel(app.applied_at) || "Date not supplied"}</p></div><Badge variant="outline" className="w-fit">{app.status.replace(/_/g, " ")}</Badge>{!campus && app.opportunity?.id && <Button variant="outline" onClick={() => navigate(`/jobs/${encodeURIComponent(app.opportunity!.id!)}`)}>View opportunity</Button>}</CardContent></Card>)}</div>}
     </main>;
   }
 
