@@ -224,6 +224,7 @@ const BoxedRegister = () => {
       : {
           ...common,
           employee_code: String(form.get("employee_code") ?? "").trim(),
+          institution_id: String(institutionId),
           school_id: String(schoolId),
           department_id: String(departmentId),
           designation: String(form.get("designation") ?? "").trim(),
