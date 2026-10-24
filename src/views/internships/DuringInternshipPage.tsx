@@ -120,6 +120,7 @@ export default function DuringInternshipPage() {
   const [reportTitle, setReportTitle] = useState("");
   const [reportNotes, setReportNotes] = useState("");
   const [reportFile, setReportFile] = useState<File | null>(null);
+  const [reportFileInputKey, setReportFileInputKey] = useState(0);
   const [revisionReportId, setRevisionReportId] = useState("");
   const [savingReport, setSavingReport] = useState(false);
   const [versionsByReport, setVersionsByReport] = useState<Record<string, ReportVersion[]>>({});
@@ -197,6 +198,7 @@ export default function DuringInternshipPage() {
   useEffect(() => { void loadSelectedLogs(); }, [loadSelectedLogs]);
 
   function editWorkLog(item: WorkLog) {
+    setSelectedPlacementId(item.placement_id);
     setEditingLog(item);
     setWorkLogForm({
       work_date: item.work_date,
@@ -337,6 +339,7 @@ export default function DuringInternshipPage() {
       setReportTitle("");
       setReportNotes("");
       setReportFile(null);
+      setReportFileInputKey((value) => value + 1);
       setRevisionReportId("");
       await loadWorkspace();
     } catch (error) {
@@ -628,7 +631,7 @@ export default function DuringInternshipPage() {
                     <Card key={item.id} size="sm">
                       <CardHeader className="flex-row items-start justify-between gap-4">
                         <div className="min-w-0 space-y-1">
-                          <CardDescription>{dateLabel(item.work_date)}{item.duration_minutes ? " · " + item.duration_minutes + " min" : ""}</CardDescription>
+                          <CardDescription>{dateLabel(item.work_date)}{item.duration_minutes ? " · " + item.duration_minutes + " min" : ""}{item.updated_at ? " · Updated " + dateLabel(item.updated_at) : ""}</CardDescription>
                           <CardTitle className="whitespace-normal text-base">{item.work_summary}</CardTitle>
                         </div>
                         <StatusBadge value={item.status} />
@@ -692,11 +695,11 @@ export default function DuringInternshipPage() {
                       {revisionReportId ? (
                         <Alert><FileText /><AlertTitle>Revision for report</AlertTitle><AlertDescription>{reports.find((item) => item.id === revisionReportId)?.title || revisionReportId}. The existing report version will be preserved.</AlertDescription></Alert>
                       ) : <div className="space-y-2"><Label htmlFor="report-title">Report title *</Label><Input id="report-title" value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} required minLength={2} maxLength={255} placeholder="Weekly report, midterm report, final report…" /></div>}
-                      <div className="space-y-2"><Label htmlFor="report-file">Report file (PDF, image, or text) *</Label><Input id="report-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.txt,application/pdf,image/png,image/jpeg,text/plain" onChange={(event) => setReportFile(event.target.files?.[0] || null)} required /></div>
+                      <div className="space-y-2"><Label htmlFor="report-file">Report file (PDF, image, or text) *</Label><Input id="report-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.txt,application/pdf,image/png,image/jpeg,text/plain" key={reportFileInputKey} onChange={(event) => setReportFile(event.target.files?.[0] || null)} required /></div>
                       <div className="space-y-2"><Label htmlFor="report-notes">Submission notes</Label><Textarea id="report-notes" maxLength={5000} value={reportNotes} onChange={(event) => setReportNotes(event.target.value)} placeholder="Brief context for the reviewer (optional)" /></div>
                       <div className="flex flex-wrap gap-2">
                         <Button type="submit" disabled={savingReport || !reportFile}><Send className="mr-2 size-4" />{savingReport ? "Submitting…" : revisionReportId ? "Upload revision & resubmit" : "Upload & submit report"}</Button>
-                        {revisionReportId && <Button type="button" variant="outline" onClick={() => { setRevisionReportId(""); setReportFile(null); }}>Cancel revision</Button>}
+                        {revisionReportId && <Button type="button" variant="outline" onClick={() => { setRevisionReportId(""); setReportFile(null); setReportFileInputKey((value) => value + 1); }}>Cancel revision</Button>}
                       </div>
                     </form>
                   )}
