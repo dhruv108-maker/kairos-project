@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth/AuthContext";
-import { apiRequest, ApiError, getRoleDashboard } from "@/api/kairos-client";
+import { apiRequest, getRoleDashboard } from "@/api/kairos-client";
+import { SemesterPerformanceChart } from "./SemesterPerformanceChart";
 
 type ReportRequirement = { requirement: { id: string; title: string; description?: string | null; due_date?: string | null; is_required: boolean }; submission_status?: string | null };
 type DashboardPayload = {
@@ -103,6 +104,8 @@ const ModernDashboard = () => {
     {error && <div role="alert" className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" /><div><p className="font-medium text-destructive">Overview data could not be loaded</p><p className="mt-1 text-muted-foreground">{error}</p><Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>Try again</Button></div></div>}
 
     {metrics.length > 0 && <section aria-labelledby="summary-heading"><SectionHeading eyebrow="At a glance" title="Your current snapshot" description="Numbers are loaded from the authenticated Kairos API; unavailable values are not replaced with estimates."/><h2 id="summary-heading" className="sr-only">Your current snapshot</h2><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map((metric) => <MetricCard key={metric.label} metric={metric} loading={isLoading} />)}</div></section>}
+
+    {(role === "student" || role === "faculty" || role === "authority" || role === "platform") && <SemesterPerformanceChart role={role} />}
 
     {role === "student" && <section><SectionHeading eyebrow="My work" title="Report requirements" description="Check required submissions and due dates, and follow up on work that needs attention."/>
       {requirementsError && <p role="alert" className="mb-3 rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{requirementsError}</p>}
