@@ -105,6 +105,30 @@ class EvaluationService:
         await self.db.refresh(evaluation)
         return evaluation
 
+    async def get_for_report_version(self, version_id: str, account_id: str) -> GriffinEvaluation | None:
+        """Return the latest existing evaluation for a report version owned by this faculty supervisor."""
+        version = await self.db.get(ReportVersion, version_id)
+        if version is None:
+            raise EvaluationWorkflowError(404, "Report version not found")
+        submission = await self.db.get(ReportSubmission, version.submission_id)
+        if submission is None:
+            raise EvaluationWorkflowError(404, "Report submission not found")
+        placement = await self.db.get(InternshipPlacement, submission.placement_id)
+        faculty_result = await self.db.execute(
+            select(FacultyProfile).where(FacultyProfile.account_id == account_id)
+        )
+        faculty = faculty_result.scalar_one_or_none()
+        if faculty is None:
+            raise EvaluationWorkflowError(403, "Faculty account required")
+        if placement is None or placement.faculty_supervisor_id != faculty.id:
+            raise EvaluationWorkflowError(404, "Report version not found")
+        result = await self.db.execute(
+            select(GriffinEvaluation)
+            .where(GriffinEvaluation.report_version_id == version.id)
+            .order_by(GriffinEvaluation.created_at.desc())
+        )
+        return result.scalars().first()
+
     async def get_for_faculty(self, evaluation_id: str, account_id: str) -> GriffinEvaluation:
         evaluation = await self.db.get(GriffinEvaluation, evaluation_id)
         if evaluation is None:
