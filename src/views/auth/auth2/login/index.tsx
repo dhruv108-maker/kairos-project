@@ -45,16 +45,16 @@ const BoxedLogin = () => {
       asideDescription="Sign in to continue your work with the people, programmes, and institutions that shape your academic journey."
       footer={<>New to Kairos? <Link to="/onboarding" className="font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground">Create an account</Link></>}
     >
-      <div className="mb-8">
+      <div className="mb-8 min-w-0">
         <p className="text-sm font-medium text-muted-foreground">WELCOME BACK</p>
         <h2 className="mt-2 text-3xl font-semibold tracking-tight">Sign in to Kairos</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">Use the email address linked to your academic account.</p>
       </div>
 
-      <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-        <div className="space-y-2">
+      <form className="min-w-0 space-y-5" onSubmit={handleSubmit}>
+        <div className="min-w-0 space-y-2">
           <Label htmlFor="email">Email address</Label>
-          <div className="relative">
+          <div className="relative min-w-0">
             <Mail aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="email"
@@ -67,18 +67,18 @@ const BoxedLogin = () => {
               maxLength={255}
               required
               aria-describedby="email-hint"
-              className="h-11 pl-9"
+              className="pl-10"
             />
           </div>
-          <p id="email-hint" className="text-xs text-muted-foreground">Enter the email address you used to register.</p>
+          <p id="email-hint" className="text-xs leading-5 text-muted-foreground">Enter the email address you used to register.</p>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 space-y-2">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <Label htmlFor="password">Password</Label>
             <Link to="/auth/auth2/forgot-password" className="text-sm font-medium underline underline-offset-4 hover:text-muted-foreground">Forgot password?</Link>
           </div>
-          <div className="relative">
+          <div className="relative min-w-0">
             <LockKeyhole aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="password"
@@ -87,29 +87,30 @@ const BoxedLogin = () => {
               autoComplete="current-password"
               placeholder="Enter your password"
               required
-              className="h-11 pl-9 pr-11"
+              aria-describedby={error ? "signin-error" : undefined}
+              className="pl-10 pr-12"
             />
             <button
               type="button"
               onClick={() => setShowPassword((value) => !value)}
               aria-label={showPassword ? "Hide password" : "Show password"}
               aria-pressed={showPassword}
-              className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="absolute right-1.5 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              {showPassword ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}
             </button>
           </div>
         </div>
 
         {error && (
-          <Alert variant="destructive">
+          <Alert id="signin-error" variant="destructive" role="alert" aria-live="polite" className="min-w-0 break-words">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        <Button type="submit" size="lg" className="h-11 w-full" disabled={isSubmitting}>
+        <Button type="submit" size="lg" className="h-11 w-full whitespace-normal" disabled={isSubmitting}>
           {isSubmitting ? "Signing in…" : "Sign in"}
-          {!isSubmitting && <ArrowRight className="ml-2 size-4" />}
+          {!isSubmitting && <ArrowRight aria-hidden="true" className="ml-2 size-4" />}
         </Button>
         <p className="text-center text-xs leading-5 text-muted-foreground">Your account access follows your institution’s permissions and verification requirements.</p>
       </form>
