@@ -42,7 +42,6 @@ const Login2 = Loadable(lazy(() => import('../views/auth/auth2/login')));
 
 const Register2 = Loadable(lazy(() => import('../views/auth/auth2/register')));
 const Onboarding = Loadable(lazy(() => import('../views/auth/onboarding')));
-const Onboarding = Loadable(lazy(() => import('../views/auth/auth2/onboarding')));
 
 const ForgotPassword2 = Loadable(lazy(() => import('../views/auth/auth2/forgot-password')));
 
@@ -86,11 +85,9 @@ const Router = [
     children: [
       { path: '/auth/auth2/login', element: <Login2 /> },
       { path: '/onboarding', element: <Onboarding /> },
-
       { path: '/auth/auth2/register', element: <Register2 /> },
-      { path: '/onboarding', element: <Onboarding /> },
-      { path: '/signup', element: <Onboarding /> },
-      { path: '/register', element: <Onboarding /> },
+      { path: '/signup', element: <Register2 /> },
+      { path: '/register', element: <Register2 /> },
 
       { path: '/auth/auth2/forgot-password', element: <ForgotPassword2 /> },
 
