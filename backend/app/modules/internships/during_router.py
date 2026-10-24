@@ -456,7 +456,7 @@ async def submit_work_log(work_log_id: str, account: CurrentAccount, db: DbSessi
     if item.work_date < placement.start_date or item.work_date > placement.end_date:
         raise HTTPException(status_code=422, detail="Work date must fall within the placement dates")
     item.status = "SUBMITTED"
-    item.submitted_at = datetime.now(UTC).replace(tzinfo=None)
+    item.submitted_at = datetime.now(UTC).replace(tzinfo=None, microsecond=0)
     AuditService(db).record(
         account.id, await _institution_for_placement(db, placement),
         "internship.work_log_submitted", "internship_work_log", item.id,
