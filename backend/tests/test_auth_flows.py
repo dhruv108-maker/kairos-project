@@ -165,6 +165,14 @@ async def test_institution_lookup_and_student_registration_preserve_academic_rel
 
 
 @pytest.mark.asyncio
+async def test_public_academic_options_returns_empty_for_active_institution_without_academic_setup(client):
+    http, _ = client
+    response = await http.get("/api/v1/institutions/public/institution-2/academic-options")
+    assert response.status_code == 200
+    assert response.json() == {"departments": [], "cohorts": []}
+
+
+@pytest.mark.asyncio
 async def test_registration_rejects_institution_incompatible_with_cohort_or_department(client):
     http, _ = client
     student = await http.post("/api/v1/auth/register/student", json={
