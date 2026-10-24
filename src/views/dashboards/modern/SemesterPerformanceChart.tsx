@@ -40,7 +40,7 @@ const scopeOptions: Record<Exclude<Props["role"], "student">, { value: Scope; la
 };
 
 export function SemesterPerformanceChart({ role }: Props) {
-  const [scope, setScope] = useState<Scope>(role === "student" ? "personal" : "mentees");
+  const [scope, setScope] = useState<Scope>(role === "student" ? "personal" : role === "faculty" ? "mentees" : "school");
   const [data, setData] = useState<PerformancePoint[]>([]);
   const [scopeLabel, setScopeLabel] = useState("");
   const [metricLabel, setMetricLabel] = useState("Average performance");
