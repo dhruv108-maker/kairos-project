@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, ForeignKey, Index, Numeric, String, Text,
+    BigInteger, Boolean, CheckConstraint, Date, ForeignKey, Index, Numeric, String, Text,
     TIMESTAMP, UniqueConstraint, func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -22,7 +22,7 @@ class StudentAcademicRecord(Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    student_profile_id: Mapped[str] = mapped_column(ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False)
+    student_profile_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False)
     institution_name: Mapped[str] = mapped_column(String(255), nullable=False)
     qualification: Mapped[str] = mapped_column(String(255), nullable=False)
     field_of_study: Mapped[str | None] = mapped_column(String(255))
@@ -72,7 +72,7 @@ class StudentResume(Base):
     __table_args__ = (UniqueConstraint("student_profile_id", "storage_file_id", name="uq_student_resume_storage"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    student_profile_id: Mapped[str] = mapped_column(ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    student_profile_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     storage_file_id: Mapped[str] = mapped_column(ForeignKey("storage_files.id", ondelete="RESTRICT"), nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
