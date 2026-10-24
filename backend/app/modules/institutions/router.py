@@ -86,6 +86,13 @@ async def public_academic_options(institution_id: str, db: DbSession):
         .where(School.institution_id == institution_id, School.is_active.is_(True), Department.is_active.is_(True))
         .order_by(Department.name.asc())
     )).all()
+    programmes = (await db.execute(
+        select(Programme.id, Programme.name, Programme.code, Programme.degree_level, Programme.department_id)
+        .join(Department, Department.id == Programme.department_id)
+        .join(School, School.id == Department.school_id)
+        .where(School.institution_id == institution_id, School.is_active.is_(True), Department.is_active.is_(True), Programme.is_active.is_(True))
+        .order_by(Department.name.asc(), Programme.name.asc())
+    )).all()
     cohorts = (await db.execute(
         select(Cohort.id, Cohort.name, Programme.name, Department.name, AcademicYear.year_label, Cohort.graduation_year)
         .join(Programme, Programme.id == Cohort.programme_id)
@@ -106,6 +113,7 @@ async def public_academic_options(institution_id: str, db: DbSession):
     return {
         "schools": [{"id": str(row.id), "name": row.name, "code": row.code} for row in schools],
         "departments": [{"id": str(row.id), "name": row.name, "code": row.code, "school_id": str(row.school_id)} for row in departments],
+        "programmes": [{"id": str(row.id), "name": row.name, "code": row.code, "degree_level": row.degree_level, "department_id": str(row.department_id)} for row in programmes],
         "cohorts": [{"id": row[0], "name": row[1], "programme_name": row[2], "department_name": row[3], "academic_year": row[4], "graduation_year": row[5]} for row in cohorts],
     }
 
