@@ -118,7 +118,7 @@ def _placements_query():
                InternshipProvider, StudentProfile, Account)
         .join(InternshipApplication, InternshipApplication.id == InternshipPlacement.application_id)
         .join(InternshipOpportunity, InternshipOpportunity.id == InternshipApplication.opportunity_id)
-        .join(InternshipProvider, InternshipProvider.id == InternshipOpportunity.provider_id)
+        .outerjoin(InternshipProvider, InternshipProvider.id == InternshipOpportunity.provider_id)
         .join(StudentProfile, StudentProfile.id == InternshipPlacement.student_id)
         .join(Account, Account.id == StudentProfile.account_id)
     )
@@ -204,7 +204,7 @@ async def _placement_payload(db: AsyncSession, row: tuple[Any, ...]) -> dict[str
         "opportunity": {
             "id": opportunity.id,
             "title": opportunity.title,
-            "company_name": provider.company_name,
+            "company_name": provider.company_name if provider else None,
             "location": opportunity.location,
         },
         "faculty_supervisor_id": placement.faculty_supervisor_id,
