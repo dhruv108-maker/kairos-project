@@ -13,7 +13,7 @@ type RegistrationRole = "student" | "faculty";
 
 interface InstitutionOption { id: string; name: string; }
 interface InstitutionResolution { status: "matched" | "ambiguous" | "not_found"; institution: InstitutionOption | null; }
-interface AcademicOptions { schools: Array<{ id: string; name: string; code: string }>; departments: Array<{ id: string; name: string; code: string; school_id: string }>; programmes: Array<{ id: string; name: string; code: string; degree_level: string; department_id: string }>; cohorts: Array<{ id: string; name: string; programme_name: string; department_name: string; academic_year: string; graduation_year: number }>; }
+interface AcademicOptions { schools: Array<{ id: string; name: string; code: string }>; departments: Array<{ id: string; name: string; code: string; school_id: string }>; programmes: Array<{ id: string; name: string; code: string; department_id: string }>; cohorts: Array<{ id: string; name: string; programme_name: string; department_name: string; academic_year: string; graduation_year: number }>; }
 
 interface RegistrationResponse {
   account_id: string;
@@ -361,7 +361,7 @@ const BoxedRegister = () => {
                   <Label>Programme / Course</Label>
                   <Select value={programmeId} onValueChange={(value) => setProgrammeId(value ?? "")} disabled={!departmentId || academicOptionsLoading || academicOptionsError || selectedProgrammes.length === 0} required>
                     <SelectTrigger className="h-11 w-full min-w-0" aria-label="Programme"><SelectValue placeholder={!departmentId ? "Choose a department first" : academicOptionsLoading ? "Loading programmes…" : "Choose your programme"} /></SelectTrigger>
-                    <SelectContent>{selectedProgrammes.map((programme) => <SelectItem key={programme.id} value={programme.id}>{programme.name} · {programme.degree_level}</SelectItem>)}</SelectContent>
+                    <SelectContent>{selectedProgrammes.map((programme) => <SelectItem key={programme.id} value={programme.id}>{programme.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="min-w-0 space-y-2"><Label htmlFor="enrollment_number">Enrollment number</Label><Input id="enrollment_number" name="enrollment_number" autoComplete="off" placeholder="Student ID" maxLength={64} required /><p className="text-xs text-muted-foreground">Your institution can assign your cohort after registration.</p></div>
