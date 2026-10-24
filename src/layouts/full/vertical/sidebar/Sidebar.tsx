@@ -13,11 +13,18 @@ import {
 import { NavSecondary } from './NavSecondary';
 import { NavUser } from './NavUser';
 import { Badge } from 'src/components/ui/badge';
+import { useAuth } from '@/context/auth/AuthContext';
+import { BriefcaseBusiness, FileText, Plus } from 'lucide-react';
 import sidebaritems from './sidebaritems';
 
 const SidebarLayout = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
-
-
+  const { account } = useAuth();
+  const recruiterAccess = account?.roles.some((role) => ["EMPLOYER", "RECRUITER", "EMPLOYER_ADMIN", "ADMIN"].includes(role.toUpperCase())) ?? false;
+  const menu = recruiterAccess ? [...sidebaritems, { heading: "Recruitment", items: [
+    { id: "recruiter-listings", name: "My Listings", icon: BriefcaseBusiness, url: "/jobs/recruiter" },
+    { id: "recruiter-create", name: "Create Job", icon: Plus, url: "/jobs/recruiter/create" },
+    { id: "recruiter-applications", name: "Applications", icon: FileText, url: "/jobs/recruiter/applications" },
+  ] }] : sidebaritems;
 
   return (
      <Sidebar
@@ -36,7 +43,7 @@ const SidebarLayout = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
                 <SimpleBar style={{ height: "100%" }} >
                     <SidebarGroup className="flex items-center justify-center group-data-[state=collapsed]:px-2 px-3 py-4">
                         <div className="px-0 group-data-[state=collapsed]:px-0 w-full flex flex-col gap-4">
-                            <NavCollapse menu={sidebaritems} className="text-sm" />
+                            <NavCollapse menu={menu} className="text-sm" />
                         </div>
                     </SidebarGroup>
                 </SimpleBar>
