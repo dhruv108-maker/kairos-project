@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Integer, Numeric, String, func
+from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
