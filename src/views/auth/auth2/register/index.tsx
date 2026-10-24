@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import FullLogo from "src/layouts/full/shared/logo/FullLogo";
 import { apiRequest } from "@/api/kairos-client";
 
@@ -193,7 +194,7 @@ const BoxedRegister = () => {
                 Enter the details associated with your institution. Fields marked required must be completed.
               </p>
 
-              <div className="mt-6 grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-1.5">
+              <div role="group" aria-label="Choose account role" className="mt-6 grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-1.5">
                 <button
                   type="button"
                   onClick={() => handleRoleChange("student")}
@@ -286,10 +287,12 @@ const BoxedRegister = () => {
                 </div>
               </div>
 
-              <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-slate-600">
-                <input name="terms" type="checkbox" required className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 accent-indigo-600 focus:ring-indigo-500" />
-                <span>I agree to the <a href="/terms" className="font-semibold text-indigo-700 underline-offset-4 hover:underline">Terms of Service</a> and <a href="/privacy" className="font-semibold text-indigo-700 underline-offset-4 hover:underline">Privacy Policy</a>.</span>
-              </label>
+              <div className="flex items-start gap-3 text-sm leading-6 text-slate-600">
+                <Checkbox id="terms" name="terms" value="accepted" required className="mt-1" />
+                <Label htmlFor="terms" className="cursor-pointer font-normal leading-6 text-slate-600">
+                  I agree to the <Link to="/terms" className="font-semibold text-indigo-700 underline-offset-4 hover:underline">Terms of Service</Link> and <Link to="/privacy" className="font-semibold text-indigo-700 underline-offset-4 hover:underline">Privacy Policy</Link>.
+                </Label>
+              </div>
 
               {message && (
                 <div role="status" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
