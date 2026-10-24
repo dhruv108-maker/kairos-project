@@ -4,18 +4,13 @@ import { lazy } from 'react';
 import { Navigate, createBrowserRouter } from 'react-router';
 import Loadable from '../layouts/full/shared/loadable/Loadable';
 import RequireAuth from '@/components/auth/RequireAuth';
-import { useAuth } from '@/context/auth/AuthContext';
 
 /* ***Layouts**** */
 const FullLayout = Loadable(lazy(() => import('../layouts/full/FullLayout')));
 const BlankLayout = Loadable(lazy(() => import('../layouts/blank/BlankLayout')));
 
-// Jobs are public for discovery, but signed-in users must keep the authenticated shell.
-const JobsLayoutSwitch = () => {
-  const { account, isLoading } = useAuth();
-  if (isLoading) return <FullLayout />;
-  return account ? <FullLayout /> : <BlankLayout />;
-};
+// Job discovery stays public, but it uses the same sidebar shell for every visitor.
+const JobsLayoutSwitch = () => <FullLayout allowAnonymous />;
 
 // dashboards
 const ModernDashboard = Loadable(lazy(() => import('../views/dashboards/modern')));
