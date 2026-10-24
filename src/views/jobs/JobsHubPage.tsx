@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useSearchParams, useParams } from "react-router";
 import {
   ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays,
@@ -229,7 +229,10 @@ export default function JobsHubPage() {
   const { account } = useAuth();
   const routeLocation = useLocation();
   const [params, setParams] = useSearchParams();
-  const [query, setQuery] = useState(params.get("q") || "");
+  const initialJobId = useRef(params.get("job") || "");
+  const [deepLinkedJob, setDeepLinkedJob] = useState<Opportunity | null>(null);
+  const [deepLinkError, setDeepLinkError] = useState("");
+  const [query, setQuery = useState(params.get("q") || "");
   const [queryInput, setQueryInput] = useState(params.get("q") || "");
   const [location, setLocation] = useState(params.get("location") || "");
   const [locationInput, setLocationInput] = useState(params.get("location") || "");
@@ -267,7 +270,11 @@ export default function JobsHubPage() {
       const data = await apiRequest<PageResult>(`/jobs?${search.toString()}`, { signal });
       const visibleItems = data.items.slice(0, PAGE_SIZE);
       setResult({ ...data, items: visibleItems, hasMore: data.items.length > PAGE_SIZE });
-      setSelectedId((current) => current && visibleItems.some((item) => item.id === current) ? current : (visibleItems[0]?.id || ""));
+      setSelectedId((current) => {
+        if (current && visibleItems.some((item) => item.id === current)) return current;
+        if (current && current === initialJobId.current) return current;
+        return visibleItems[0]?.id || "";
+      });
     } catch (err) {
       if (signal?.aborted) return;
       setError(errorMessage(err));
@@ -311,7 +318,33 @@ export default function JobsHubPage() {
     return () => { active = false; };
   }, [isStudent]);
 
-  const selected = useMemo(() => result.items.find((job) => job.id === selectedId) || null, [result.items, selectedId]);
+  useEffect(() => {
+    const requestedId = params.get("job");
+    if (!requestedId || result.items.some((item) => item.id === requestedId)) {
+      setDeepLinkedJob(null);
+      setDeepLinkError("");
+      return;
+    }
+    const controller = new AbortController();
+    setDeepLinkError("");
+    apiRequest<Opportunity>(`/jobs/${encodeURIComponent(requestedId)}`, { signal: controller.signal })
+      .then((job) => {
+        if (controller.signal.aborted) return;
+        setDeepLinkedJob(job);
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setDeepLinkedJob(null);
+          setDeepLinkError(errorMessage(err));
+        }
+      });
+    return () => controller.abort();
+  }, [params, result.items]);
+
+  const selected = useMemo(
+    () => result.items.find((job) => job.id === selectedId) || (deepLinkedJob?.id === selectedId ? deepLinkedJob : null),
+    [result.items, selectedId, deepLinkedJob],
+  );
 
   const apply = async (job: Opportunity) => {
     setApplying(job.id);
@@ -496,6 +529,7 @@ export default function JobsHubPage() {
       <aside className="hidden min-w-0 xl:block">
         <div className="sticky top-4 space-y-3">
           {selected && !error ? <DetailPanel job={selected} account={account} appliedIds={appliedIds} onApply={apply} applying={applying} />
+            : deepLinkError ? <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">{deepLinkError}</div>
             : <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"><BriefcaseBusiness className="size-8 text-slate-300" /><p className="mt-3 font-medium text-slate-800">Select an opportunity</p><p className="mt-1 text-sm text-slate-500">Role details and application options will appear here.</p></div>}
           <p className="px-1 text-xs leading-5 text-slate-500">Public listings are sourced from Kairos. Campus-linked opportunities are kept in the eligible campus recruitment workflow.</p>
         </div>
