@@ -1,6 +1,19 @@
 """Validated request schemas for institution and academic administration."""
+import re
 from datetime import date
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
+
+
+class InstitutionDomainCreate(BaseModel):
+    domain: str = Field(min_length=3, max_length=253)
+
+    @field_validator("domain")
+    @classmethod
+    def normalize_domain(cls, value: str) -> str:
+        domain = value.strip().lower().rstrip(".")
+        if not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}", domain):
+            raise ValueError("Enter a valid fully-qualified email domain")
+        return domain
 
 
 class InstitutionCreate(BaseModel):
