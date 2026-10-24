@@ -164,12 +164,14 @@ async def test_institution_lookup_and_student_registration_preserve_academic_rel
     assert [item["id"] for item in options.json()["schools"]] == ["school-1"]
     assert [item["id"] for item in options.json()["departments"]] == ["department-1"]
     assert options.json()["departments"][0]["school_id"] == "school-1"
+    assert [item["id"] for item in options.json()["programmes"]] == ["programme-1"]
+    assert options.json()["programmes"][0]["department_id"] == "department-1"
     assert [item["id"] for item in options.json()["cohorts"]] == ["cohort-1"]
 
     signup = await http.post("/api/v1/auth/register/student", json={
         "email": "student@sagiros.edu.test", "password": "institution-aware password 42",
         "full_name": "Institution Student", "institution_id": "institution-1",
-        "enrollment_number": "SAG-ENR-01", "school_id": "school-1", "department_id": "department-1", "cohort_id": "cohort-1",
+        "enrollment_number": "SAG-ENR-01", "school_id": "school-1", "department_id": "department-1", "programme_id": "programme-1", "cohort_id": "cohort-1",
     })
     assert signup.status_code == 201, signup.text
     verified = await http.post("/api/v1/auth/verify-email", json={"token": sent_tokens["student@sagiros.edu.test"]})
@@ -179,6 +181,7 @@ async def test_institution_lookup_and_student_registration_preserve_academic_rel
     profile = await http.get("/api/v1/students/me", headers={"Authorization": "Bearer " + login.json()["access_token"]})
     assert profile.status_code == 200
     assert profile.json()["student"]["cohort_id"] == "cohort-1"
+    assert profile.json()["student"]["programme_id"] == "programme-1"
     assert profile.json()["account"]["full_name"] == "Institution Student"
 
 
