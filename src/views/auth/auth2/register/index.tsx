@@ -31,7 +31,8 @@ interface RegistrationResponse {
 }
 
 const BoxedRegister = () => {
-  const [searchParams, setSearchParams] = useSearchParams();\n  const [role, setRole] = useState<RegistrationRole>(searchParams.get("role") === "faculty" ? "faculty" : "student");
+  const [searchParams] = useSearchParams();
+  const [role, setRole] = useState<RegistrationRole>(searchParams.get("role") === "faculty" ? "faculty" : "student");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [verificationSent, setVerificationSent] = useState<boolean | null>(null);
