@@ -78,9 +78,9 @@ CREATE TABLE IF NOT EXISTS student_resumes (
     PRIMARY KEY (id),
     UNIQUE KEY uq_student_resume_storage (student_profile_id, storage_file_id),
     KEY ix_student_resumes_student_profile_id (student_profile_id),
-    KEY ix_student_resumes_storage_file_id (storage_file_id)
+    KEY ix_student_resumes_storage_file_id (storage_file_id),
     CONSTRAINT fk_student_resumes_profile
-        FOREIGN KEY (student_profile_id) REFERENCES student_profiles (id) ON DELETE CASCADE,
+        FOREIGN KEY (student_profile_id) REFERENCES student_profiles (id) ON DELETE CASCADE
     -- No storage FK yet: storage_files is absent from the deployed schema.
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
