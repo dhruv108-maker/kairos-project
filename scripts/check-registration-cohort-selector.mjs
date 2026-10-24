@@ -43,4 +43,4 @@ assert.ok(fullLogo.includes("linked = true"), "standalone FullLogo must remain l
 assert.ok(fullLogo.includes('to="/"'), "standalone FullLogo must navigate home");
 assert.ok(sidebarLogo.includes('<Link') && sidebarLogo.includes('<img'), "sidebar logo remains a home link");
 assert.ok(!sidebarLogo.includes("SidebarMenuButton"), "sidebar logo must not nest a button inside its link");
-\nconsole.log("Registration and logo navigation regression checks passed.");
+console.log("Registration and logo navigation regression checks passed.");
