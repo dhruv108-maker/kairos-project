@@ -32,6 +32,7 @@ const TicketCreate = Loadable(lazy(() => import('../views/apps/tickets/create'))
 const TablesPage = Loadable(lazy(() => import('../views/pages/tables')));
 const FormPage = Loadable(lazy(() => import('../views/pages/form')));
 const UserProfilePage = Loadable(lazy(() => import('../views/pages/user-profile')));
+const StudentProfilePage = Loadable(lazy(() => import('../views/pages/student-profile')));
 
 //icons
 const SolarIcon = Loadable(lazy(() => import('../views/icons/iconify')));
@@ -74,6 +75,7 @@ const Router = [
       { path: '/pages/tables', element: <TablesPage /> },
       { path: '/pages/form', element: <FormPage /> },
       { path: '/pages/user-profile', element: <UserProfilePage /> },
+      { path: '/student/profile', element: <StudentProfilePage /> },
 
       { path: '/icons/iconify', element: <SolarIcon /> },
 
