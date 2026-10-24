@@ -31,7 +31,8 @@ def test_migration_backfills_existing_display_name_before_email_fallback(monkeyp
 
     sql = str(statements[0])
     assert "display_name" in sql
-    assert sql.index("display_name") < sql.index("SUBSTRING_INDEX(email")
+    assert sql.index("display_name") < sql.index("SUBSTR(email")
+    assert "INSTR(email, '@')" in sql
     assert "UPDATE accounts SET full_name" in sql
     assert "WHERE full_name IS NULL OR TRIM(full_name) = ''" in sql
 
