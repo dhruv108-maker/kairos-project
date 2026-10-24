@@ -103,20 +103,34 @@ const BoxedRegister = () => {
     setCohortId("");
     setDepartmentId("");
     setAcademicOptionsError(false);
-    if (!institutionId) { setAcademicOptionsLoading(false); return; }
+
+    // Public enrollment choices are available only after an exact verified-domain match.
+    if (!institutionId || !verifiedDomainMatch) {
+      setAcademicOptionsLoading(false);
+      return;
+    }
+
     let cancelled = false;
     setAcademicOptionsLoading(true);
     apiRequest<AcademicOptions>("/institutions/public/" + encodeURIComponent(institutionId) + "/academic-options")
-      .then((result) => { if (!cancelled) setAcademicOptions(result); })
+      .then((result) => {
+        if (cancelled) return;
+        setAcademicOptions(result);
+        // Never keep a selection that is absent from the latest eligible API response.
+        setCohortId((selected) => result.cohorts.some((cohort) => cohort.id === selected) ? selected : "");
+        setDepartmentId((selected) => result.departments.some((department) => department.id === selected) ? selected : "");
+      })
       .catch(() => {
         if (!cancelled) {
           setAcademicOptions({ departments: [], cohorts: [] });
+          setCohortId("");
+          setDepartmentId("");
           setAcademicOptionsError(true);
         }
       })
       .finally(() => { if (!cancelled) setAcademicOptionsLoading(false); });
     return () => { cancelled = true; };
-  }, [institutionId, academicOptionsRetry]);
+  }, [institutionId, verifiedDomainMatch, academicOptionsRetry]);
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
     setCohortId("");
@@ -155,7 +169,10 @@ const BoxedRegister = () => {
 
     if (!institutionId) { setError("Select your institution before continuing."); return; }
     if (!verifiedDomainMatch) { setError("Your institution email domain is not verified. Contact your institution administrator to verify it before registering."); return; }
-    if (role === "student" && !cohortId) { setError("Choose your cohort from the institution’s academic records."); return; }
+    if (role === "student" && (!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || !academicOptions.cohorts.some((cohort) => cohort.id === cohortId))) {
+      setError("Choose an available cohort for your verified institution email before continuing.");
+      return;
+    }
     if (role === "faculty" && !departmentId) { setError("Choose your department from the institution’s academic records."); return; }
 
     const common = { email: submittedEmail, password, full_name: fullName, institution_id: institutionId };
@@ -310,8 +327,8 @@ const BoxedRegister = () => {
                 </div>
                 <div className="min-w-0 space-y-2">
                   <Label>Cohort</Label>
-                  <Select value={cohortId} onValueChange={(value) => setCohortId(value ?? "")} disabled={academicOptionsLoading || academicOptions.cohorts.length === 0} required>
-                    <SelectTrigger className="h-11 w-full min-w-0"><SelectValue placeholder={academicOptionsLoading ? "Loading cohorts…" : "Choose your cohort"} /></SelectTrigger>
+                  <Select value={cohortId} onValueChange={(value) => setCohortId(value ?? "")} disabled={!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || academicOptions.cohorts.length === 0} required>
+                    <SelectTrigger id="cohort-selector" aria-label="Cohort" aria-describedby="cohort-help" aria-invalid={Boolean(error && error.toLowerCase().includes("cohort"))} className="h-11 w-full min-w-0"><SelectValue placeholder={academicOptionsLoading ? "Loading cohorts…" : !verifiedDomainMatch ? "Verify your institution email first" : academicOptionsError ? "Cohorts unavailable" : "Choose your cohort"} /></SelectTrigger>
                     <SelectContent>
                       {academicOptions.cohorts.map((cohort) => (
                         <SelectItem key={cohort.id} value={cohort.id}>{cohort.name} · {cohort.programme_name} · {cohort.academic_year}</SelectItem>
@@ -326,7 +343,9 @@ const BoxedRegister = () => {
                       </AlertDescription>
                     </Alert>
                   ) : null}
-                  {!academicOptionsLoading && !academicOptionsError && institutionId && academicOptions.cohorts.length === 0 ? <p className="text-xs text-muted-foreground">Enrollment options aren’t available yet. Please contact your institution administrator to activate a cohort before registering.</p> : null}
+                  {!verifiedDomainMatch ? <p id="cohort-help" className="text-xs text-muted-foreground">Cohorts are shown only after your email domain matches a verified institution.</p> : null}
+                  {verifiedDomainMatch && !academicOptionsLoading && !academicOptionsError && academicOptions.cohorts.length === 0 ? <p id="cohort-help" className="text-xs text-muted-foreground">No enrollment options are currently available. Please contact your institution administrator to activate an eligible cohort.</p> : null}
+                  {verifiedDomainMatch && (academicOptionsLoading || academicOptions.cohorts.length > 0 || academicOptionsError) ? <span id="cohort-help" className="sr-only">Choose an active cohort for the current academic year.</span> : null}
                 </div>
               </div>
             ) : (
