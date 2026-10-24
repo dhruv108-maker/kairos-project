@@ -18,6 +18,7 @@ type ApplicationItem = {
     location?: string | null;
     opportunity_type?: string | null;
     employment_type?: string | null;
+    company_name?: string | null;
     company?: { id?: string; name?: string | null } | null;
     provider?: { company_name?: string | null } | null;
   };
@@ -73,7 +74,7 @@ export default function JobApplications() {
       {!loading && !error && items.length > 0 && <div className="space-y-3">{items.map((item) => {
         const opportunity = item.opportunity;
         const status = (item.status || "APPLIED").toUpperCase();
-        const company = opportunity.company?.name || opportunity.provider?.company_name || "Employer";
+        const company = opportunity.company_name || opportunity.company?.name || opportunity.provider?.company_name || "Employer";
         return <Card key={item.id} className="rounded-2xl border-slate-200 bg-white p-5 transition hover:border-teal-200 hover:shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-teal-50 text-teal-800"><BriefcaseBusiness className="h-5 w-5" /></div>
