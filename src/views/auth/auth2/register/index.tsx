@@ -284,10 +284,9 @@ const BoxedRegister = () => {
                 <div className="flex min-w-0 items-center gap-2 rounded-md border border-emerald-600/30 bg-emerald-600/5 px-3 py-2.5">
                   <CheckCircle2 aria-hidden="true" className="size-4 shrink-0 text-emerald-700" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{institutionName}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setInstitutionId(""); setInstitutionName(""); setVerifiedDomainMatch(true); setShowInstitutionPicker(true); setInstitutionSearch(""); }}>Change</Button>
                 </div>
               ) : null}
-              {institutionStatus === "fallback" ? <p className="text-xs text-muted-foreground">No unique match found. Select your institution below.</p> : null}
+              {institutionStatus === "fallback" ? <p className="text-xs text-muted-foreground">No verified domain match was found. You may search for your institution, but student registration requires its administrator to verify this email domain first.</p> : null}
               {institutionStatus === "error" ? <Alert variant="destructive"><AlertDescription>Lookup unavailable. Search and select your institution.</AlertDescription></Alert> : null}
               {showInstitutionPicker ? (
                 <div className="space-y-2">
@@ -381,7 +380,7 @@ const BoxedRegister = () => {
 
             {error && <Alert id="registration-error" variant="destructive" role="alert" aria-live="polite" className="min-w-0 break-words"><AlertDescription>{error}</AlertDescription></Alert>}
 
-            <Button type="submit" size="lg" className="h-11 w-full whitespace-normal" disabled={isSubmitting || (role === "student" && (academicOptionsLoading || academicOptionsError || !academicOptions.cohorts.some((cohort) => cohort.id === cohortId)))}>
+            <Button type="submit" size="lg" className="h-11 w-full whitespace-normal" disabled={isSubmitting || (role === "student" && (!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || !academicOptions.cohorts.some((cohort) => cohort.id === cohortId)))}>
               {isSubmitting ? "Creating your account…" : "Create account"}
               {!isSubmitting && <ArrowRight aria-hidden="true" className="ml-2 size-4" />}
             </Button>
