@@ -2,7 +2,7 @@ from app.models.base import Base
 from app.models.identity_verification import IdentityVerification
 from app.models.academic import School, Department, Programme, AcademicYear, Cohort, Account, Role, AccountRole, StudentProfile, FacultyProfile
 from app.models.storage import StorageFile
-from app.models.internship import InternshipProvider, InternshipOpportunity, InternshipApplication, InternshipPlacement, RecruitmentStageEvent, RecruitmentNote
+from app.models.internship import InternshipProvider, InternshipOpportunity, InternshipApplication, InternshipPlacement, InternshipWorkLog, InternshipWorkLogReview, RecruitmentStageEvent, RecruitmentNote
 from app.models.evaluation import ReportRequirement, ReportSubmission, ReportVersion, GriffinEvaluation, GriffinEvaluationAttempt, GriffinResultSnapshot, EvaluationWorkflow, EvaluationStageResult, FinalEvaluationOutcome
 from app.models.organizations import Team, TeamMembership, AssessmentCampaign, FacultyAssessmentAssignment
 from app.models.portfolio import StudentAcademicRecord, StudentPortfolioEntry, StudentResume
@@ -17,7 +17,7 @@ __all__ = [
     "Base", "IdentityVerification", "School", "Department", "Programme", "AcademicYear", "Cohort",
     "Account", "Role", "AccountRole", "StudentProfile", "FacultyProfile",
     "StorageFile", "InternshipProvider", "InternshipOpportunity",
-    "InternshipApplication", "InternshipPlacement", "RecruitmentStageEvent", "RecruitmentNote", "ReportRequirement", "ReportSubmission",
+    "InternshipApplication", "InternshipPlacement", "InternshipWorkLog", "InternshipWorkLogReview", "RecruitmentStageEvent", "RecruitmentNote", "ReportRequirement", "ReportSubmission",
     "ReportVersion", "GriffinEvaluation", "GriffinEvaluationAttempt",
     "GriffinResultSnapshot", "EvaluationWorkflow", "EvaluationStageResult",
     "FinalEvaluationOutcome", "Team", "TeamMembership", "AssessmentCampaign",
