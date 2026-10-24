@@ -13,7 +13,7 @@ type RegistrationRole = "student" | "faculty";
 
 interface InstitutionOption { id: string; name: string; }
 interface InstitutionResolution { status: "matched" | "ambiguous" | "not_found"; institution: InstitutionOption | null; }
-interface AcademicOptions { departments: Array<{ id: string; name: string; code: string }>; cohorts: Array<{ id: string; name: string; programme_name: string; department_name: string; academic_year: string; graduation_year: number }>; }
+interface AcademicOptions { schools: Array<{ id: string; name: string; code: string }>; departments: Array<{ id: string; name: string; code: string; school_id: string }>; cohorts: Array<{ id: string; name: string; programme_name: string; department_name: string; academic_year: string; graduation_year: number }>; }
 
 interface RegistrationResponse {
   account_id: string;
@@ -34,7 +34,8 @@ const BoxedRegister = () => {
   const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
   const [institutionStatus, setInstitutionStatus] = useState<"idle" | "loading" | "matched" | "fallback" | "error">("idle");
   const [showInstitutionPicker, setShowInstitutionPicker] = useState(false);
-  const [academicOptions, setAcademicOptions] = useState<AcademicOptions>({ departments: [], cohorts: [] });
+  const [academicOptions, setAcademicOptions] = useState<AcademicOptions>({ schools: [], departments: [], cohorts: [] });
+  const [schoolId, setSchoolId] = useState("");
   const [academicOptionsLoading, setAcademicOptionsLoading] = useState(false);
   const [academicOptionsError, setAcademicOptionsError] = useState(false);
   const [academicOptionsRetry, setAcademicOptionsRetry] = useState(0);
@@ -53,6 +54,7 @@ const BoxedRegister = () => {
   const emailDomain = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
     ? email.trim().toLowerCase().split("@").pop() ?? ""
     : "";
+  const selectedDepartments = academicOptions.departments.filter((department) => department.school_id === schoolId);
 
   useEffect(() => {
     if (!emailDomain) {
@@ -99,7 +101,8 @@ const BoxedRegister = () => {
   }, [email]);
 
   useEffect(() => {
-    setAcademicOptions({ departments: [], cohorts: [] });
+    setAcademicOptions({ schools: [], departments: [], cohorts: [] });
+    setSchoolId("");
     setCohortId("");
     setDepartmentId("");
     setAcademicOptionsError(false);
@@ -116,13 +119,14 @@ const BoxedRegister = () => {
       .then((result) => {
         if (cancelled) return;
         setAcademicOptions(result);
-        // Never keep a selection that is absent from the latest eligible API response.
-        setCohortId((selected) => result.cohorts.some((cohort) => cohort.id === selected) ? selected : "");
-        setDepartmentId((selected) => result.departments.some((department) => department.id === selected) ? selected : "");
+        setSchoolId((selected) => result.schools.some((school) => school.id === selected) ? selected : "");
+        setCohortId("");
+        setDepartmentId((selected) => result.departments.some((department) => department.id === selected && department.school_id === schoolId) ? selected : "");
       })
       .catch(() => {
         if (!cancelled) {
-          setAcademicOptions({ departments: [], cohorts: [] });
+          setAcademicOptions({ schools: [], departments: [], cohorts: [] });
+          setSchoolId("");
           setCohortId("");
           setDepartmentId("");
           setAcademicOptionsError(true);
@@ -134,6 +138,7 @@ const BoxedRegister = () => {
   const handleRoleChange = (nextRole: RegistrationRole) => {
     setRole(nextRole);
     setCohortId("");
+    setSchoolId("");
     setDepartmentId("");
     setError("");
     setMessage("");
@@ -169,22 +174,27 @@ const BoxedRegister = () => {
 
     if (!institutionId) { setError("Select your institution before continuing."); return; }
     if (!verifiedDomainMatch) { setError("Your institution email domain is not verified. Contact your institution administrator to verify it before registering."); return; }
-    if (role === "student" && (!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || !academicOptions.cohorts.some((cohort) => cohort.id === cohortId))) {
-      setError("Choose an available cohort for your verified institution email before continuing.");
+    if (academicOptionsLoading || academicOptionsError || !academicOptions.schools.some((school) => school.id === schoolId)) {
+      setError("Choose an available school for your verified institution.");
       return;
     }
-    if (role === "faculty" && !departmentId) { setError("Choose your department from the institution’s academic records."); return; }
+    if (!academicOptions.departments.some((department) => department.id === departmentId && department.school_id === schoolId)) {
+      setError("Choose a department within your selected school.");
+      return;
+    }
 
     const common = { email: submittedEmail, password, full_name: fullName, institution_id: institutionId };
     const payload = role === "student"
       ? {
           ...common,
           enrollment_number: String(form.get("enrollment_number") ?? "").trim(),
-          cohort_id: cohortId,
+          school_id: schoolId,
+          department_id: departmentId,
         }
       : {
           ...common,
           employee_code: String(form.get("employee_code") ?? "").trim(),
+          school_id: schoolId,
           department_id: departmentId,
           designation: String(form.get("designation") ?? "").trim(),
         };
@@ -278,7 +288,7 @@ const BoxedRegister = () => {
                 <UsersRound aria-hidden="true" className="mr-1.5 size-4 shrink-0 sm:mr-2" /> <span>Faculty</span>
               </Button>
             </div>
-            <p className="break-words text-xs leading-5 text-muted-foreground">{role === "student" ? "You’ll need your enrollment number and to choose an available cohort." : "You’ll need your employee code and department ID. Faculty access requires institutional approval."}</p>
+            <p className="break-words text-xs leading-5 text-muted-foreground">{role === "student" ? "Choose your school and department. Your cohort can be assigned later." : "Choose your school and department. Faculty access requires institutional approval."}</p>
           </div>
 
           <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
@@ -319,60 +329,31 @@ const BoxedRegister = () => {
                 </div>
               ) : null}
             </div>
-            {role === "student" ? (
-              <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="min-w-0 space-y-2">
-                  <Label htmlFor="enrollment_number">Enrollment number</Label>
-                  <Input id="enrollment_number" name="enrollment_number" autoComplete="off" placeholder="Student ID" maxLength={64} required />
-                </div>
-                <div className="min-w-0 space-y-2">
-                  <Label>Cohort</Label>
-                  <Select value={cohortId} onValueChange={(value) => setCohortId(value ?? "")} disabled={!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || academicOptions.cohorts.length === 0} required>
-                    <SelectTrigger id="cohort-selector" aria-label="Cohort" aria-describedby="cohort-help" aria-invalid={Boolean(error && error.toLowerCase().includes("cohort"))} className="h-11 w-full min-w-0"><SelectValue placeholder={academicOptionsLoading ? "Loading cohorts…" : !verifiedDomainMatch ? "Verify your institution email first" : academicOptionsError ? "Cohorts unavailable" : "Choose your cohort"} /></SelectTrigger>
-                    <SelectContent>
-                      {academicOptions.cohorts.map((cohort) => (
-                        <SelectItem key={cohort.id} value={cohort.id}>{cohort.name} · {cohort.programme_name} · {cohort.academic_year}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {academicOptionsError ? (
-                    <Alert variant="destructive" role="alert">
-                      <AlertDescription className="space-y-2">
-                        <span>We couldn’t load enrollment options. Please try again.</span>
-                        <Button type="button" size="sm" variant="outline" onClick={() => setAcademicOptionsRetry((value) => value + 1)}>Retry loading cohorts</Button>
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
-                  {!verifiedDomainMatch ? <p id="cohort-help" className="text-xs text-muted-foreground">Cohorts are shown only after your email domain matches a verified institution.</p> : null}
-                  {verifiedDomainMatch && !academicOptionsLoading && !academicOptionsError && academicOptions.cohorts.length === 0 ? <p id="cohort-help" className="text-xs text-muted-foreground">No enrollment options are currently available. Please contact your institution administrator to activate an eligible cohort.</p> : null}
-                  {verifiedDomainMatch && (academicOptionsLoading || academicOptions.cohorts.length > 0 || academicOptionsError) ? <span id="cohort-help" className="sr-only">Choose an active cohort for the current academic year.</span> : null}
-                </div>
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0 space-y-2">
+                <Label>School / Faculty</Label>
+                <Select value={schoolId} onValueChange={(value) => { setSchoolId(value ?? ""); setDepartmentId(""); }} disabled={!verifiedDomainMatch || academicOptionsLoading || academicOptionsError || academicOptions.schools.length === 0} required>
+                  <SelectTrigger className="h-11 w-full min-w-0" aria-label="School"><SelectValue placeholder={academicOptionsLoading ? "Loading schools…" : !verifiedDomainMatch ? "Verify your institution email first" : "Choose your school"} /></SelectTrigger>
+                  <SelectContent>{academicOptions.schools.map((school) => <SelectItem key={school.id} value={school.id}>{school.name}</SelectItem>)}</SelectContent>
+                </Select>
               </div>
+              <div className="min-w-0 space-y-2">
+                <Label>Department</Label>
+                <Select value={departmentId} onValueChange={(value) => setDepartmentId(value ?? "")} disabled={!schoolId || academicOptionsLoading || academicOptionsError || selectedDepartments.length === 0} required>
+                  <SelectTrigger className="h-11 w-full min-w-0" aria-label="Department"><SelectValue placeholder={!schoolId ? "Choose a school first" : academicOptionsLoading ? "Loading departments…" : "Choose your department"} /></SelectTrigger>
+                  <SelectContent>{selectedDepartments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            {academicOptionsError ? <Alert variant="destructive" role="alert"><AlertDescription className="space-y-2"><span>We couldn’t load school and department options. Please try again.</span><Button type="button" size="sm" variant="outline" onClick={() => setAcademicOptionsRetry((value) => value + 1)}>Retry loading academic options</Button></AlertDescription></Alert> : null}
+            {verifiedDomainMatch && !academicOptionsLoading && !academicOptionsError && academicOptions.schools.length === 0 ? <p className="text-xs text-muted-foreground">No active schools are configured for this institution yet. Please contact your institution administrator.</p> : null}
+            {role === "student" ? (
+              <div className="min-w-0 space-y-2"><Label htmlFor="enrollment_number">Enrollment number</Label><Input id="enrollment_number" name="enrollment_number" autoComplete="off" placeholder="Student ID" maxLength={64} required /><p className="text-xs text-muted-foreground">Your institution can assign your cohort after registration.</p></div>
             ) : (
-              <>
-                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="min-w-0 space-y-2">
-                    <Label htmlFor="employee_code">Employee code</Label>
-                    <Input id="employee_code" name="employee_code" autoComplete="off" placeholder="Staff ID" maxLength={64} required />
-                  </div>
-                  <div className="min-w-0 space-y-2">
-                    <Label htmlFor="designation">Designation</Label>
-                    <Input id="designation" name="designation" placeholder="e.g. Assistant Professor" maxLength={100} required />
-                  </div>
-                </div>
-                <div className="min-w-0 space-y-2">
-                  <Label>Department</Label>
-                  <Select value={departmentId} onValueChange={(value) => setDepartmentId(value ?? "")} disabled={academicOptionsLoading || academicOptions.departments.length === 0} required>
-                    <SelectTrigger className="h-11 w-full min-w-0"><SelectValue placeholder={academicOptionsLoading ? "Loading departments…" : "Choose your department"} /></SelectTrigger>
-                    <SelectContent>
-                      {academicOptions.departments.map((department) => (
-                        <SelectItem key={department.id} value={department.id}>{department.name} · {department.code}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {!academicOptionsLoading && institutionId && academicOptions.departments.length === 0 ? <p className="text-xs text-muted-foreground">No active departments are configured for this institution yet.</p> : null}
-                </div>
-              </>
+              <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="min-w-0 space-y-2"><Label htmlFor="employee_code">Employee code</Label><Input id="employee_code" name="employee_code" autoComplete="off" placeholder="Staff ID" maxLength={64} required /></div>
+                <div className="min-w-0 space-y-2"><Label htmlFor="designation">Designation</Label><Input id="designation" name="designation" placeholder="e.g. Assistant Professor" maxLength={100} required /></div>
+              </div>
             )}
 
             <div className="min-w-0 space-y-2">
