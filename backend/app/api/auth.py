@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentAccount, DbSession, account_roles
@@ -94,7 +94,7 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                 .where(
                     InstitutionDomain.normalized_domain == email_domain,
                     InstitutionDomain.is_verified.is_(True),
-                    Institution.status == "ACTIVE",
+                    func.upper(Institution.status) == "ACTIVE",
                 )
             )
             if resolved_institution_id is None:
@@ -181,7 +181,7 @@ async def register_faculty(payload: FacultyRegistration, db: DbSession) -> Regis
                     .join(Department, Department.school_id == School.id)
                     .where(Department.id == payload.department_id)
                 )
-                if institution is None or institution.status != "ACTIVE":
+                if institution is None or (institution.status or "").upper() != "ACTIVE":
                     raise HTTPException(status_code=422, detail="Unknown or inactive institution_id")
                 if department_institution_id != institution.id:
                     raise HTTPException(status_code=422, detail="The selected department does not belong to the selected institution")
