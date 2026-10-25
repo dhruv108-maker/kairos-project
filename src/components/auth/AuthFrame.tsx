@@ -24,7 +24,7 @@ export default function AuthFrame({
   return (
     <main className="min-h-svh w-full min-w-0 overflow-x-clip bg-background text-foreground lg:grid lg:min-h-screen lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
       <aside className="relative flex min-h-[230px] min-w-0 flex-col justify-between overflow-hidden bg-white px-5 py-5 text-zinc-950 sm:min-h-[260px] sm:px-8 sm:py-7 lg:min-h-screen lg:px-10 lg:py-9 xl:px-14 xl:py-11">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">{showDotGrid ? <DotGrid className="h-full w-full" baseColor="#3a3446" activeColor="#ffffff" shape="circle" dotSize={5} gap={18} proximity={140} strength={1} bounce={0.6} tension={0.4} returnDuration={0.8} shockRadius={320} shockStrength={5} swell={0.8} stretch={0.5} glow={0.5} fade={0} intro opacity={1} mouseInteraction clickShock /> : null}</div>
+        {showDotGrid ? <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[3]"><DotGrid className="h-full w-full" baseColor="#3a3446" activeColor="#ffffff" shape="circle" dotSize={5} gap={18} proximity={140} strength={1} bounce={0.6} tension={0.4} returnDuration={0.8} shockRadius={320} shockStrength={5} swell={0.8} stretch={0.5} glow={0.5} fade={0} intro opacity={1} mouseInteraction clickShock /></div> : null}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 z-[1] opacity-[0.08] mix-blend-multiply"
