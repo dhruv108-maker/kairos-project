@@ -30,22 +30,22 @@ export function NavUser() {
               size="lg"
               tooltip="Account profile"
               render={<Link to="/pages/user-profile" />}
-              className="h-auto py-2"
+              className="h-auto min-w-0 overflow-hidden py-2 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
             >
               <Avatar className="size-8 rounded-lg">
                 <AvatarFallback className="rounded-lg text-xs">{initials(name)}</AvatarFallback>
               </Avatar>
-              <span className="flex min-w-0 flex-1 flex-col text-left leading-tight">
+              <span className="flex min-w-0 flex-1 flex-col text-left leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate text-sm font-medium">{name}</span>
                 <span className="truncate text-xs text-muted-foreground">{account.email}</span>
               </span>
-              <UserRound className="ml-auto size-4" />
+              
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={handleLogout} tooltip="Sign out">
               <LogOut />
-              <span>Sign out</span>
+              <span className="group-data-[collapsible=icon]:hidden">Sign out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
