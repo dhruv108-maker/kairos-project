@@ -413,11 +413,24 @@ async def my_work_logs(account: CurrentAccount, db: DbSession, placement_id: str
     ).order_by(InternshipWorkLogReview.created_at.desc()))
     reviews = list(review_rows.scalars().all())
     latest_by_log = {}
+    reviews_by_log: dict[str, list[dict]] = {}
     for review in reviews:
         latest_by_log.setdefault(review.work_log_id, review)
-    return {"items": [{**_work_log(item), "latest_review": (
-        _review_payload(latest_by_log[item.id]) if item.id in latest_by_log else None
-    )} for item in logs]}
+        reviews_by_log.setdefault(str(review.work_log_id), []).append(_review_payload(review))
+    institution_name, programme_name, department_name = await _academic_email_context(db, student)
+    return {
+        "student_identity": {
+            "name": account.full_name,
+            "enrollment_number": student.enrollment_number,
+            "institution_name": institution_name or None,
+            "programme_name": programme_name or None,
+            "department_name": department_name or None,
+        },
+        "items": [{**_work_log(item),
+                   "latest_review": _review_payload(latest_by_log[item.id]) if item.id in latest_by_log else None,
+                   "reviews": reviews_by_log.get(str(item.id), [])}
+                  for item in logs],
+    }
 
 
 @router.post("/work-logs", status_code=201)
