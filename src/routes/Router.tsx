@@ -16,6 +16,7 @@ const JobsLayoutSwitch = () => <FullLayout allowAnonymous />;
 const ModernDashboard = Loadable(lazy(() => import('../views/dashboards/modern')));
 const FacultyProgressPage = Loadable(lazy(() => import('../views/faculty/FacultyProgressPage')));
 const InstitutionDashboard = Loadable(lazy(() => import('../views/institution/InstitutionDashboard')));
+const InternshipAssessmentPolicyPage = Loadable(lazy(() => import('../views/institution/InternshipAssessmentPolicyPage')));
 const Error = Loadable(lazy(() => import('../views/auth/error')));
 
 // apps
@@ -62,6 +63,7 @@ const Router = [
       { path: '/dashboards/modern', element: <ModernDashboard /> },
       { path: '/faculty/progress', element: <FacultyProgressPage /> },
       { path: '/institution/dashboard', element: <InstitutionDashboard /> },
+      { path: '/institution/assessment-policy', element: <InternshipAssessmentPolicyPage /> },
       { path: '/apps/blog/post', element: <Blog /> },
       { path: '/apps/blog/detail/:id', element: <BlogDetail /> },
       { path: '/apps/blog/create', element: <BlogAdd /> },
