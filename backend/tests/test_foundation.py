@@ -14,7 +14,7 @@ async def test_health_check():
 def test_model_metadata_contains_spec_tables():
     expected = {
         "schools", "departments", "programmes", "academic_years", "cohorts",
-        "accounts", "roles", "account_roles", "student_profiles", "faculty_profiles",
+        "accounts", "roles", "account_roles", "student_profiles", "faculty",
         "storage_files", "internship_providers", "internship_opportunities",
         "internship_applications", "internship_placements", "recruitment_drives", "recruitment_drive_programme_targets",
         "recruitment_drive_cohort_targets", "recruitment_drive_graduation_year_targets", "recruitment_drive_participations",
