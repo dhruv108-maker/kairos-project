@@ -55,6 +55,20 @@ const densityOptions: Array<{ value: Density; label: string; detail: string }> =
   { value: "comfortable", label: "Comfortable", detail: "Balanced everyday layout" },
   { value: "spacious", label: "Spacious", detail: "More room between elements" },
 ];
+function hydrateLocalAppearance() {
+  try {
+    const root = document.documentElement;
+    const stored = localStorage.getItem(accentStorageKey);
+    const known = ["teal", "blue", "green", "amber", "rose", "neutral"];
+    if (stored && known.includes(stored)) applyAccent(stored as Accent);
+    const font = root.dataset.kairosFontSize;
+    if (!font) root.dataset.kairosFontSize = "default";
+    const density = root.dataset.kairosDensity;
+    if (!density) root.dataset.kairosDensity = "comfortable";
+  } catch {
+    // Local bootstrap preferences are optional; account preferences remain authoritative.
+  }
+}
 const categories = [
   { key: "internship_updates", label: "Internship updates", description: "Placement and internship workflow changes" },
   { key: "work_log_reviews", label: "Work-log reviews", description: "Review results and requested revisions" },
@@ -109,6 +123,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    hydrateLocalAppearance();
     let active = true;
     setLoading(true);
     apiRequest<Preferences>("/users/me/preferences")
