@@ -18,7 +18,7 @@ class UserPreferences(Base):
     # The deployed accounts table uses unsigned BIGINT IDs. Keep string IDs only
     # for SQLite's isolated tests, whose account fixtures intentionally use UUID-like keys.
     account_id: Mapped[int | str] = mapped_column(
-        MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"),
+        String(36).with_variant(MYSQL_BIGINT(unsigned=True), "mysql"),
         ForeignKey("accounts.id", ondelete="CASCADE"),
         primary_key=True,
     )

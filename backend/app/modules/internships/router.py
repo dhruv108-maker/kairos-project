@@ -97,6 +97,37 @@ async def my_applications(account: CurrentAccount, db: DbSession) -> dict:
     rows = await repository.list_applications_for_student(student.id)
     return {"items": [{"id": item.id, "status": item.status, "applied_at": item.applied_at.isoformat() if item.applied_at else None, "opportunity": _opp(opp, provider)} for item, opp, provider in rows]}
 
+@router.get("/placements/me")
+async def my_placements(account: CurrentAccount, db: DbSession) -> dict:
+    """Return only placements associated with the authenticated student's profile."""
+    await require_role(db, account, "STUDENT")
+    repository = InternshipRepository(db)
+    student = await repository.get_student_by_account(account.id)
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    result = await db.execute(
+        select(InternshipPlacement, InternshipApplication, InternshipOpportunity, InternshipProvider)
+        .join(InternshipApplication, InternshipApplication.id == InternshipPlacement.application_id)
+        .join(InternshipOpportunity, InternshipOpportunity.id == InternshipApplication.opportunity_id)
+        .join(InternshipProvider, InternshipProvider.id == InternshipOpportunity.provider_id)
+        .where(InternshipPlacement.student_id == student.id)
+        .order_by(InternshipPlacement.start_date.desc())
+    )
+    return {"items": [
+        {
+            "id": placement.id,
+            "application_id": application.id,
+            "status": placement.status,
+            "start_date": placement.start_date.isoformat(),
+            "end_date": placement.end_date.isoformat(),
+            "internship_title": opportunity.title,
+            "organization_name": provider.company_name,
+            "faculty_supervisor_id": placement.faculty_supervisor_id,
+        }
+        for placement, application, opportunity, provider in result.all()
+    ]}
+
+
 @router.post("/applications/{application_id}/withdraw")
 async def withdraw(application_id: str, account: CurrentAccount, db: DbSession) -> dict:
     await require_role(db, account, "STUDENT")

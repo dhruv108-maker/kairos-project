@@ -4,8 +4,10 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import uuid
+import zipfile
+from io import BytesIO
 from pathlib import Path
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -22,6 +24,7 @@ ALLOWED_TYPES = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".txt": "text/plain",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 }
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
@@ -100,6 +103,16 @@ class StorageService:
             raise StorageWorkflowError(422, "File content does not match JPEG format")
         if extension == ".txt" and b"\x00" in content:
             raise StorageWorkflowError(422, "Text files cannot contain binary null bytes")
+        if extension == ".pptx":
+            if not content.startswith(b"PK\x03\x04"):
+                raise StorageWorkflowError(422, "File content does not match PowerPoint presentation format")
+            try:
+                with zipfile.ZipFile(BytesIO(content)) as archive:
+                    names = set(archive.namelist())
+                    if "[Content_Types].xml" not in names or "ppt/presentation.xml" not in names:
+                        raise StorageWorkflowError(422, "PowerPoint package is missing its presentation document")
+            except (zipfile.BadZipFile, OSError):
+                raise StorageWorkflowError(422, "PowerPoint file is not a valid Office Open XML package") from None
 
     async def save_upload(self, account_id: str, original_name: str, mime_type: str, content: bytes) -> StorageFile:
         if len(content) > MAX_UPLOAD_BYTES:
@@ -146,7 +159,8 @@ class StorageService:
                 allowed = await self.db.scalar(
                     select(ReportVersion.id).join(ReportSubmission, ReportSubmission.id == ReportVersion.submission_id)
                     .join(InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id)
-                    .where(ReportVersion.file_id == file_id, InternshipPlacement.faculty_supervisor_id == faculty_id)
+                    .where(or_(ReportVersion.file_id == file_id, ReportVersion.presentation_file_id == file_id),
+                           InternshipPlacement.faculty_supervisor_id == faculty_id)
                 ) is not None
         if not allowed:
             raise StorageWorkflowError(404, "File not found")
@@ -162,7 +176,9 @@ class StorageService:
         item = await self.db.get(StorageFile, file_id)
         if item is None or item.uploaded_by_account_id != account_id:
             raise StorageWorkflowError(404, "File not found")
-        referenced_report = await self.db.scalar(select(ReportVersion.id).where(ReportVersion.file_id == file_id))
+        referenced_report = await self.db.scalar(select(ReportVersion.id).where(
+            or_(ReportVersion.file_id == file_id, ReportVersion.presentation_file_id == file_id)
+        ))
         referenced_resume = await self.db.scalar(select(StudentResume.id).where(StudentResume.storage_file_id == file_id))
         if referenced_report is not None or referenced_resume is not None:
             raise StorageWorkflowError(409, "File is attached to a report or resume and cannot be deleted")

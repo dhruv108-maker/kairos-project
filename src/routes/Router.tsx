@@ -16,6 +16,7 @@ const JobsLayoutSwitch = () => <FullLayout allowAnonymous />;
 const ModernDashboard = Loadable(lazy(() => import('../views/dashboards/modern')));
 const FacultyProgressPage = Loadable(lazy(() => import('../views/faculty/FacultyProgressPage')));
 const InstitutionDashboard = Loadable(lazy(() => import('../views/institution/InstitutionDashboard')));
+const InternshipAssessmentPolicyPage = Loadable(lazy(() => import('../views/institution/InternshipAssessmentPolicyPage')));
 const Error = Loadable(lazy(() => import('../views/auth/error')));
 
 // apps
@@ -37,6 +38,7 @@ const FormPage = Loadable(lazy(() => import('../views/pages/form')));
 const UserProfilePage = Loadable(lazy(() => import('../views/pages/user-profile')));
 const StudentProfilePage = Loadable(lazy(() => import('../views/pages/student-profile')));
 const DuringInternshipPage = Loadable(lazy(() => import('../views/internships/DuringInternshipPage')));
+const AssessmentWorkspacePage = Loadable(lazy(() => import('../views/internships/AssessmentWorkspacePage')));
 const SettingsPage = Loadable(lazy(() => import('../views/settings/SettingsPage')));
 
 // icons
@@ -61,6 +63,7 @@ const Router = [
       { path: '/dashboards/modern', element: <ModernDashboard /> },
       { path: '/faculty/progress', element: <FacultyProgressPage /> },
       { path: '/institution/dashboard', element: <InstitutionDashboard /> },
+      { path: '/institution/assessment-policy', element: <InternshipAssessmentPolicyPage /> },
       { path: '/apps/blog/post', element: <Blog /> },
       { path: '/apps/blog/detail/:id', element: <BlogDetail /> },
       { path: '/apps/blog/create', element: <BlogAdd /> },
@@ -75,6 +78,7 @@ const Router = [
       { path: '/settings', element: <SettingsPage /> },
       { path: '/student/profile', element: <StudentProfilePage /> },
       { path: '/internships/during', element: <DuringInternshipPage /> },
+      { path: '/internships/assessment', element: <AssessmentWorkspacePage /> },
       { path: '/icons/iconify', element: <SolarIcon /> },
       { path: '*', element: <Navigate to="/auth/404" /> },
     ],
