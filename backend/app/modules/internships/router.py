@@ -199,10 +199,12 @@ async def update_work_log(work_log_id: str, payload: WorkLogCreate, account: Cur
         raise HTTPException(status_code=404, detail="Work log not found")
     if row.status != "DRAFT":
         raise HTTPException(status_code=409, detail="Only draft work logs can be edited")
-    placement = await db.get(InternshipPlacement, row.placement_id)
-    if placement is None or placement.status != "ONGOING" or payload.placement_id != row.placement_id:
+    if payload.placement_id != row.placement_id:
         raise HTTPException(status_code=409, detail="Work log placement cannot be changed")
-    if payload.work_date > __import__("datetime").date.today():
+    placement = await db.get(InternshipPlacement, row.placement_id)
+    if placement is None or placement.status != "ONGOING":
+        raise HTTPException(status_code=409, detail="Work logs require an ongoing placement")
+    if payload.work_date > date.today():
         raise HTTPException(status_code=422, detail="work_date cannot be in the future")
     for field in ("work_date", "summary", "tasks_completed", "skills_used", "challenges", "learning_outcomes", "next_steps", "status"):
         setattr(row, field, getattr(payload, field))
