@@ -178,6 +178,30 @@
   }
 }
 
+/* Account-level personalization tokens (owned by Settings). */
+:root {
+  --kairos-font-size: 16px;
+  --kairos-density: 1;
+}
+
+/* Scale typography using a shared root token, leaving fixed-size icons alone. */
+html[data-kairos-font-size="small"] { --kairos-font-size: 14px; }
+html[data-kairos-font-size="default"] { --kairos-font-size: 16px; }
+html[data-kairos-font-size="large"] { --kairos-font-size: 18px; }
+html[data-kairos-font-size="xlarge"] { --kairos-font-size: 20px; }
+
+html[data-kairos-font-size] body {
+  font-size: var(--kairos-font-size);
+}
+html[data-kairos-font-size] body :where(p, label, li, td, th, input, textarea, select, button, [data-slot="label"], [data-slot="input"], [data-slot="select-trigger"]) {
+  font-size: inherit;
+}
+
+/* Density is a semantic multiplier used by settings and future shared layout primitives. */
+html[data-kairos-density="compact"] { --kairos-density: 0.75; }
+html[data-kairos-density="comfortable"] { --kairos-density: 1; }
+html[data-kairos-density="spacious"] { --kairos-density: 1.25; }
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
