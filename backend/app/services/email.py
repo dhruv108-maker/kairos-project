@@ -209,3 +209,47 @@ async def send_institution_invitation_email(
             "If you were not expecting this invitation, you can ignore this message."
         ),
     )
+
+
+async def send_work_log_notification(
+    *,
+    to: str,
+    subject: str,
+    heading: str,
+    fields: dict[str, str],
+    message: str,
+    view_url: str,
+    idempotency_key: str,
+) -> str:
+    """Send an escaped progress-log or mentor-feedback email through Resend.
+
+    A successful return means Resend accepted the message; it is not a delivery
+    receipt. The caller must invoke this only after the business transaction commits.
+    """
+    safe_heading = escape(heading)
+    safe_message = escape(message)
+    safe_url = escape(view_url, quote=True)
+    safe_rows = "".join(
+        f"<tr><th align=\"left\" style=\"padding:6px 12px 6px 0;vertical-align:top\">{escape(str(label))}</th>"
+        f"<td style=\"padding:6px 0;white-space:pre-wrap\">{escape(str(value))}</td></tr>"
+        for label, value in fields.items()
+        if value
+    )
+    html = (
+        '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033;max-width:720px">'
+        f"<h1 style=\"font-size:22px\">{safe_heading}</h1>"
+        f"<table style=\"border-collapse:collapse\">{safe_rows}</table>"
+        f"<p style=\"white-space:pre-wrap\">{safe_message}</p>"
+        f'<p><a href="{safe_url}" style="display:inline-block;padding:10px 16px;background:#0f766e;color:#fff;text-decoration:none;border-radius:6px">View Progress Log</a></p>'
+        '<p style="font-size:12px;color:#64748b">Sign in to Kairos to view the complete record and respond. This notification contains no sign-in token.</p>'
+        "</div>"
+    )
+    text_fields = "\n".join(f"{label}: {value}" for label, value in fields.items() if value)
+    text = f"{heading}\n\n{text_fields}\n\n{message}\n\nView Progress Log: {view_url}\n\nSign in to Kairos to view the complete record and respond."
+    return await send_transactional_email(
+        to=to,
+        subject=subject,
+        html=html,
+        text=text,
+        idempotency_key=idempotency_key,
+    )
