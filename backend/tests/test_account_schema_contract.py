@@ -8,10 +8,14 @@ from app.api.schemas import AuthResponse, LoginRequest, StudentRegistration
 from app.models.academic import Account
 
 
-def test_account_model_declares_required_full_name_column():
-    column = Account.__table__.c.full_name
-    assert column.type.length == 255
-    assert column.nullable is False
+def test_account_model_declares_required_full_name_and_display_name_columns():
+    full_name = Account.__table__.c.full_name
+    display_name = Account.__table__.c.display_name
+    assert full_name.type.length == 255
+    assert full_name.nullable is False
+    assert display_name.type.length == 255
+    assert display_name.nullable is False
+    assert display_name.default is not None
 
 
 def test_migration_backfills_existing_display_name_before_email_fallback(monkeypatch):
