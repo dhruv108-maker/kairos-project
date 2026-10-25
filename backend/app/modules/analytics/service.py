@@ -98,7 +98,7 @@ class AnalyticsService:
                 FROM faculty_mentorships
                 WHERE faculty_id = :faculty_id
                   AND status = 'active'
-                  AND (ends_on IS NULL OR ends_on >= CURRENT_DATE())
+                  AND (ends_on IS NULL OR ends_on >= CURRENT_DATE)
             """),
             {"faculty_id": faculty.id},
         )) or 0)

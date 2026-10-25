@@ -139,7 +139,7 @@ async def test_team_and_campaign_workflows_are_institution_scoped(report_session
 
     campaign = await service.create_campaign("institution", "faculty-account", "Autumn Assessment", None, date(2026, 10, 1), date(2026, 12, 1))
     assignment = await service.assign_faculty("institution", "faculty-account", campaign.id, "faculty-account", "MENTOR")
-    assert assignment.status == "PENDING"
+    assert assignment.assignment_status == "assigned"
     with pytest.raises(OrganizationWorkflowError) as error:
         await service.assign_faculty("institution", "faculty-account", campaign.id, "faculty-account", "DUPLICATE")
     assert error.value.status_code == 409

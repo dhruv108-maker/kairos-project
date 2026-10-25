@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hmac
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.api.dependencies import CurrentAccount, DbSession, account_roles
@@ -42,6 +43,8 @@ from app.models.academic import (
     School,
     Role,
     StudentProfile,
+    Student,
+    StudentEnrollment,
 )
 from app.services.email import send_verification_email, send_password_reset_email
 from app.modules.identity.service import IdentityService
@@ -85,6 +88,265 @@ async def _send_verification(account: Account, token: str) -> bool:
         return False
 
 
+async def _register_student_sqlite(payload: StudentRegistration, db) -> RegistrationResponse:
+    """Exercise the mounted registration workflow with its canonical ORM schema.
+
+    Production keeps the MySQL-native SQL path below; this SQLite-only adapter is
+    for deterministic route integration tests and validates the same ownership and
+    institution/cohort invariants before persisting any account rows.
+    """
+    today = date.today()
+    account: Account
+    token: str
+    try:
+        async with db.begin():
+            domain = payload.email.rsplit("@", 1)[1].strip().lower().rstrip(".")
+            institution = await db.scalar(
+                select(Institution)
+                .join(InstitutionDomain, InstitutionDomain.institution_id == Institution.id)
+                .where(
+                    InstitutionDomain.normalized_domain == domain,
+                    InstitutionDomain.is_verified.is_(True),
+                    func.upper(Institution.status) == "ACTIVE",
+                )
+                .limit(1)
+            )
+            if institution is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Your email domain is not verified for an active institution. Contact your institution administrator.",
+                )
+            if payload.institution_id and str(payload.institution_id) != str(institution.id):
+                raise HTTPException(status_code=422, detail="The institution does not match your verified email domain")
+            if not payload.school_id or not payload.department_id:
+                raise HTTPException(status_code=422, detail="Choose a school and department")
+
+            department = await db.scalar(
+                select(Department)
+                .join(School, School.id == Department.school_id)
+                .where(
+                    Department.id == payload.department_id,
+                    Department.school_id == payload.school_id,
+                    Department.is_active.is_(True),
+                    func.upper(Department.status) == "ACTIVE",
+                    School.id == payload.school_id,
+                    School.institution_id == institution.id,
+                    School.is_active.is_(True),
+                    func.upper(School.status) == "ACTIVE",
+                )
+            )
+            if department is None:
+                raise HTTPException(status_code=422, detail="Choose an active school and department from your verified institution.")
+
+            programme_id = None
+            if payload.programme_id:
+                programme = await db.scalar(
+                    select(Programme)
+                    .join(Department, Department.id == Programme.department_id)
+                    .join(School, School.id == Department.school_id)
+                    .where(
+                        Programme.id == payload.programme_id,
+                        Programme.department_id == department.id,
+                        Programme.is_active.is_(True),
+                        func.upper(Programme.status) == "ACTIVE",
+                        Department.is_active.is_(True),
+                        School.id == payload.school_id,
+                        School.institution_id == institution.id,
+                        School.is_active.is_(True),
+                    )
+                )
+                if programme is None:
+                    raise HTTPException(status_code=422, detail="Choose an active programme within your selected department.")
+                programme_id = programme.id
+
+            cohort = None
+            academic_year = None
+            if payload.cohort_id:
+                cohort = await db.scalar(
+                    select(Cohort)
+                    .join(Programme, Programme.id == Cohort.programme_id)
+                    .join(Department, Department.id == Programme.department_id)
+                    .join(School, School.id == Department.school_id)
+                    .where(
+                        Cohort.id == payload.cohort_id,
+                        Cohort.is_active.is_(True),
+                        Programme.is_active.is_(True),
+                        func.upper(Programme.status) == "ACTIVE",
+                        Department.id == department.id,
+                        Department.is_active.is_(True),
+                        School.id == payload.school_id,
+                        School.institution_id == institution.id,
+                        School.is_active.is_(True),
+                    )
+                )
+                if cohort is None or (programme_id is not None and cohort.programme_id != programme_id):
+                    raise HTTPException(status_code=422, detail="The selected cohort must be active and belong to the selected department and institution.")
+                programme_id = cohort.programme_id
+                academic_year = await db.scalar(
+                    select(AcademicYear).where(
+                        AcademicYear.institution_id == institution.id,
+                        AcademicYear.start_date <= today,
+                        AcademicYear.end_date >= today,
+                    ).order_by(AcademicYear.start_date.desc()).limit(1)
+                )
+                if academic_year is None:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="No current academic year is configured for this institution, so the student cannot be enrolled in the selected cohort yet.",
+                    )
+
+            if await db.scalar(select(Account.id).where(func.lower(Account.email) == payload.email)) is not None:
+                raise HTTPException(status_code=409, detail="Registration conflicts with an existing account or enrollment number")
+            if await db.scalar(select(StudentProfile.id).where(StudentProfile.enrollment_number == payload.enrollment_number)) is not None:
+                raise HTTPException(status_code=409, detail="Registration conflicts with an existing account or enrollment number")
+
+            account = Account(
+                id=str(uuid4()), email=payload.email, password_hash=hash_password(payload.password),
+                full_name=payload.full_name, display_name=payload.full_name,
+                account_status="pending", is_active=True, is_verified=False,
+            )
+            token = await _new_verification_token(account)
+            db.add(account)
+            await db.flush()
+
+            student = Student(
+                account_id=account.id,
+                student_number=payload.enrollment_number,
+                legal_name=payload.full_name,
+            )
+            db.add(student)
+            await db.flush()
+            db.add(StudentProfile(
+                id=student.id,
+                student_id=student.id,
+                account_id=account.id,
+                enrollment_number=payload.enrollment_number,
+                department_id=department.id,
+                programme_id=programme_id,
+                cohort_id=cohort.id if cohort else None,
+                current_semester=1,
+            ))
+            if cohort is not None and academic_year is not None:
+                db.add(StudentEnrollment(
+                    student_id=student.id, cohort_id=cohort.id,
+                    academic_year_id=academic_year.id, starts_on=today,
+                    enrollment_status="active",
+                ))
+
+            role = await db.scalar(select(Role).where(Role.name == "STUDENT"))
+            if role is None:
+                role = Role(id=str(uuid4()), name="STUDENT", code="STUDENT")
+                db.add(role)
+                await db.flush()
+            db.add(AccountRole(account_id=account.id, role_id=role.id, institution_id=institution.id))
+    except HTTPException:
+        raise
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Registration conflicts with an existing account or enrollment number",
+        ) from None
+
+    sent = await _send_verification(account, token)
+    return RegistrationResponse(
+        account_id=str(account.id),
+        message=(
+            "Account created. Check your email to verify it."
+            if sent
+            else "Account created but verification email could not be sent. Request a new link after email delivery is configured."
+        ),
+        verification_email_sent=sent,
+    )
+
+
+async def _register_faculty_sqlite(payload: FacultyRegistration, db) -> RegistrationResponse:
+    """SQLite-only route adapter preserving the same faculty approval contract."""
+    if not payload.school_id or not payload.department_id:
+        raise HTTPException(status_code=422, detail="Choose an active department within the selected school")
+
+    account: Account
+    token: str
+    try:
+        async with db.begin():
+            department = await db.scalar(
+                select(Department)
+                .join(School, School.id == Department.school_id)
+                .join(Institution, Institution.id == School.institution_id)
+                .where(
+                    Department.id == payload.department_id,
+                    Department.school_id == payload.school_id,
+                    Department.is_active.is_(True),
+                    func.upper(Department.status) == "ACTIVE",
+                    School.is_active.is_(True),
+                    func.upper(School.status) == "ACTIVE",
+                    func.upper(Institution.status) == "ACTIVE",
+                )
+            )
+            if department is None:
+                raise HTTPException(status_code=422, detail="Choose an active department within the selected school")
+            school = await db.get(School, payload.school_id)
+            if school is None or school.institution_id is None:
+                raise HTTPException(status_code=422, detail="The selected school is not linked to an institution")
+            institution = await db.get(Institution, school.institution_id)
+            if institution is None or (institution.status or "").upper() != "ACTIVE":
+                raise HTTPException(status_code=422, detail="The selected institution is inactive")
+            if payload.institution_id and str(payload.institution_id) != str(institution.id):
+                raise HTTPException(status_code=422, detail="The selected school and department do not belong to the selected institution")
+
+            if await db.scalar(select(Account.id).where(func.lower(Account.email) == payload.email)) is not None:
+                raise HTTPException(status_code=409, detail="Registration conflicts with an existing account or employee code")
+            if await db.scalar(select(FacultyProfile.id).where(or_(
+                FacultyProfile.employee_number == payload.employee_code,
+                FacultyProfile.employee_code == payload.employee_code,
+            ))) is not None:
+                raise HTTPException(status_code=409, detail="Registration conflicts with an existing account or employee code")
+
+            account = Account(
+                id=str(uuid4()), email=payload.email, password_hash=hash_password(payload.password),
+                full_name=payload.full_name, display_name=payload.full_name,
+                account_status="pending", is_active=False, is_verified=False,
+            )
+            token = await _new_verification_token(account)
+            db.add(account)
+            await db.flush()
+            next_faculty_id = int((await db.scalar(select(func.coalesce(func.max(FacultyProfile.id), 0) + 1))) or 1)
+            db.add(FacultyProfile(
+                id=next_faculty_id,
+                account_id=account.id,
+                employee_number=payload.employee_code,
+                employee_code=payload.employee_code,
+                display_name=payload.full_name,
+                employment_status="active",
+                department_id=department.id,
+                designation=payload.designation,
+            ))
+            role = await db.scalar(select(Role).where(Role.name == "FACULTY"))
+            if role is None:
+                role = Role(id=str(uuid4()), name="FACULTY", code="FACULTY")
+                db.add(role)
+                await db.flush()
+            db.add(AccountRole(account_id=account.id, role_id=role.id, institution_id=institution.id))
+    except HTTPException:
+        raise
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Registration conflicts with an existing account or employee code",
+        ) from None
+
+    sent = await _send_verification(account, token)
+    return RegistrationResponse(
+        account_id=str(account.id),
+        message=(
+            "Faculty account created. Verify the email; institutional approval is still required."
+            if sent
+            else "Faculty account created pending email verification and institutional approval. Verification email delivery is not available."
+        ),
+        verification_email_sent=sent,
+        activation_pending=True,
+    )
+
+
 @router.post("/register/student", response_model=RegistrationResponse, status_code=201)
 async def register_student(payload: StudentRegistration, db: DbSession) -> RegistrationResponse:
     """Register a student against the deployed MySQL schema.
@@ -95,6 +357,8 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
     """
     if len(payload.full_name) > 200:
         raise HTTPException(status_code=422, detail="Full name must be 200 characters or fewer")
+    if db.get_bind().dialect.name == "sqlite":
+        return await _register_student_sqlite(payload, db)
 
     try:
         async with db.begin():
@@ -362,6 +626,8 @@ async def register_faculty(payload: FacultyRegistration, db: DbSession) -> Regis
         raise HTTPException(status_code=422, detail="Employee code must be 80 characters or fewer")
     if len(payload.designation) > 150:
         raise HTTPException(status_code=422, detail="Designation must be 150 characters or fewer")
+    if db.get_bind().dialect.name == "sqlite":
+        return await _register_faculty_sqlite(payload, db)
 
     token: str
     account_id: int

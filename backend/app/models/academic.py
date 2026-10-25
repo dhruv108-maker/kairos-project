@@ -108,6 +108,7 @@ class Role(Base):
     __tablename__ = "roles"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    code: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
     description: Mapped[str | None] = mapped_column(String(255))
     accounts: Mapped[list["AccountRole"]] = relationship(back_populates="role", cascade="all, delete-orphan")
 
@@ -116,6 +117,9 @@ class AccountRole(Base):
     __tablename__ = "account_roles"
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True)
     role_id: Mapped[str] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True)
+    institution_id: Mapped[str | None] = mapped_column(
+        ForeignKey("institutions.id", ondelete="CASCADE"), nullable=True
+    )
     account: Mapped[Account] = relationship(back_populates="roles")
     role: Mapped[Role] = relationship(back_populates="accounts")
 
@@ -135,6 +139,29 @@ class Student(Base):
     legal_name: Mapped[str] = mapped_column(String(200), nullable=False)
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
+
+
+class StudentEnrollment(Base):
+    """Canonical student-to-cohort enrollment row from the deployed schema."""
+    __tablename__ = "student_enrollments"
+    id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        primary_key=True, autoincrement=True,
+    )
+    student_id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        ForeignKey("students.id", ondelete="CASCADE"), nullable=False,
+    )
+    cohort_id: Mapped[str] = mapped_column(
+        ForeignKey("cohorts.id", ondelete="RESTRICT"), nullable=False
+    )
+    academic_year_id: Mapped[str] = mapped_column(
+        ForeignKey("academic_years.id", ondelete="RESTRICT"), nullable=False
+    )
+    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    enrollment_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="active"
+    )
 
 
 class StudentProfile(Base):

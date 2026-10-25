@@ -38,8 +38,10 @@ assert.ok(institutionRouter.includes('"schools": [{"id": str(row.id), "name": ro
 assert.ok(institutionRouter.includes('"school_id": str(row.school_id)'));
 assert.ok(institutionRouter.includes('"programmes": [{"id": str(row.id), "name": row.name, "code": row.code, "department_id": str(row.department_id)} for row in programmes]'));
 assert.ok(institutionRouter.includes('func.upper(Programme.status) == "ACTIVE"'));
-assert.ok(!institutionRouter.includes("Cohort.academic_year_id"), "cohort schema must not block registration options");
-assert.ok(institutionRouter.includes('"cohorts": []'));
+assert.ok(!institutionRouter.includes("Cohort.academic_year_id"), "cohort options must not require optional academic-year columns");
+assert.ok(institutionRouter.includes("Cohort.is_active.is_(True)"), "only active cohorts should be offered");
+assert.ok(institutionRouter.includes('"cohorts": ['), "the registration API must return active cohort options");
+assert.ok(institutionRouter.includes('"programme_id": str(row.programme_id)'), "cohort choices must preserve programme association");
 assert.ok(authRouter.includes("WHERE d.id = :department_id"), "registration must resolve the department through the parameterized SQL contract");
 assert.ok(authRouter.includes("str(payload.institution_id) != str(resolved_institution_id)"), "backend must compare explicitly supplied institution IDs without assuming numeric identifiers");
 assert.ok(authRouter.includes("AND s.id = :school_id"), "department selection must be constrained to the selected school");

@@ -103,19 +103,31 @@ from app.modules.organizations.service import OrganizationService, OrganizationW
 
 
 @pytest.mark.asyncio
-async def test_assessment_assignment_requires_valid_transition_and_score(academic_admin_session):
+async def test_assessment_assignment_enforces_persisted_lifecycle_transitions(academic_admin_session):
     service = OrganizationService(academic_admin_session)
-    campaign = await service.create_campaign("institution", "admin", "Review campaign", None, date(2026, 10, 1), date(2026, 12, 1))
-    assignment = await service.assign_faculty("institution", "admin", campaign.id, "faculty-account", "MANUAL")
-    in_progress = await service.update_assignment("institution", "faculty-account", campaign.id, assignment.id, "IN_PROGRESS", None, "Started")
-    assert in_progress.status == "IN_PROGRESS"
-    with pytest.raises(OrganizationWorkflowError) as missing_score:
-        await service.update_assignment("institution", "faculty-account", campaign.id, assignment.id, "SUBMITTED", None, "No score")
-    assert missing_score.value.status_code == 422
-    submitted = await service.update_assignment("institution", "faculty-account", campaign.id, assignment.id, "SUBMITTED", 91.5, "Strong evidence")
-    assert submitted.status == "SUBMITTED"
-    assert str(submitted.score) == "91.50"
-    assert submitted.feedback_comments == "Strong evidence"
+    campaign = await service.create_campaign(
+        "institution", "admin", "Review campaign", None,
+        date(2026, 10, 1), date(2026, 12, 1),
+    )
+    assignment = await service.assign_faculty(
+        "institution", "admin", campaign.id, "faculty-account", "MANUAL"
+    )
+    assert assignment.assignment_status == "assigned"
+
+    started = await service.update_assignment(
+        "institution", "faculty-account", campaign.id, str(assignment.id), "started"
+    )
+    assert started.assignment_status == "started"
+
     with pytest.raises(OrganizationWorkflowError) as invalid_transition:
-        await service.update_assignment("institution", "faculty-account", campaign.id, assignment.id, "SUBMITTED", 92, "Duplicate")
+        await service.update_assignment(
+            "institution", "faculty-account", campaign.id, str(assignment.id), "approved"
+        )
     assert invalid_transition.value.status_code == 409
+    persisted = await academic_admin_session.get(type(assignment), assignment.id)
+    assert persisted.assignment_status == "started"
+
+    submitted = await service.update_assignment(
+        "institution", "faculty-account", campaign.id, str(assignment.id), "submitted"
+    )
+    assert submitted.assignment_status == "submitted"

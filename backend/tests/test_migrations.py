@@ -65,11 +65,18 @@ def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_
 
         command.downgrade(config, "base")
         tables_after_downgrade = set(inspect(engine).get_table_names())
+        # The root portfolio migration intentionally adopts pre-existing tables
+        # and has a data-preserving no-op downgrade. These tables must survive.
+        assert {
+            "student_academic_records", "student_portfolio_entries", "student_resumes",
+        } <= tables_after_downgrade
+        # Reversible institution/recruitment objects introduced by later revisions
+        # must still be removed when downgrading the isolated schema to base.
         assert not {
-            "student_academic_records", "student_portfolio_entries", "student_resumes", "institution_domains",
-            "institutions", "institution_memberships", "report_requirements", "institution_invitations",
-            "employer_organizations", "employer_memberships", "employer_invitations",
-            "recruitment_stage_events", "recruitment_notes", "recruitment_interviews", "recruitment_offers",
+            "institution_domains", "institutions", "institution_memberships",
+            "report_requirements", "institution_invitations", "employer_organizations",
+            "employer_memberships", "employer_invitations", "recruitment_stage_events",
+            "recruitment_notes", "recruitment_interviews", "recruitment_offers",
         }.intersection(tables_after_downgrade)
     finally:
         engine.dispose()
