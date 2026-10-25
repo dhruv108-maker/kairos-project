@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import CurrentAccount, DbSession, account_roles, require_role
 from app.models.internship import InternshipOpportunity, InternshipProvider, InternshipWorkLog, InternshipWorkLogReview, InternshipPlacement
+from app.models.academic import FacultyProfile
 from app.modules.shared.exceptions import KairosDomainError
 from app.modules.internships.schemas import ApplicationStatusUpdate, OpportunityCreate, PlacementCreate, ProviderCreate, WorkLogCreate, WorkLogReviewCreate
 from app.modules.internships.repository import InternshipRepository
@@ -209,3 +210,33 @@ async def list_work_log_reviews(work_log_id: str, account: CurrentAccount, db: D
     ).order_by(InternshipWorkLogReview.created_at.desc()))).scalars().all()
     return {"items": [{"id": r.id, "decision": r.decision, "feedback": r.feedback,
         "reviewer_role": r.reviewer_role, "created_at": r.created_at.isoformat() if r.created_at else None} for r in reviews]}
+
+
+@router.post("/work-logs/{work_log_id}/review")
+async def review_work_log(work_log_id: str, payload: WorkLogReviewCreate, account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "FACULTY")
+    faculty = await db.scalar(select(FacultyProfile).where(FacultyProfile.account_id == account.id))
+    if faculty is None:
+        raise HTTPException(status_code=404, detail="Faculty profile not found")
+    row = await db.get(InternshipWorkLog, work_log_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Work log not found")
+    placement = await db.get(InternshipPlacement, row.placement_id)
+    if placement is None or placement.faculty_supervisor_id != faculty.id:
+        raise HTTPException(status_code=404, detail="Work log not found")
+    if row.status != "SUBMITTED":
+        raise HTTPException(status_code=409, detail="Only submitted work logs can be reviewed")
+    from uuid import uuid4
+    review = InternshipWorkLogReview(id=str(uuid4()), work_log_id=row.id, reviewer_account_id=account.id,
+        reviewer_role="FACULTY", decision=payload.decision, feedback=payload.feedback.strip())
+    db.add(review)
+    if payload.decision == "ACKNOWLEDGED":
+        row.status = "REVIEWED"
+    else:
+        row.status = "DRAFT"
+    await db.commit()
+    await db.refresh(row)
+    await db.refresh(review)
+    return {"work_log": _work_log(row), "review": {"id": review.id, "decision": review.decision,
+        "feedback": review.feedback, "reviewer_role": review.reviewer_role,
+        "created_at": review.created_at.isoformat() if review.created_at else None}}
