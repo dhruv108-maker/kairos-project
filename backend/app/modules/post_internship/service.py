@@ -11,7 +11,7 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -851,8 +851,20 @@ class PostInternshipService:
         return [self._result_json(result, title) for result, title in result_rows]
 
     async def supervised_submissions(self, account_id: str) -> list[dict]:
-        """List report submissions only for placements supervised by this faculty member."""
-        faculty = await _faculty(self.db, account_id)
+        """List faculty-supervised submissions and institution-admin-scoped review queues."""
+        faculty = await self.db.scalar(select(FacultyProfile).where(FacultyProfile.account_id == account_id))
+        admin_institutions = list((await self.db.scalars(select(InstitutionMembership.institution_id).where(
+            InstitutionMembership.account_id == account_id,
+            InstitutionMembership.role == "INSTITUTION_ADMIN",
+            InstitutionMembership.status == "ACTIVE",
+        ))).all())
+        if faculty is None and not admin_institutions:
+            raise PostInternshipError(403, "Faculty or active institution administrator access is required")
+        scope = []
+        if faculty is not None:
+            scope.append(InternshipPlacement.faculty_supervisor_id == faculty.id)
+        if admin_institutions:
+            scope.append(ReportSubmission.institution_id.in_(admin_institutions))
         rows = (await self.db.execute(
             select(ReportSubmission, ReportVersion, InternshipPlacement, StudentProfile, Account)
             .join(InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id)
@@ -865,7 +877,7 @@ class PostInternshipService:
                     ReportVersion.version_number == ReportSubmission.latest_version_number,
                 ),
             )
-            .where(InternshipPlacement.faculty_supervisor_id == faculty.id)
+            .where(or_(*scope))
             .order_by(ReportSubmission.updated_at.desc())
         )).all()
         return [

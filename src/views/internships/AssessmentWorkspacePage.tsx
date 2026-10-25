@@ -204,7 +204,8 @@ export default function AssessmentWorkspacePage() {
   const { account } = useAuth();
   const roles = useMemo(() => (account?.roles ?? []).map((role) => role.toUpperCase()), [account?.roles]);
   const studentMode = roles.includes("STUDENT");
-  const facultyMode = !studentMode && roles.includes("FACULTY");
+  const adminMode = roles.includes("INSTITUTION_ADMIN");
+  const facultyMode = !studentMode && (roles.includes("FACULTY") || adminMode);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -263,8 +264,8 @@ export default function AssessmentWorkspacePage() {
         setResults(resultData.items ?? []);
       } else if (facultyMode) {
         const [result, studentData, submissionData] = await Promise.all([
-          apiRequest<{ items: Assignment[] }>("/internship-assessments/assignments/me"),
-          apiRequest<{ items: SupervisedStudent[] }>("/internship-assessments/supervised-students"),
+          adminMode ? Promise.resolve({ items: [] as Assignment[] }) : apiRequest<{ items: Assignment[] }>("/internship-assessments/assignments/me"),
+          adminMode ? Promise.resolve({ items: [] as SupervisedStudent[] }) : apiRequest<{ items: SupervisedStudent[] }>("/internship-assessments/supervised-students"),
           apiRequest<{ items: SupervisedSubmission[] }>("/internship-assessments/supervised-submissions"),
         ]);
         setAssignments(result.items ?? []);
@@ -278,7 +279,7 @@ export default function AssessmentWorkspacePage() {
     } finally {
       setLoading(false);
     }
-  }, [facultyMode, studentMode]);
+  }, [adminMode, facultyMode, studentMode]);
 
   useEffect(() => { void reload(); }, [reload]);
 
@@ -769,7 +770,8 @@ export default function AssessmentWorkspacePage() {
       {facultyMode && (
         <div className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.4fr)]">
-          <section className="space-y-3">
+          {!adminMode && (
+        <section className="space-y-3">
             <div><h2 className="text-lg font-semibold tracking-tight">My assigned assessments</h2><p className="mt-1 text-sm text-muted-foreground">Only assignments belonging to your authenticated faculty profile are returned.</p></div>
             {loading ? <Card className="shadow-none"><CardContent className="space-y-3 p-5"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></CardContent></Card> :
               assignments.length === 0 ? <Card className="border-dashed shadow-none"><CardContent className="py-10 text-center"><ClipboardCheck className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-medium">No assigned assessments</p><p className="mt-1 text-sm text-muted-foreground">An authorized supervisor or institution administrator must assign an assessment.</p></CardContent></Card> :
@@ -817,6 +819,8 @@ export default function AssessmentWorkspacePage() {
           </section>
         </div>
 
+        )}
+        
         <section className="space-y-3">
           <div><h2 className="text-lg font-semibold tracking-tight">Supervised student performance</h2><p className="mt-1 text-sm text-muted-foreground">Student identity and published results are available here only for placements you supervise. Blind evaluator assignments remain separate.</p></div>
           <Card className="rounded-xl border-border/80 shadow-none">
@@ -848,7 +852,7 @@ export default function AssessmentWorkspacePage() {
         </section>
 
         <section className="space-y-3">
-          <div><h2 className="text-lg font-semibold tracking-tight">Supervised internship submissions</h2><p className="mt-1 text-sm text-muted-foreground">Open a permitted submission to review real curriculum outcomes and inspect why an official result is—or is not—ready. This supervisor view is separate from blind scoring.</p></div>
+          <div><h2 className="text-lg font-semibold tracking-tight">{adminMode ? "Institution result approval queue" : "Supervised internship submissions"}</h2><p className="mt-1 text-sm text-muted-foreground">{adminMode ? "Review submissions in your active institution scope and finalize only when the approved grading policy and all evidence gates pass." : "Open a permitted submission to review real curriculum outcomes and inspect why an official result is—or is not—ready. This supervisor view is separate from blind scoring."}</p></div>
           {supervisedSubmissions.length === 0 ? <Card className="border-dashed shadow-none"><CardContent className="py-8 text-center"><FileText className="mx-auto size-7 text-muted-foreground" /><p className="mt-2 font-medium">No supervised submissions</p><p className="mt-1 text-sm text-muted-foreground">Only reports attached to your supervised placements are listed.</p></CardContent></Card> : <div className="grid gap-3 md:grid-cols-2">{supervisedSubmissions.map((submission) => <Card key={submission.id} className={`rounded-xl border-border/80 shadow-none ${selectedSupervisedSubmission?.id === submission.id ? "border-teal-700/50 bg-teal-700/[0.025]" : ""}`}><CardContent className="p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold">{submission.title}</p><p className="mt-1 text-xs text-muted-foreground">{submission.student_name} · {submission.enrollment_number}</p><p className="mt-1 text-xs text-muted-foreground">Version {submission.latest_version_number} · {submission.has_presentation ? "Report + presentation attached" : "Presentation missing"}</p></div><Badge variant={badgeVariant(submission.status)}>{prettyStatus(submission.status)}</Badge></div><div className="mt-3 flex justify-end"><Button size="sm" variant="outline" onClick={() => void openSupervisedSubmission(submission)} disabled={mappingLoading}><ClipboardCheck className="mr-2 size-4" />Review mapping & result</Button></div></CardContent></Card>)}</div>}
 
           {selectedSupervisedSubmission && (
