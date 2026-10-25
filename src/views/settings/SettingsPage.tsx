@@ -69,6 +69,13 @@ function applyInitialThemeFromCache() {
     if (parsed.interface_density && ["compact", "comfortable", "spacious"].includes(parsed.interface_density)) {
       document.documentElement.dataset.kairosDensity = parsed.interface_density;
     }
+    if (parsed.theme_mode && ["light", "dark", "system"].includes(parsed.theme_mode)) {
+      const effectiveTheme = parsed.theme_mode === "system"
+        ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+        : parsed.theme_mode;
+      document.documentElement.classList.remove("light", "dark");
+      document.documentElement.classList.add(effectiveTheme);
+    }
   } catch {
     // The server remains authoritative if the local bootstrap cache is invalid.
   }
@@ -209,6 +216,7 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : "Settings could not be saved. Your saved preferences were not changed.");
       // Restore the most recently confirmed server values after a rejected save.
       setPreferences(initialPreferences);
+      try { localStorage.setItem("kairos.preferences.cache", JSON.stringify(initialPreferences)); } catch { /* server is authoritative */ }
       applyVisualPreferences(initialPreferences);
       setTheme(initialPreferences.theme_mode);
     } finally {
