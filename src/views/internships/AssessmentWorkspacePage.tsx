@@ -82,7 +82,10 @@ type MappingDraft = { status: string; evidence_reference: string; reviewer_notes
 type ResultPreviewPayload = {
   ready: boolean; blockers: string[]; submission_id: string; report_version_id: string;
   policy_id?: string; policy_version?: number; components?: Record<string, number | null>;
-  component_weights?: Record<string, number>; weighted_total?: number | null; grade?: string | null;
+  component_weights?: Record<string, number>;
+  griffin_score_max?: number;
+  curriculum_status_scores?: { MAPPED: number; PARTIALLY_MAPPED: number; NOT_EVIDENCED: number };
+  weighted_total?: number | null; grade?: string | null;
   passing_score?: number; proposed_outcome?: string | null;
 };
 type RubricCriterion = { key: string; label: string; description: string; max_score: number; require_comment?: boolean };
