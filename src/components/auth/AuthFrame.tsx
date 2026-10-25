@@ -70,14 +70,14 @@ export default function AuthFrame({
           <FullLogo linked={false} />
         </Link>
         <div className="relative z-10 min-w-0 max-w-xl py-5 lg:py-16">
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-700 lg:mb-5 lg:text-xs">
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#77717c] lg:mb-5 lg:text-xs">
             Your academic workspace
           </p>
           <h1 className="max-w-lg break-words text-2xl font-medium leading-tight tracking-[-0.04em] text-white sm:text-3xl lg:text-4xl xl:text-5xl">
             {asideTitle}
           </h1>
         </div>
-        <div className="relative z-10 hidden items-center justify-between gap-4 text-xs text-zinc-600 lg:flex">
+        <div className="relative z-10 hidden items-center justify-between gap-4 text-xs text-[#77717c] lg:flex">
           <span>© {new Date().getFullYear()} Kairos</span>
           <span>Learn. Teach. Belong.</span>
         </div>
