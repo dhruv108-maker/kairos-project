@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, func
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, String, func
+from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -14,9 +15,10 @@ class UserPreferences(Base):
 
     __tablename__ = "user_preferences"
 
-    # Account IDs are UUID strings in the canonical accounts table.
-    account_id: Mapped[str] = mapped_column(
-        String(36),
+    # The deployed accounts table uses unsigned BIGINT IDs. Keep string IDs only
+    # for SQLite's isolated tests, whose account fixtures intentionally use UUID-like keys.
+    account_id: Mapped[int | str] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"),
         ForeignKey("accounts.id", ondelete="CASCADE"),
         primary_key=True,
     )
