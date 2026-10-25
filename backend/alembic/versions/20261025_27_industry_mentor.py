@@ -24,6 +24,13 @@ def upgrade() -> None:
         ["industry_mentor_account_id"],
     )
     op.alter_column(
+        "internship_work_logs",
+        "status",
+        existing_type=sa.Enum("DRAFT", "SUBMITTED", "REVIEWED", name="internship_work_log_status"),
+        type_=sa.Enum("DRAFT", "SUBMITTED", "INDUSTRY_REVIEWED", "REVIEWED", name="internship_work_log_status"),
+        existing_nullable=False,
+    )
+    op.alter_column(
         "internship_work_log_reviews",
         "reviewer_role",
         existing_type=sa.Enum("FACULTY", name="internship_work_log_reviewer_role"),
@@ -33,6 +40,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("UPDATE internship_work_logs SET status = 'SUBMITTED' WHERE status = 'INDUSTRY_REVIEWED'")
+    op.alter_column(
+        "internship_work_logs",
+        "status",
+        existing_type=sa.Enum("DRAFT", "SUBMITTED", "INDUSTRY_REVIEWED", "REVIEWED", name="internship_work_log_status"),
+        type_=sa.Enum("DRAFT", "SUBMITTED", "REVIEWED", name="internship_work_log_status"),
+        existing_nullable=False,
+    )
     op.alter_column(
         "internship_work_log_reviews",
         "reviewer_role",
