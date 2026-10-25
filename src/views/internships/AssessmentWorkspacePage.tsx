@@ -75,6 +75,9 @@ type CurriculumOutcome = { id: string; outcome_code: string; title: string; expe
 type MappingEntry = { id: string; status: string; evidence_reference?: string | null; confidence?: number | null; reviewer_notes?: string | null };
 type CurriculumMappingRow = { outcome: CurriculumOutcome; mapping?: MappingEntry | null };
 type CurriculumMappingPayload = { items: CurriculumMappingRow[]; catalogue_available: boolean; message?: string | null; report_version_id?: string };
+type EligibleEvaluator = { id: number; full_name: string; employee_code: string; designation?: string | null; department_name: string };
+type AssessmentPolicyOption = { id: string; name: string; version: number; required_evaluator_count: number; is_active: boolean };
+type AssignmentOptions = { report_version_id: string; policies: AssessmentPolicyOption[]; evaluators: EligibleEvaluator[]; assigned_count: number; required_evaluator_count?: number | null; message?: string | null };
 type MappingDraft = { status: string; evidence_reference: string; reviewer_notes: string };
 type ResultPreviewPayload = {
   ready: boolean; blockers: string[]; submission_id: string; report_version_id: string;
@@ -217,6 +220,10 @@ export default function AssessmentWorkspacePage() {
   const [mappingDrafts, setMappingDrafts] = useState<Record<string, MappingDraft>>({});
   const [mappingLoading, setMappingLoading] = useState(false);
   const [mappingSaving, setMappingSaving] = useState(false);
+  const [assignmentOptions, setAssignmentOptions] = useState<AssignmentOptions | null>(null);
+  const [selectedPolicyId, setSelectedPolicyId] = useState("");
+  const [selectedEvaluatorId, setSelectedEvaluatorId] = useState("");
+  const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [resultPreview, setResultPreview] = useState<ResultPreviewPayload | null>(null);
   const [finalizedResult, setFinalizedResult] = useState<AcademicResult | null>(null);
   const [resultActionBusy, setResultActionBusy] = useState(false);
@@ -302,12 +309,16 @@ export default function AssessmentWorkspacePage() {
     setResultPreview(null);
     setFinalizedResult(null);
     setCurriculumMappingMessage("");
+    setAssignmentOptions(null);
+    setSelectedPolicyId("");
+    setSelectedEvaluatorId("");
     setMappingLoading(true);
     setActionError("");
     try {
-      const [mappingResponse, previewResponse] = await Promise.all([
+      const [mappingResponse, previewResponse, optionsResponse] = await Promise.all([
         apiRequest<CurriculumMappingPayload>(`/internship-assessments/submissions/${encodeURIComponent(submission.id)}/mappings`),
         apiRequest<ResultPreviewPayload>(`/internship-assessments/submissions/${encodeURIComponent(submission.id)}/result-preview`),
+        apiRequest<AssignmentOptions>(`/internship-assessments/submissions/${encodeURIComponent(submission.id)}/assignment-options`),
       ]);
       setCurriculumMappings(mappingResponse.items ?? []);
       setCurriculumCatalogueAvailable(Boolean(mappingResponse.catalogue_available));
@@ -322,6 +333,9 @@ export default function AssessmentWorkspacePage() {
       }
       setMappingDrafts(drafts);
       setResultPreview(previewResponse);
+      setAssignmentOptions(optionsResponse);
+      setSelectedPolicyId(optionsResponse.policies[0]?.id ?? "");
+      setSelectedEvaluatorId(optionsResponse.evaluators[0] ? String(optionsResponse.evaluators[0].id) : "");
     } catch (error) {
       setActionError(readableError(error));
     } finally {
@@ -373,6 +387,30 @@ export default function AssessmentWorkspacePage() {
       setActionError(readableError(error));
     } finally {
       setMappingSaving(false);
+    }
+  };
+
+  const assignBlindEvaluator = async () => {
+    if (!selectedSupervisedSubmission || !assignmentOptions || !selectedPolicyId || !selectedEvaluatorId) return;
+    setAssignmentSaving(true);
+    setActionError("");
+    setNotice("");
+    try {
+      await apiRequest("/internship-assessments/assignments", {
+        method: "POST",
+        body: JSON.stringify({
+          report_version_id: assignmentOptions.report_version_id,
+          evaluator_faculty_id: Number(selectedEvaluatorId),
+          policy_id: selectedPolicyId,
+        }),
+      });
+      setNotice("Blind assessment assigned. The evaluator receives the policy snapshot and the blinded packet, not the student's profile.");
+      await reload();
+      await openSupervisedSubmission(selectedSupervisedSubmission);
+    } catch (error) {
+      setActionError(readableError(error));
+    } finally {
+      setAssignmentSaving(false);
     }
   };
 
@@ -833,10 +871,22 @@ export default function AssessmentWorkspacePage() {
                   </>}
                 </>}
                 <Separator />
+                <div className="space-y-3">
+                  <div><h3 className="font-medium">Independent blind evaluator</h3><p className="mt-1 text-sm text-muted-foreground">Choose an active institution policy and a different, active, verified faculty member. The placement supervisor is excluded automatically.</p></div>
+                  {assignmentOptions?.message && <p className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">{assignmentOptions.message}</p>}
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2"><Label htmlFor="assessment-policy">Versioned scoring policy</Label><Select value={selectedPolicyId} onValueChange={(value) => setSelectedPolicyId(value ?? "")}><SelectTrigger id="assessment-policy" className="w-full"><SelectValue placeholder="Select policy" /></SelectTrigger><SelectContent>{(assignmentOptions?.policies ?? []).map((policy) => <SelectItem key={policy.id} value={policy.id}>{policy.name} · v{policy.version}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label htmlFor="assessment-evaluator">Faculty evaluator</Label><Select value={selectedEvaluatorId} onValueChange={(value) => setSelectedEvaluatorId(value ?? "")}><SelectTrigger id="assessment-evaluator" className="w-full"><SelectValue placeholder="Select an independent evaluator" /></SelectTrigger><SelectContent>{(assignmentOptions?.evaluators ?? []).map((evaluator) => <SelectItem key={evaluator.id} value={String(evaluator.id)}>{evaluator.full_name} · {evaluator.department_name}</SelectItem>)}</SelectContent></Select></div>
+                  </div>
+                  {assignmentOptions && assignmentOptions.required_evaluator_count != null && <p className="text-xs text-muted-foreground">{assignmentOptions.assigned_count} of {assignmentOptions.required_evaluator_count} required independent assessment(s) assigned.</p>}
+                  <div className="flex justify-end"><Button variant="outline" onClick={() => void assignBlindEvaluator()} disabled={assignmentSaving || mappingLoading || !selectedPolicyId || !selectedEvaluatorId || !assignmentOptions?.evaluators.length}>{assignmentSaving ? "Assigning…" : "Assign blind assessment"}</Button></div>
+                </div>
+                <Separator />
                 <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-medium">Final result assembly</h3><p className="mt-1 text-sm text-muted-foreground">Policy weights and grade bands are configured by an authorized institution administrator. Kairos never substitutes guessed values.</p></div><Button variant="outline" size="sm" disabled={mappingLoading} onClick={() => void refreshResultPreview()}><RefreshCw className="mr-2 size-3.5" />Refresh preview</Button></div>
                 {!resultPreview ? <p className="text-sm text-muted-foreground">No result preview returned yet.</p> : <>
                   {resultPreview.components && <div className="grid gap-3 sm:grid-cols-3">{(["griffin", "curriculum", "faculty"] as const).map((key) => <div key={key} className="rounded-lg border border-border p-3"><p className="text-xs uppercase tracking-wide text-muted-foreground">{key}</p><p className="mt-1 text-xl font-semibold tabular-nums">{resultPreview.components?.[key] == null ? "—" : `${Number(resultPreview.components[key]).toFixed(2)} / 100`}</p><p className="mt-1 text-xs text-muted-foreground">{resultPreview.component_weights?.[key] == null ? "Weight not configured" : `Weight: ${resultPreview.component_weights[key]}%`}</p></div>)}</div>}
                   {resultPreview.weighted_total != null && <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4"><div><p className="text-sm text-muted-foreground">Weighted result · policy v{resultPreview.policy_version ?? "—"}</p><p className="text-2xl font-semibold tabular-nums">{resultPreview.weighted_total.toFixed(2)} / 100 <span className="text-base font-normal text-muted-foreground">· {resultPreview.grade ?? "No grade band"}</span></p></div><Badge variant={resultPreview.ready ? "default" : "secondary"}>{resultPreview.proposed_outcome ?? "Awaiting prerequisites"}</Badge></div>}
+                  {resultPreview.curriculum_status_scores && <p className="text-xs text-muted-foreground">Curriculum status values in policy: mapped {resultPreview.curriculum_status_scores.MAPPED}% · partially mapped {resultPreview.curriculum_status_scores.PARTIALLY_MAPPED}% · not evidenced {resultPreview.curriculum_status_scores.NOT_EVIDENCED}%. Griffin raw score is normalized using the policy maximum of {resultPreview.griffin_score_max ?? "not configured"}.</p>}
                   {!resultPreview.ready && resultPreview.blockers.length > 0 && <Alert><AlertCircle className="size-4" /><AlertTitle>Result is blocked</AlertTitle><AlertDescription><ul className="list-disc space-y-1 pl-5">{resultPreview.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></AlertDescription></Alert>}
                   {resultPreview.ready && <Alert className="border-teal-700/25 bg-teal-700/5"><CheckCircle2 className="size-4 text-teal-700" /><AlertTitle>All configured prerequisites are present</AlertTitle><AlertDescription>The result preview is policy-driven. Finalization still requires the exact approver role recorded in the policy.</AlertDescription></Alert>}
                 </>}
