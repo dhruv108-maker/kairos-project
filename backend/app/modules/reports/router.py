@@ -119,18 +119,5 @@ async def set_report_requirement_active(institution_id: str, requirement_id: str
 @router.get("/faculty/me")
 async def list_faculty_reports(account: CurrentAccount, db: DbSession):
     await require_role(db, account, "FACULTY")
-    # Listing is restricted to placements explicitly assigned to this faculty account.
-    from sqlalchemy import select
-    from app.models.academic import FacultyProfile
-    from app.models.internship import InternshipPlacement
-    from app.models.evaluation import ReportSubmission
-    faculty = await db.scalar(select(FacultyProfile).where(FacultyProfile.account_id == account.id))
-    if faculty is None:
-        raise HTTPException(status_code=403, detail="Faculty account required")
-    rows = await db.execute(
-        select(ReportSubmission)
-        .join(InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id)
-        .where(InternshipPlacement.faculty_supervisor_id == faculty.id)
-        .order_by(ReportSubmission.updated_at.desc())
-    )
-    return {"items": [_submission(item) for item in rows.scalars().all()]}
+    items = await _call(ReportService(db).list_for_faculty(account.id), db)
+    return {"items": [_submission(item) for item in items]}
