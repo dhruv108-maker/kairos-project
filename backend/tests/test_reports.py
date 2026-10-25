@@ -200,7 +200,6 @@ async def test_requirement_deadline_is_enforced(report_session):
 from pydantic import ValidationError
 from app.modules.post_internship.schemas import PolicyCreate
 from app.modules.post_internship.service import PostInternshipError, PostInternshipService
-from app.models.evaluation import InternshipAssessmentPolicy, BlindAssessmentAssignment
 
 
 def _valid_policy_payload():
@@ -333,6 +332,7 @@ async def test_final_result_remains_blocked_without_curriculum_and_valid_griffin
         role="INSTITUTION_ADMIN", status="ACTIVE",
     ))
     await report_session.commit()
+    await PostInternshipService(report_session).create_policy("faculty-account", _valid_policy_payload())
     reports = ReportService(report_session)
     report = await reports.create("student-account", "placement", "Final report", "file1", None)
     await reports.submit(report.id, "student-account")
