@@ -76,6 +76,7 @@ def upgrade() -> None:
         sa.Column("evidence_reference", sa.Text(), nullable=True),
         sa.Column("confidence", sa.Numeric(5, 2), nullable=True),
         sa.Column("reviewer_notes", sa.Text(), nullable=True),
+        sa.Column("change_history_json", sa.JSON(), nullable=False, server_default=sa.text("'[]'")),
         sa.Column("created_by_account_id", sa.String(36), sa.ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False),
         sa.Column("reviewed_by_account_id", sa.String(36), sa.ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True),
         sa.Column("reviewed_at", sa.TIMESTAMP(), nullable=True),
