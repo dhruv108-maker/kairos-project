@@ -1,6 +1,8 @@
 """New modular internship API, mounted at /api/v1/modules/internships."""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
+from datetime import date
+from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import CurrentAccount, DbSession, account_roles, require_role
 from app.models.internship import InternshipOpportunity, InternshipProvider, InternshipWorkLog, InternshipWorkLogReview, InternshipPlacement
