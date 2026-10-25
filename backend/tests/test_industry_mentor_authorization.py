@@ -6,14 +6,23 @@ Run from backend/ with: pytest -q tests/test_industry_mentor_authorization.py
 """
 import os
 
-# The application builds its SQLAlchemy engine at import time. These harmless
-# test-only values prevent loading any developer/prod database credentials.
-os.environ.setdefault("DB_HOST", "127.0.0.1")
-os.environ.setdefault("DB_PORT", "3306")
-os.environ.setdefault("DB_USER", "kairos_test")
-os.environ.setdefault("DB_PASSWORD", "not-a-real-password")
-os.environ.setdefault("DB_NAME", "kairos_test")
-os.environ.setdefault("JWT_SECRET_KEY", "unit-test-secret-key-not-for-authentication")
+# The application builds its SQLAlchemy engine at import time. Outside CI,
+# force harmless local test values rather than accidentally inheriting a developer
+# or production database target. GitHub Actions supplies its disposable MySQL
+# service settings and must retain those values for the existing integration suite.
+_TEST_ENV = {
+    "DB_HOST": "127.0.0.1",
+    "DB_PORT": "3306",
+    "DB_USER": "kairos_test",
+    "DB_PASSWORD": "not-a-real-password",
+    "DB_NAME": "kairos_test",
+    "JWT_SECRET_KEY": "unit-test-secret-key-not-for-authentication",
+}
+if os.environ.get("CI", "").lower() == "true":
+    for _key, _value in _TEST_ENV.items():
+        os.environ.setdefault(_key, _value)
+else:
+    os.environ.update(_TEST_ENV)
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
