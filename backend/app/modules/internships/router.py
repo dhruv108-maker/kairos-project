@@ -28,7 +28,7 @@ def _opp(item: InternshipOpportunity, provider: InternshipProvider | None = None
 def _app(item) -> dict:
     return {"id": item.id, "opportunity_id": item.opportunity_id, "student_id": item.student_id, "status": item.status, "applied_at": item.applied_at.isoformat() if item.applied_at else None}
 def _placement(item) -> dict:
-    return {"id": item.id, "application_id": item.application_id, "student_id": item.student_id, "faculty_supervisor_id": item.faculty_supervisor_id, "start_date": item.start_date.isoformat(), "end_date": item.end_date.isoformat(), "status": item.status}
+    return {"id": item.id, "application_id": item.application_id, "student_id": item.student_id, "faculty_supervisor_id": item.faculty_supervisor_id, "industry_mentor_account_id": item.industry_mentor_account_id, "start_date": item.start_date.isoformat(), "end_date": item.end_date.isoformat(), "status": item.status}
 
 @router.get("/opportunities")
 async def list_opportunities(account: CurrentAccount, db: DbSession, q: str | None = Query(default=None, max_length=100), location: str | None = Query(default=None, max_length=150), limit: int = Query(default=50, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> dict:
@@ -103,7 +103,7 @@ async def my_placements(account: CurrentAccount, db: DbSession) -> dict:
         raise HTTPException(status_code=404, detail="Student profile not found")
     rows = await repo.list_placements_for_student(student.id)
     return {"items": [{"id": p.id, "application_id": p.application_id, "student_id": p.student_id,
-        "faculty_supervisor_id": p.faculty_supervisor_id, "start_date": p.start_date.isoformat(),
+        "faculty_supervisor_id": p.faculty_supervisor_id, "industry_mentor_account_id": p.industry_mentor_account_id, "start_date": p.start_date.isoformat(),
         "end_date": p.end_date.isoformat(), "status": p.status} for p in rows]}
 
 
