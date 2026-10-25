@@ -195,3 +195,151 @@ async def test_requirement_deadline_is_enforced(report_session):
     with pytest.raises(ReportWorkflowError) as error:
         await ReportService(report_session).create("student-account", "placement", "Expired", "file1", None, requirement.id)
     assert error.value.status_code == 409
+
+
+from pydantic import ValidationError
+from app.modules.post_internship.schemas import PolicyCreate
+from app.modules.post_internship.service import PostInternshipError, PostInternshipService
+from app.models.evaluation import InternshipAssessmentPolicy, BlindAssessmentAssignment
+
+
+def _valid_policy_payload():
+    return {
+        "institution_id": "institution",
+        "programme_id": "programme",
+        "name": "Approved internship rubric",
+        "criteria": [
+            {"key": "quality", "label": "Project quality", "description": "Assess the technical quality and evidence.", "max_score": 10, "require_comment": True},
+            {"key": "communication", "label": "Communication", "description": "Assess clarity and communication.", "max_score": 10, "require_comment": False},
+        ],
+        "component_weights": {"griffin": 30, "curriculum": 20, "faculty": 50},
+        "grade_bands": [
+            {"grade": "F", "min_score": 0, "max_score": 49.99},
+            {"grade": "P", "min_score": 50, "max_score": 100},
+        ],
+        "passing_score": 50,
+        "final_approver_role": "INSTITUTION_ADMIN",
+        "required_evaluator_count": 1,
+        "show_curriculum_mapping_to_evaluator": False,
+    }
+
+
+def test_assessment_policy_requires_explicit_valid_weights_and_grade_bands():
+    valid = PolicyCreate.model_validate(_valid_policy_payload())
+    assert sum(valid.component_weights.values()) == 100
+
+    invalid_weights = _valid_policy_payload()
+    invalid_weights["component_weights"] = {"griffin": 33, "curriculum": 33, "faculty": 33}
+    with pytest.raises(ValidationError):
+        PolicyCreate.model_validate(invalid_weights)
+
+    invalid_bands = _valid_policy_payload()
+    invalid_bands["grade_bands"] = [
+        {"grade": "F", "min_score": 0, "max_score": 40},
+        {"grade": "P", "min_score": 50, "max_score": 100},
+    ]
+    with pytest.raises(ValidationError):
+        PolicyCreate.model_validate(invalid_bands)
+
+
+@pytest.mark.asyncio
+async def test_blind_packet_omits_identity_and_submitted_score_is_immutable(report_session):
+    school = await report_session.get(School, "school")
+    school.institution_id = "institution"
+    evaluator_account = Account(
+        id="evaluator-account", email="evaluator@example.test", password_hash="x",
+        full_name="Independent Evaluator", is_active=True, is_verified=True,
+    )
+    evaluator = FacultyProfile(
+        id=202, account_id="evaluator-account", employee_code="E-202",
+        display_name="Independent Evaluator", department_id="department", designation="Lecturer",
+    )
+    report_file = await report_session.get(StorageFile, "file1")
+    presentation_file = StorageFile(
+        id="pptx-file", original_name="student-name-final-presentation.pptx",
+        file_path="private/pptx-file", file_size_bytes=100,
+        mime_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        sha256_hash="c" * 64, uploaded_by_account_id="student-account",
+    )
+    institution = Institution(
+        id="institution", name="Institute", slug="institute", status="ACTIVE",
+        created_by_account_id="faculty-account",
+    )
+    admin_membership = InstitutionMembership(
+        institution_id="institution", account_id="faculty-account",
+        role="INSTITUTION_ADMIN", status="ACTIVE",
+    )
+    report_session.add_all([evaluator_account, evaluator, presentation_file, institution, admin_membership])
+    await report_session.commit()
+
+    report_service = ReportService(report_session)
+    report = await report_service.create(
+        "student-account", "placement", "Final Internship Report", report_file.id, "Final submission",
+        presentation_file_id=presentation_file.id,
+    )
+    await report_service.submit(report.id, "student-account")
+    version = await report_session.scalar(select(ReportVersion).where(ReportVersion.submission_id == report.id))
+    await report_service.review(report.id, "faculty-account", "APPROVED", None)
+
+    workflow = PostInternshipService(report_session)
+    policy = await workflow.create_policy("faculty-account", _valid_policy_payload())
+    assignment = await workflow.assign_assessment(
+        "faculty-account",
+        {"report_version_id": version.id, "evaluator_faculty_id": evaluator.id, "policy_id": policy.id},
+    )
+    assert assignment.status == "ASSIGNED"
+
+    packet = await workflow.assessment_packet(assignment.id, "evaluator-account")
+    packet_text = str(packet)
+    assert packet["packet_code"] == assignment.packet_code
+    assert "rubric" in packet
+    assert "student@example.test" not in packet_text
+    assert "student-account" not in packet_text
+    assert "Independent Student" not in packet_text
+    assert "student-name-final-presentation.pptx" not in packet_text
+    assert "enrollment_number" not in packet_text
+
+    submitted = await workflow.save_scores(
+        assignment.id, "evaluator-account",
+        {
+            "scores": {
+                "quality": {"score": 8, "comment": "Evidence is relevant."},
+                "communication": {"score": 9, "comment": None},
+            },
+            "evaluator_comments": "Clear rationale.",
+        },
+        submit=True,
+    )
+    assert submitted.status == "SUBMITTED"
+    with pytest.raises(PostInternshipError) as error:
+        await workflow.save_scores(
+            assignment.id, "evaluator-account",
+            {"scores": {"quality": {"score": 2, "comment": "Changed"}}, "evaluator_comments": None},
+            submit=False,
+        )
+    assert error.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_final_result_remains_blocked_without_curriculum_and_valid_griffin_evidence(report_session):
+    school = await report_session.get(School, "school")
+    school.institution_id = "institution"
+    report_session.add(Institution(
+        id="institution", name="Institute", slug="institute", status="ACTIVE",
+        created_by_account_id="faculty-account",
+    ))
+    report_session.add(InstitutionMembership(
+        institution_id="institution", account_id="faculty-account",
+        role="INSTITUTION_ADMIN", status="ACTIVE",
+    ))
+    await report_session.commit()
+    reports = ReportService(report_session)
+    report = await reports.create("student-account", "placement", "Final report", "file1", None)
+    await reports.submit(report.id, "student-account")
+    await reports.review(report.id, "faculty-account", "APPROVED", None)
+
+    preview = await PostInternshipService(report_session).result_preview(report.id, "faculty-account")
+    assert preview["ready"] is False
+    assert any("PowerPoint presentation" in item for item in preview["blockers"])
+    assert any("curriculum" in item.lower() for item in preview["blockers"])
+    assert any("Griffin" in item for item in preview["blockers"])
