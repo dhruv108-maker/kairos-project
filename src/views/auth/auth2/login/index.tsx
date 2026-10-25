@@ -41,14 +41,14 @@ const BoxedLogin = () => {
   return (
     <AuthFrame
       asideEyebrow="Your academic workspace"
-      asideTitle="A clearer way to learn, teach, and belong."
-      asideDescription="Sign in to continue your work with the people, programmes, and institutions that shape your academic journey."
+      asideTitle="Your academic future, in focus."
+      asideDescription=""
       footer={<>New to Kairos? <Link to="/onboarding" className="font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground">Create an account</Link></>}
     >
       <div className="mb-8 min-w-0">
         <p className="text-sm font-medium text-muted-foreground">WELCOME BACK</p>
         <h2 className="mt-2 text-3xl font-semibold tracking-tight">Sign in to Kairos</h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Use the email address linked to your academic account.</p>
+        
       </div>
 
       <form className="min-w-0 space-y-5" onSubmit={handleSubmit}>
