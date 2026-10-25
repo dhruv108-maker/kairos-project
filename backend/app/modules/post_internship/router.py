@@ -143,9 +143,9 @@ async def download_blind_assessment_file(
     item, path, safe_filename = await _call(
         PostInternshipService(db).assessment_file(assignment_id, account.id, kind), db
     )
-    del item  # Do not expose the original filename or storage metadata to the blind evaluator.
+    # Content type is safe to expose; the original filename and storage metadata are not.
     return FileResponse(
-        path=path, filename=safe_filename, content_disposition_type="attachment",
+        path=path, filename=safe_filename, media_type=item.mime_type, content_disposition_type="attachment",
         headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )
 
