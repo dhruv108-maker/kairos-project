@@ -71,7 +71,7 @@ function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: st
   }
 
   if (!item.url) return null;
-  const childActive = pathname === item.url || (item.url !== "/" && pathname.startsWith(`${item.url}/`));
+  const childActive = routeMatches(pathname, item.url);
 
   if (depth > 0) {
     return (
