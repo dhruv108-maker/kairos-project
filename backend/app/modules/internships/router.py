@@ -1,4 +1,5 @@
 """New modular internship API, mounted at /api/v1/modules/internships."""
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, text
 from datetime import date
@@ -6,13 +7,17 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import CurrentAccount, DbSession, account_roles, require_role
 from app.models.internship import InternshipApplication, InternshipOpportunity, InternshipProvider, InternshipWorkLog, InternshipWorkLogReview, InternshipPlacement
-from app.models.academic import Account, FacultyProfile, StudentProfile
+from app.models.academic import Account, AcademicYear, Cohort, Department, FacultyProfile, Programme, School, StudentProfile
+from app.models.institutions import Institution
+from app.services.email import send_work_log_notification
+from app.core.config import settings
 from app.models.employers import EmployerMembership
 from app.modules.shared.exceptions import KairosDomainError
 from app.modules.internships.schemas import ApplicationStatusUpdate, OpportunityCreate, PlacementCreate, ProviderCreate, WorkLogCreate, WorkLogReviewCreate
 from app.modules.internships.repository import InternshipRepository
 from app.modules.internships.service import InternshipService
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/internships", tags=["internships-modular"])
 ADMIN_ROLES = ("SYSTEM_ADMIN", "DEAN", "DEPT_HEAD")
 MANAGER_ROLES = (*ADMIN_ROLES, "FACULTY")
@@ -120,6 +125,118 @@ def _work_log(item: InternshipWorkLog) -> dict:
             "challenges": item.challenges, "learning_outcomes": item.learning_outcomes, "next_steps": item.next_steps,
             "status": item.status, "created_at": item.created_at.isoformat() if item.created_at else None,
             "updated_at": item.updated_at.isoformat() if item.updated_at else None}
+
+
+async def _academic_email_context(db: AsyncSession, student: StudentProfile) -> tuple[str, str, str]:
+    institution_name = programme_name = department_name = ""
+    if student.department_id:
+        department = await db.get(Department, student.department_id)
+        if department:
+            department_name = department.name
+            school = await db.get(School, department.school_id)
+            institution = await db.get(Institution, school.institution_id) if school and school.institution_id else None
+            if institution:
+                institution_name = institution.name
+    if not institution_name and student.cohort_id:
+        cohort = await db.get(Cohort, student.cohort_id)
+        year = await db.get(AcademicYear, cohort.academic_year_id) if cohort else None
+        institution = await db.get(Institution, year.institution_id) if year and year.institution_id else None
+        if institution:
+            institution_name = institution.name
+    if student.programme_id:
+        programme = await db.get(Programme, student.programme_id)
+        if programme:
+            programme_name = programme.name
+    return institution_name, programme_name, department_name
+
+
+async def _notify_progress_log_mentors(
+    db: AsyncSession, *, student: StudentProfile, student_account: Account,
+    placement: InternshipPlacement, log: InternshipWorkLog,
+) -> dict:
+    institution_name, programme_name, department_name = await _academic_email_context(db, student)
+    application = await db.get(InternshipApplication, placement.application_id)
+    opportunity = await db.get(InternshipOpportunity, application.opportunity_id) if application else None
+    provider = await db.get(InternshipProvider, opportunity.provider_id) if opportunity else None
+    recipients: list[tuple[str, Account, str]] = []
+    if placement.faculty_supervisor_id:
+        faculty = await db.get(FacultyProfile, placement.faculty_supervisor_id)
+        faculty_account = await db.get(Account, faculty.account_id) if faculty else None
+        if faculty_account and faculty_account.is_active and faculty_account.is_verified and faculty_account.email:
+            recipients.append(("faculty", faculty_account, faculty_account.email))
+    if placement.industry_mentor_account_id:
+        industry_account = await db.get(Account, placement.industry_mentor_account_id)
+        if (industry_account and industry_account.is_active and industry_account.is_verified
+                and industry_account.email
+                and await _is_active_assigned_industry_mentor(db, placement, industry_account.id)):
+            recipients.append(("industry", industry_account, industry_account.email))
+    unique: dict[str, tuple[str, Account, str]] = {}
+    for role, recipient, email in recipients:
+        unique.setdefault(email.strip().lower(), (role, recipient, email))
+    if not unique:
+        return {"status": "NO_ELIGIBLE_MENTORS", "accepted_by_provider": 0, "failed": 0}
+    view_url = f"{settings.FRONTEND_URL.rstrip('/')}/internships/during?log={log.id}"
+    fields = {
+        "Student": student_account.full_name,
+        "ERN / Enrollment Number": student.enrollment_number,
+        "Institution": institution_name or "Not recorded in academic profile",
+        "Programme": programme_name,
+        "Department": department_name,
+        "Internship / Placement": opportunity.title if opportunity else (provider.company_name if provider else placement.id),
+        "Submitted at (UTC)": (log.updated_at or log.created_at).isoformat() if (log.updated_at or log.created_at) else "Not recorded",
+        "Progress log reference": log.id,
+        "Progress update": log.summary,
+        "Work completed": log.tasks_completed,
+        "Challenges and blockers": log.challenges or "",
+        "Learning outcomes": log.learning_outcomes or log.skills_used or "",
+        "Next steps": log.next_steps or "",
+    }
+    accepted = failed = 0
+    for role, recipient, email in unique.values():
+        try:
+            await send_work_log_notification(
+                to=email,
+                subject=f"[Kairos] Student Progress Update — {student_account.full_name} — {student.enrollment_number}",
+                heading="Student Progress Update", fields=fields, message=log.summary,
+                view_url=view_url, idempotency_key=f"progress-log:{log.id}:{role}:{recipient.id}",
+            )
+            accepted += 1
+        except Exception as exc:
+            failed += 1
+            logger.warning("Progress-log notification failed; log_id=%s recipient_role=%s error_type=%s",
+                           log.id, role, type(exc).__name__)
+    return {"status": "ACCEPTED_BY_PROVIDER" if not failed else ("PARTIALLY_ACCEPTED" if accepted else "FAILED"),
+            "accepted_by_provider": accepted, "failed": failed}
+
+
+async def _notify_student_feedback(
+    db: AsyncSession, *, log: InternshipWorkLog, reviewer_role: str,
+    decision: str, feedback: str, review_id: str,
+) -> str:
+    student_account = await db.scalar(
+        select(Account).join(StudentProfile, Account.id == StudentProfile.account_id)
+        .where(StudentProfile.id == log.student_id)
+    )
+    if not student_account or not student_account.email or not student_account.is_active:
+        return "STUDENT_ACCOUNT_UNAVAILABLE"
+    try:
+        await send_work_log_notification(
+            to=student_account.email,
+            subject=f"[Kairos] Mentor feedback on your progress log — {student_account.full_name}",
+            heading="Mentor feedback on your progress log",
+            fields={"Progress log reference": log.id, "Progress update": log.summary,
+                    "Reviewer type": reviewer_role, "Review decision": decision.replace("_", " ").title(),
+                    "Feedback": feedback},
+            message="Your mentor has recorded feedback in Kairos. Sign in to review the complete history and plan your next steps.",
+            view_url=f"{settings.FRONTEND_URL.rstrip('/')}/internships/during?log={log.id}",
+            idempotency_key=f"progress-feedback:{log.id}:{review_id}",
+        )
+        return "ACCEPTED_BY_PROVIDER"
+    except Exception as exc:
+        logger.warning("Progress feedback notification failed; log_id=%s reviewer_role=%s error_type=%s",
+                       log.id, reviewer_role, type(exc).__name__)
+        return "FAILED"
+
 
 
 @router.get("/placements/me")
@@ -262,11 +379,21 @@ async def industry_mentor_review_work_log(work_log_id: str, payload: WorkLogRevi
     )
     db.add(review)
     # Industry review is a separate gate; faculty review still follows acknowledgement.
-    row.status = "DRAFT" if payload.decision == "REVISION_REQUIRED" else "INDUSTRY_REVIEWED"
+    if payload.decision == "ACKNOWLEDGED":
+        faculty_ack = await db.scalar(select(InternshipWorkLogReview.id).where(
+            InternshipWorkLogReview.work_log_id == row.id,
+            InternshipWorkLogReview.reviewer_role == "faculty_mentor",
+            InternshipWorkLogReview.decision == "acknowledged",
+        ).limit(1))
+        row.status = "REVIEWED" if faculty_ack or not placement.faculty_supervisor_id else "INDUSTRY_REVIEWED"
     await db.commit()
     await db.refresh(row)
     await db.refresh(review)
-    return {"work_log": _work_log(row), "review": _review_payload(review)}
+    notification_status = await _notify_student_feedback(
+        db, log=row, reviewer_role="industry mentor", decision=review.decision,
+        feedback=review.feedback, review_id=str(review.id))
+    return {"work_log": _work_log(row), "review": _review_payload(review),
+            "student_notification_status": notification_status}
 
 
 @router.get("/work-logs/me")
@@ -354,10 +481,15 @@ async def submit_work_log(work_log_id: str, account: CurrentAccount, db: DbSessi
         raise HTTPException(status_code=404, detail="Work log not found")
     if row.status != "DRAFT":
         raise HTTPException(status_code=409, detail="Only a draft work log can be submitted")
+    placement = await db.get(InternshipPlacement, row.placement_id)
+    if placement is None or placement.status != "ONGOING":
+        raise HTTPException(status_code=409, detail="Work logs require an ongoing placement")
     row.status = "SUBMITTED"
     await db.commit()
     await db.refresh(row)
-    return _work_log(row)
+    notification_status = await _notify_progress_log_mentors(
+        db, student=student, student_account=account, placement=placement, log=row)
+    return {**_work_log(row), "notification_status": notification_status}
 
 
 @router.get("/work-logs/{work_log_id}/reviews")
@@ -386,8 +518,8 @@ async def review_work_log(work_log_id: str, payload: WorkLogReviewCreate, accoun
     placement = await db.get(InternshipPlacement, row.placement_id)
     if placement is None or placement.faculty_supervisor_id != faculty.id:
         raise HTTPException(status_code=404, detail="Work log not found")
-    if row.status not in {"SUBMITTED", "INDUSTRY_REVIEWED"}:
-        raise HTTPException(status_code=409, detail="Only submitted or industry-reviewed work logs can be reviewed")
+    if row.status not in {"SUBMITTED", "INDUSTRY_REVIEWED", "REVIEWED"}:
+        raise HTTPException(status_code=409, detail="Only submitted work logs can be reviewed")
     faculty_id = await _legacy_reviewer_profile_id(db, "FACULTY", account.id)
     review = InternshipWorkLogReview(
         work_log_id=row.id, reviewer_account_id=account.id,
@@ -395,13 +527,23 @@ async def review_work_log(work_log_id: str, payload: WorkLogReviewCreate, accoun
         feedback=payload.feedback.strip(), faculty_id=faculty_id,
     )
     db.add(review)
-    row.status = "REVIEWED" if payload.decision == "ACKNOWLEDGED" else "DRAFT"
+    if payload.decision == "ACKNOWLEDGED":
+        industry_ack = await db.scalar(select(InternshipWorkLogReview.id).where(
+            InternshipWorkLogReview.work_log_id == row.id,
+            InternshipWorkLogReview.reviewer_role == "industry_mentor",
+            InternshipWorkLogReview.decision == "acknowledged",
+        ).limit(1))
+        row.status = "REVIEWED" if industry_ack or not placement.industry_mentor_account_id else "SUBMITTED"
     await db.commit()
     await db.refresh(row)
     await db.refresh(review)
+    notification_status = await _notify_student_feedback(
+        db, log=row, reviewer_role="faculty mentor", decision=review.decision,
+        feedback=review.feedback, review_id=str(review.id))
     return {"work_log": _work_log(row), "review": {"id": review.id, "decision": review.decision,
         "feedback": review.feedback, "reviewer_role": review.reviewer_role,
-        "created_at": review.created_at.isoformat() if review.created_at else None}}
+        "created_at": review.created_at.isoformat() if review.created_at else None},
+        "student_notification_status": notification_status}
 
 
 @router.get("/work-logs/{work_log_id}")
