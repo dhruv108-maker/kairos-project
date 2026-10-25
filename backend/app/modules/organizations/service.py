@@ -115,7 +115,7 @@ class OrganizationService:
         await self.institutions.require_admin(institution_id, actor_id)
         if end_date < start_date:
             raise OrganizationWorkflowError(422, "Campaign end_date must be on or after start_date")
-        item = AssessmentCampaign(id=str(uuid4()), institution_id=institution_id, title=title.strip(),
+        item = AssessmentCampaign(institution_id=institution_id, title=title.strip(),
                                   description=description, start_date=start_date, end_date=end_date, is_active=True)
         self.db.add(item)
         AuditService(self.db).record(actor_id, institution_id, "assessment.campaign_created", "assessment_campaign", item.id, {"title": item.title})
@@ -141,7 +141,7 @@ class OrganizationService:
         await self.db.refresh(item)
         return item
 
-    async def assign_faculty(self, institution_id: str, actor_id: str, campaign_id: str, faculty_account_id: str, reason: str) -> FacultyAssessmentAssignment:
+    async def assign_faculty(self, institution_id: str, actor_id: str, campaign_id: str, faculty_account_id: str, selection_key: str | None) -> FacultyAssessmentAssignment:
         await self.institutions.require_admin(institution_id, actor_id)
         campaign = await self.db.get(AssessmentCampaign, campaign_id)
         if campaign is None or campaign.institution_id != institution_id:
@@ -157,7 +157,7 @@ class OrganizationService:
         ))
         if existing is not None:
             raise OrganizationWorkflowError(409, "Faculty member is already assigned to this campaign")
-        item = FacultyAssessmentAssignment(id=str(uuid4()), campaign_id=campaign_id, faculty_id=faculty.id, assigned_reason=reason.strip() or "MANUAL")
+        item = FacultyAssessmentAssignment(campaign_id=campaign.id, faculty_id=faculty.id, selection_key=selection_key.strip() if selection_key else None)
         self.db.add(item)
         AuditService(self.db).record(actor_id, institution_id, "assessment.faculty_assigned", "faculty_assessment_assignment", item.id, {"campaign_id": campaign_id, "faculty_id": faculty.id})
         await self.db.commit()
@@ -183,12 +183,12 @@ class OrganizationService:
 
 
     async def update_assignment(self, institution_id: str, actor_id: str, campaign_id: str, assignment_id: str,
-                                target_status: str, score: float | None, feedback_comments: str | None) -> FacultyAssessmentAssignment:
+                                target_status: str) -> FacultyAssessmentAssignment:
         campaign = await self.db.get(AssessmentCampaign, campaign_id)
         if campaign is None or campaign.institution_id != institution_id:
             raise OrganizationWorkflowError(404, "Campaign not found in this institution")
         item = await self.db.get(FacultyAssessmentAssignment, assignment_id)
-        if item is None or item.campaign_id != campaign_id:
+        if item is None or item.campaign_id != campaign.id:
             raise OrganizationWorkflowError(404, "Assignment not found in this campaign")
         faculty = await self.db.get(FacultyProfile, item.faculty_id)
         is_assigned_faculty = faculty is not None and faculty.account_id == actor_id
@@ -200,28 +200,11 @@ class OrganizationService:
             is_admin = False
         if not is_assigned_faculty and not is_admin:
             raise OrganizationWorkflowError(403, "Only the assigned faculty member or institution administrator may update this assignment")
-        if target_status == "EXPIRED" and not is_admin:
-            raise OrganizationWorkflowError(403, "Only an institution administrator may expire an assignment")
-        transitions = {
-            "PENDING": {"IN_PROGRESS", "EXPIRED"},
-            "IN_PROGRESS": {"SUBMITTED", "EXPIRED"},
-        }
-        if target_status not in transitions.get(item.status, set()):
+        transitions = {"assigned": {"started"}, "started": {"submitted"}}
+        if target_status not in transitions.get(item.assignment_status, set()):
             raise OrganizationWorkflowError(409, "Invalid assessment assignment status transition")
-        if target_status == "SUBMITTED" and score is None:
-            raise OrganizationWorkflowError(422, "A score is required when submitting an assessment")
-        if score is not None and not 0 <= score <= 100:
-            raise OrganizationWorkflowError(422, "Assessment score must be between 0 and 100")
-        item.status = target_status
-        if score is not None:
-            item.score = Decimal(str(score))
-        if feedback_comments is not None:
-            item.feedback_comments = feedback_comments.strip()
-        if target_status in {"SUBMITTED", "EXPIRED"}:
-            item.completed_at = datetime.now(UTC).replace(tzinfo=None)
-        if target_status == "SUBMITTED":
-            item.submitted_at = datetime.now(UTC).replace(tzinfo=None)
-        AuditService(self.db).record(actor_id, institution_id, "assessment.assignment_status_changed", "faculty_assessment_assignment", item.id, {"from": "previous", "to": target_status, "score": str(item.score) if item.score is not None else None})
+        item.assignment_status = target_status
+        AuditService(self.db).record(actor_id, institution_id, "assessment.assignment_status_changed", "assessment_assignment", str(item.id), {"to": target_status})
         await self.db.commit()
         await self.db.refresh(item)
         return item

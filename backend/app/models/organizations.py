@@ -1,6 +1,7 @@
 from datetime import datetime, date
 from decimal import Decimal
-from sqlalchemy import Date, TIMESTAMP, ForeignKey, String, Text, Enum, Boolean, UniqueConstraint, Numeric, func
+from sqlalchemy import Date, TIMESTAMP, ForeignKey, String, Text, Boolean, UniqueConstraint, Numeric, func
+from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -25,7 +26,8 @@ class TeamMembership(Base):
 
 class AssessmentCampaign(Base):
     __tablename__ = "assessment_campaigns"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    # The deployed assessment schema uses unsigned auto-increment BIGINT identifiers.
+    id: Mapped[int] = mapped_column(MYSQL_BIGINT(unsigned=True), primary_key=True, autoincrement=True)
     institution_id: Mapped[str | None] = mapped_column(ForeignKey("institutions.id", ondelete="RESTRICT"))
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
@@ -36,15 +38,18 @@ class AssessmentCampaign(Base):
 
 
 class FacultyAssessmentAssignment(Base):
-    __tablename__ = "faculty_assessment_assignments"
-    __table_args__ = (UniqueConstraint("campaign_id", "faculty_id", name="uq_campaign_faculty_assignment"),)
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    campaign_id: Mapped[str] = mapped_column(ForeignKey("assessment_campaigns.id", ondelete="CASCADE"), nullable=False)
-    faculty_id: Mapped[str] = mapped_column(ForeignKey("faculty_profiles.id", ondelete="CASCADE"), nullable=False)
-    assigned_reason: Mapped[str] = mapped_column(String(100), nullable=False, server_default="RANDOM_SELECTION")
-    status: Mapped[str] = mapped_column(Enum("PENDING", "IN_PROGRESS", "SUBMITTED", "EXPIRED", name="faculty_assessment_status"), nullable=False, server_default="PENDING")
+    """ORM mapping for the deployed assessment_assignments table."""
+    __tablename__ = "assessment_assignments"
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "faculty_id", name="uq_campaign_faculty"),
+    )
+    id: Mapped[int] = mapped_column(MYSQL_BIGINT(unsigned=True), primary_key=True, autoincrement=True)
+    campaign_id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True), ForeignKey("assessment_campaigns.id"), nullable=False
+    )
+    faculty_id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True), ForeignKey("faculty.id"), nullable=False
+    )
     assigned_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
-    completed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP)
-    score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    feedback_comments: Mapped[str | None] = mapped_column(Text)
-    submitted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP)
+    assignment_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="assigned")
+    selection_key: Mapped[str | None] = mapped_column(String(200), nullable=True)

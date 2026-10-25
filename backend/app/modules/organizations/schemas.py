@@ -25,10 +25,8 @@ class CampaignStatusUpdate(BaseModel):
 
 class FacultyAssignmentCreate(BaseModel):
     faculty_account_id: str
-    reason: str = Field(default="MANUAL", min_length=1, max_length=100)
+    selection_key: str | None = Field(default=None, max_length=200)
 
 
 class FacultyAssignmentUpdate(BaseModel):
-    status: str = Field(pattern=r"^(IN_PROGRESS|SUBMITTED|EXPIRED)$")
-    score: float | None = Field(default=None, ge=0, le=100)
-    feedback_comments: str | None = Field(default=None, max_length=5000)
+    status: str = Field(pattern=r"^(started|submitted)$")

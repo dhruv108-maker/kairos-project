@@ -6,7 +6,7 @@ from app.models.academic import Account, Cohort, Department, FacultyProfile, Pro
 from app.models.evaluation import GriffinEvaluation, ReportSubmission, ReportVersion
 from app.models.internship import InternshipApplication, InternshipPlacement
 from app.models.mentorship import FacultyStudentMentorship
-from app.models.organizations import AssessmentCampaign
+from app.models.organizations import AssessmentCampaign, FacultyAssessmentAssignment
 from app.modules.institutions.service import InstitutionService, InstitutionAccessError
 from app.modules.student_portfolio.service import StudentPortfolioService
 
@@ -85,10 +85,15 @@ class AnalyticsService:
             """),
             {"faculty_id": faculty.id},
         )) or 0)
-        # The deployed schema does not currently contain
-        # faculty_assessment_assignments. Keep the dashboard available and report
-        # zero until an assessment-assignment table is provisioned and mapped.
-        pending_assessments = 0
+        # Count only assignments that still require faculty action in the deployed
+        # assessment_assignments schema. Submitted, excused, and cancelled records
+        # are not pending work.
+        pending_assessments = await self._count(
+            select(func.count(FacultyAssessmentAssignment.id)).where(
+                FacultyAssessmentAssignment.faculty_id == faculty.id,
+                FacultyAssessmentAssignment.assignment_status.in_(("assigned", "started")),
+            )
+        )
         return {"faculty_id": faculty.id, "placements_supervised": placements, "reports_pending_review": pending_reports,
                 "active_mentorships": mentorships, "pending_assessment_assignments": pending_assessments}
 

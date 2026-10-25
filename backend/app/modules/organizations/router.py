@@ -39,8 +39,8 @@ def _campaign(item):
 
 def _assignment(item):
     return {"id": item.id, "campaign_id": item.campaign_id, "faculty_id": item.faculty_id,
-            "assigned_reason": item.assigned_reason, "status": item.status,
-            "assigned_at": item.assigned_at, "completed_at": item.completed_at, "score": str(item.score) if item.score is not None else None, "feedback_comments": item.feedback_comments, "submitted_at": item.submitted_at}
+            "selection_key": item.selection_key, "assignment_status": item.assignment_status,
+            "assigned_at": item.assigned_at}
 
 
 @router.post("/teams", status_code=201)
@@ -93,7 +93,7 @@ async def set_campaign_active(institution_id: str, campaign_id: str, payload: Ca
 
 @router.post("/assessment-campaigns/{campaign_id}/assignments", status_code=201)
 async def assign_faculty(institution_id: str, campaign_id: str, payload: FacultyAssignmentCreate, account: CurrentAccount, db: DbSession):
-    item = await _call(OrganizationService(db).assign_faculty(institution_id, account.id, campaign_id, payload.faculty_account_id, payload.reason), db)
+    item = await _call(OrganizationService(db).assign_faculty(institution_id, account.id, campaign_id, payload.faculty_account_id, payload.selection_key), db)
     return _assignment(item)
 
 
@@ -107,7 +107,6 @@ async def list_assignments(institution_id: str, campaign_id: str, account: Curre
 async def update_assignment(institution_id: str, campaign_id: str, assignment_id: str,
                             payload: FacultyAssignmentUpdate, account: CurrentAccount, db: DbSession):
     item = await _call(OrganizationService(db).update_assignment(
-        institution_id, account.id, campaign_id, assignment_id, payload.status,
-        payload.score, payload.feedback_comments
+        institution_id, account.id, campaign_id, assignment_id, payload.status
     ), db)
     return _assignment(item)
