@@ -150,7 +150,7 @@ class InternshipAssessmentPolicy(Base):
     required_evaluator_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     show_curriculum_mapping_to_evaluator: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
-    created_by_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    created_by_account_id: Mapped[int | str] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
 
 
@@ -170,7 +170,7 @@ class CurriculumOutcome(Base):
     expected_competency: Mapped[str] = mapped_column(Text, nullable=False)
     source_reference: Mapped[str] = mapped_column(String(500), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
-    created_by_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    created_by_account_id: Mapped[int | str] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
 
 
@@ -188,8 +188,8 @@ class InternshipCurriculumMapping(Base):
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     reviewer_notes: Mapped[str | None] = mapped_column(Text)
     change_history_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    created_by_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
-    reviewed_by_account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"))
+    created_by_account_id: Mapped[int | str] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    reviewed_by_account_id: Mapped[int | str | None] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="SET NULL"))
     reviewed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
@@ -212,7 +212,7 @@ class BlindAssessmentAssignment(Base):
         ForeignKey("faculty.id", ondelete="RESTRICT"), nullable=False
     )
     policy_id: Mapped[str] = mapped_column(ForeignKey("internship_assessment_policies.id", ondelete="RESTRICT"), nullable=False)
-    assigned_by_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    assigned_by_account_id: Mapped[int | str] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
     rubric_snapshot_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     scores_json: Mapped[dict | None] = mapped_column(JSON)
     total_score: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
@@ -247,7 +247,7 @@ class InternshipAcademicResult(Base):
     grade: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(Enum("FINALIZED", "PUBLISHED", "SUPERSEDED", name="internship_academic_result_status"), nullable=False, server_default="FINALIZED")
     correction_reason: Mapped[str | None] = mapped_column(Text)
-    finalized_by_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    finalized_by_account_id: Mapped[int | str] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
     finalized_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
-    published_by_account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"))
+    published_by_account_id: Mapped[int | str | None] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="SET NULL"))
     published_at: Mapped[datetime | None] = mapped_column(TIMESTAMP)
