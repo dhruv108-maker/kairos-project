@@ -174,6 +174,8 @@ def _policy_snapshot(policy: InternshipAssessmentPolicy) -> dict:
         "policy_version": policy.version,
         "criteria": policy.criteria_json,
         "component_weights": policy.component_weights_json,
+        "griffin_score_max": float(policy.griffin_score_max),
+        "curriculum_status_scores": policy.curriculum_status_scores_json,
         "grade_bands": policy.grade_bands_json,
         "passing_score": float(policy.passing_score),
         "final_approver_role": policy.final_approver_role,
@@ -186,7 +188,8 @@ def _policy_json(policy: InternshipAssessmentPolicy) -> dict:
     return {
         "id": policy.id, "institution_id": policy.institution_id, "programme_id": policy.programme_id,
         "version": policy.version, "name": policy.name, "criteria": policy.criteria_json,
-        "component_weights": policy.component_weights_json, "grade_bands": policy.grade_bands_json,
+        "component_weights": policy.component_weights_json, "griffin_score_max": float(policy.griffin_score_max),
+        "curriculum_status_scores": policy.curriculum_status_scores_json, "grade_bands": policy.grade_bands_json,
         "passing_score": float(policy.passing_score), "final_approver_role": policy.final_approver_role,
         "required_evaluator_count": policy.required_evaluator_count,
         "show_curriculum_mapping_to_evaluator": policy.show_curriculum_mapping_to_evaluator,
@@ -237,6 +240,8 @@ class PostInternshipService:
             id=str(uuid4()), institution_id=institution_id, programme_id=programme_id, version=version,
             name=data["name"].strip(), criteria_json=[item.model_dump() if hasattr(item, "model_dump") else item for item in data["criteria"]],
             component_weights_json=data["component_weights"],
+            griffin_score_max=Decimal(str(data["griffin_score_max"])),
+            curriculum_status_scores_json=data["curriculum_status_scores"],
             grade_bands_json=[item.model_dump() if hasattr(item, "model_dump") else item for item in data["grade_bands"]],
             passing_score=Decimal(str(data["passing_score"])), final_approver_role=data["final_approver_role"],
             required_evaluator_count=data["required_evaluator_count"],
@@ -597,11 +602,11 @@ class PostInternshipService:
             if any(item.status == "REVIEW_REQUIRED" for item in present):
                 blockers.append("One or more curriculum mappings still require review.")
             if len(missing) == 0 and not any(item.status == "REVIEW_REQUIRED" for item in present):
-                score_sum = sum(
-                    1.0 if item.status == "MAPPED" else 0.5 if item.status == "PARTIALLY_MAPPED" else 0.0
+                status_scores = policy.curriculum_status_scores_json
+                curriculum_percent = sum(
+                    float(status_scores[item.status])
                     for item in present
-                )
-                curriculum_percent = (score_sum / len(outcomes)) * 100.0
+                ) / len(outcomes)
 
         evaluations = list((await self.db.scalars(select(GriffinEvaluation).where(
             GriffinEvaluation.report_version_id == version.id,
@@ -617,11 +622,12 @@ class PostInternshipService:
             if snapshot is None:
                 blockers.append("Griffin has no validated result snapshot for this report version.")
             else:
-                score = float(snapshot.alignment_score)
-                if not 0 <= score <= 100:
-                    blockers.append("The stored Griffin alignment score is outside the expected 0–100 range.")
+                raw_score = float(snapshot.alignment_score)
+                score_max = float(policy.griffin_score_max)
+                if score_max <= 0 or raw_score < 0 or raw_score > score_max:
+                    blockers.append("The stored Griffin alignment score is outside the maximum configured by the active grading policy.")
                 else:
-                    griffin_percent = score
+                    griffin_percent = (raw_score / score_max) * 100.0
 
         components = {"griffin": griffin_percent, "curriculum": curriculum_percent, "faculty": faculty_percent}
         weighted_total = None
@@ -640,6 +646,8 @@ class PostInternshipService:
             "ready": not blockers, "blockers": blockers, "submission_id": submission.id,
             "report_version_id": version.id, "policy_id": policy.id, "policy_version": policy.version,
             "components": components, "component_weights": policy.component_weights_json,
+            "griffin_score_max": float(policy.griffin_score_max),
+            "curriculum_status_scores": policy.curriculum_status_scores_json,
             "weighted_total": weighted_total, "grade": grade,
             "passing_score": float(policy.passing_score),
             "proposed_outcome": "PASS" if weighted_total is not None and weighted_total >= float(policy.passing_score) else "NOT_PASS" if weighted_total is not None else None,
@@ -682,6 +690,8 @@ class PostInternshipService:
             revision_number=revision, previous_result_id=latest.id if latest else None, policy_id=policy.id,
             component_breakdown_json={
                 "components": preview["components"], "weights": preview["component_weights"],
+                "griffin_score_max": preview["griffin_score_max"],
+                "curriculum_status_scores": preview["curriculum_status_scores"],
                 "policy_version": preview["policy_version"], "passing_score": preview["passing_score"],
                 "outcome": preview["proposed_outcome"],
             },
