@@ -108,3 +108,48 @@ async def test_only_active_company_profiles_are_public(employer_session):
     with pytest.raises(EmployerError) as suspended:
         await service.public_company(org.id)
     assert suspended.value.status_code == 404
+
+
+
+@pytest.mark.asyncio
+async def test_recruiter_cannot_read_or_modify_another_organizations_job(employer_session):
+    from app.models.academic import Account
+    from app.models.internship import InternshipOpportunity
+
+    db = employer_session
+    db.add(Account(
+        id="other-owner",
+        email="other-owner@example.test",
+        password_hash="x",
+        full_name="Other Owner",
+        is_active=True,
+        is_verified=True,
+    ))
+    await db.commit()
+
+    service = EmployerService(db)
+    own_org = await service.register(
+        "owner", {"legal_name": "First Company", "display_name": "First Company"}
+    )
+    other_org = await service.register(
+        "other-owner", {"legal_name": "Second Company", "display_name": "Second Company"}
+    )
+    other_job = await service.create_job(other_org.id, "other-owner", {
+        "title": "Private Backend Role",
+        "description": "This listing belongs to the second company.",
+        "location": "Remote",
+        "application_deadline": date.today() + timedelta(days=10),
+    })
+
+    # The denial deliberately hides whether the supplied job ID exists in another org.
+    with pytest.raises(EmployerError) as read_error:
+        await service.get_owned_job(own_org.id, "owner", other_job.id)
+    assert read_error.value.status_code == 404
+
+    with pytest.raises(EmployerError) as write_error:
+        await service.update_job(own_org.id, "owner", other_job.id, {"title": "Hijacked"})
+    assert write_error.value.status_code == 404
+
+    persisted = await db.get(InternshipOpportunity, other_job.id)
+    assert persisted is not None
+    assert persisted.title == "Private Backend Role"
