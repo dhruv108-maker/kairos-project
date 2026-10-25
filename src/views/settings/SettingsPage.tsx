@@ -291,7 +291,7 @@ export default function SettingsPage() {
               <Button type="button" variant="outline" onClick={() => void reset()} disabled={!apiAvailable || saving}><RotateCcw className="mr-2 size-4" />Reset preferences</Button>
               <Button type="button" onClick={() => void save()} disabled={!apiAvailable || saving || !dirty}>{saving ? "Saving…" : "Save preferences"}</Button>
             </div>
-            <p className="text-xs text-muted-foreground">Appearance changes preview immediately. Save preferences to keep them across devices.</p>
+            <p className="text-xs text-muted-foreground">Appearance changes preview immediately. Save preferences to sync them to your Kairos account across devices.</p>
           </CardContent>
         </Card>
       </div>
