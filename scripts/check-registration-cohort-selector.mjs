@@ -41,7 +41,7 @@ assert.ok(institutionRouter.includes('func.upper(Programme.status) == "ACTIVE"')
 assert.ok(!institutionRouter.includes("Cohort.academic_year_id"), "cohort schema must not block registration options");
 assert.ok(institutionRouter.includes('"cohorts": []'));
 assert.ok(authRouter.includes("WHERE d.id = :department_id"), "registration must resolve the department through the parameterized SQL contract");
-assert.ok(authRouter.includes("int(payload.institution_id) != int(resolved_institution_id)"), "backend must normalize and enforce any explicitly supplied institution ID against the verified domain");
+assert.ok(authRouter.includes("str(payload.institution_id) != str(resolved_institution_id)"), "backend must compare explicitly supplied institution IDs without assuming numeric identifiers");
 assert.ok(authRouter.includes("AND s.id = :school_id"), "department selection must be constrained to the selected school");
 assert.ok(authRouter.includes("LOWER(p.status) = 'active'"), "registration must accept only active programmes using the SQL contract");
 assert.ok(schemas.includes("programme_id: str | None = Field(default=None"));
