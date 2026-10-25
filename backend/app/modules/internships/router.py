@@ -105,6 +105,36 @@ async def my_placements(account: CurrentAccount, db: DbSession) -> dict:
         "end_date": p.end_date.isoformat(), "status": p.status} for p in rows]}
 
 
+@router.get("/placements/supervised")
+async def supervised_placements(account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "FACULTY")
+    faculty = await db.scalar(select(FacultyProfile).where(FacultyProfile.account_id == account.id))
+    if faculty is None:
+        raise HTTPException(status_code=404, detail="Faculty profile not found")
+    rows = (await db.execute(
+        select(InternshipPlacement).where(InternshipPlacement.faculty_supervisor_id == faculty.id)
+        .order_by(InternshipPlacement.start_date.desc())
+    )).scalars().all()
+    return {"items": [{"id": p.id, "application_id": p.application_id, "student_id": p.student_id,
+        "faculty_supervisor_id": p.faculty_supervisor_id, "start_date": p.start_date.isoformat(),
+        "end_date": p.end_date.isoformat(), "status": p.status} for p in rows]}
+
+
+@router.get("/work-logs/supervised")
+async def supervised_work_logs(account: CurrentAccount, db: DbSession, placement_id: str | None = None) -> dict:
+    await require_role(db, account, "FACULTY")
+    faculty = await db.scalar(select(FacultyProfile).where(FacultyProfile.account_id == account.id))
+    if faculty is None:
+        raise HTTPException(status_code=404, detail="Faculty profile not found")
+    stmt = select(InternshipWorkLog).join(
+        InternshipPlacement, InternshipPlacement.id == InternshipWorkLog.placement_id
+    ).where(InternshipPlacement.faculty_supervisor_id == faculty.id)
+    if placement_id:
+        stmt = stmt.where(InternshipPlacement.id == placement_id)
+    logs = (await db.execute(stmt.order_by(InternshipWorkLog.work_date.desc(), InternshipWorkLog.created_at.desc()))).scalars().all()
+    return {"items": [_work_log(item) for item in logs]}
+
+
 @router.get("/work-logs/me")
 async def my_work_logs(account: CurrentAccount, db: DbSession, placement_id: str | None = None) -> dict:
     await require_role(db, account, "STUDENT")
