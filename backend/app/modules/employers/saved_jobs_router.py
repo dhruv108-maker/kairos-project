@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, status
@@ -69,7 +70,7 @@ async def list_saved_jobs(account: CurrentAccount, db: DbSession):
             SavedJob.account_id == account.id,
             InternshipOpportunity.lifecycle_status == "PUBLISHED",
             InternshipOpportunity.is_active.is_(True),
-            InternshipOpportunity.application_deadline >= __import__("datetime").date.today(),
+            InternshipOpportunity.application_deadline >= date.today(),
             EmployerOrganization.status == "ACTIVE",
         )
         .order_by(SavedJob.created_at.desc(), SavedJob.id)
