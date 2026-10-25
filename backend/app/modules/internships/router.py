@@ -173,14 +173,12 @@ async def create_work_log(payload: WorkLogCreate, account: CurrentAccount, db: D
         raise HTTPException(status_code=404, detail="Placement not found")
     if placement.status != "ONGOING":
         raise HTTPException(status_code=409, detail="Work logs require an ongoing placement")
-    from datetime import date as date_type
-    from uuid import uuid4
-    if payload.work_date > date_type.today():
+    if payload.work_date > date.today():
         raise HTTPException(status_code=422, detail="work_date cannot be in the future")
     row = InternshipWorkLog(id=str(uuid4()), placement_id=placement.id, student_id=student.id,
         work_date=payload.work_date, summary=payload.summary, tasks_completed=payload.tasks_completed,
         skills_used=payload.skills_used, challenges=payload.challenges, learning_outcomes=payload.learning_outcomes,
-        next_steps=payload.next_steps, status=payload.status)
+        next_steps=payload.next_steps, status="DRAFT")
     db.add(row)
     await db.commit()
     await db.refresh(row)
@@ -206,8 +204,9 @@ async def update_work_log(work_log_id: str, payload: WorkLogCreate, account: Cur
         raise HTTPException(status_code=409, detail="Work logs require an ongoing placement")
     if payload.work_date > date.today():
         raise HTTPException(status_code=422, detail="work_date cannot be in the future")
-    for field in ("work_date", "summary", "tasks_completed", "skills_used", "challenges", "learning_outcomes", "next_steps", "status"):
+    for field in ("work_date", "summary", "tasks_completed", "skills_used", "challenges", "learning_outcomes", "next_steps"):
         setattr(row, field, getattr(payload, field))
+    row.status = "DRAFT"
     await db.commit()
     await db.refresh(row)
     return _work_log(row)
