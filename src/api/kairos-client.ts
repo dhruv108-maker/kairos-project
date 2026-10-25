@@ -137,3 +137,24 @@ export async function getRoleDashboard(account: KairosAccount): Promise<unknown>
     throw error;
   }
 }
+
+export async function downloadApiFile(path: string, filename: string): Promise<void> {
+  const headers = new Headers();
+  const token = getAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(`${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`, { headers });
+  if (!response.ok) {
+    if (response.status === 401) clearAccessToken();
+    throw new ApiError(`Download failed (${response.status})`, response.status);
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
