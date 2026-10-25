@@ -12,6 +12,7 @@ from app.models.mentorship import FacultyStudentMentorship
 from app.models.audit import AuditEvent
 from app.models.employers import EmployerOrganization, EmployerMembership, EmployerInvitation, RecruitmentInterview, RecruitmentOffer
 from app.models.recruitment import RecruitmentDrive, RecruitmentDriveProgrammeTarget, RecruitmentDriveCohortTarget, RecruitmentDriveGraduationYearTarget, RecruitmentDriveParticipation, RecruitmentDriveOpportunity
+from app.models.user_preferences import UserPreferences
 
 __all__ = [
     "Base", "IdentityVerification", "School", "Department", "Programme", "AcademicYear", "Cohort",
@@ -25,5 +26,5 @@ __all__ = [
     "StudentResume", "Institution", "InstitutionMembership", "InstitutionInvitation", "InstitutionDomain", "FacultyStudentMentorship", "AuditEvent",
     "EmployerOrganization", "EmployerMembership", "EmployerInvitation", "RecruitmentInterview", "RecruitmentOffer",
     "RecruitmentDrive", "RecruitmentDriveProgrammeTarget", "RecruitmentDriveCohortTarget",
-    "RecruitmentDriveGraduationYearTarget", "RecruitmentDriveParticipation", "RecruitmentDriveOpportunity",
+    "RecruitmentDriveGraduationYearTarget", "RecruitmentDriveParticipation", "RecruitmentDriveOpportunity", "UserPreferences",
 ]
