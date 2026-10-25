@@ -234,9 +234,8 @@ async def industry_mentor_review_work_log(work_log_id: str, payload: WorkLogRevi
     review = InternshipWorkLogReview(id=str(uuid4()), work_log_id=row.id, reviewer_account_id=account.id,
         reviewer_role="INDUSTRY_MENTOR", decision=payload.decision, feedback=payload.feedback.strip())
     db.add(review)
-    # Industry acknowledgement does not replace the faculty's academic review.
-    if payload.decision == "REVISION_REQUIRED":
-        row.status = "DRAFT"
+    # Industry review is a separate gate; faculty review still follows acknowledgement.
+    row.status = "DRAFT" if payload.decision == "REVISION_REQUIRED" else "INDUSTRY_REVIEWED"
     await db.commit()
     await db.refresh(row)
     await db.refresh(review)
@@ -365,8 +364,8 @@ async def review_work_log(work_log_id: str, payload: WorkLogReviewCreate, accoun
     placement = await db.get(InternshipPlacement, row.placement_id)
     if placement is None or placement.faculty_supervisor_id != faculty.id:
         raise HTTPException(status_code=404, detail="Work log not found")
-    if row.status != "SUBMITTED":
-        raise HTTPException(status_code=409, detail="Only submitted work logs can be reviewed")
+    if row.status not in {"SUBMITTED", "INDUSTRY_REVIEWED"}:
+        raise HTTPException(status_code=409, detail="Only submitted or industry-reviewed work logs can be reviewed")
     review = InternshipWorkLogReview(id=str(uuid4()), work_log_id=row.id, reviewer_account_id=account.id,
         reviewer_role="FACULTY", decision=payload.decision, feedback=payload.feedback.strip())
     db.add(review)
