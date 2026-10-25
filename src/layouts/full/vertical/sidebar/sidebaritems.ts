@@ -37,6 +37,12 @@ const sidebarItems: MenuItem[] = [
     ],
   },
   {
+    heading: "Faculty",
+    items: [
+      { id: "faculty-progress", name: "Student Progress", icon: Users, roles: ["FACULTY"], url: "/faculty/progress" },
+    ],
+  },
+  {
     heading: "Internships",
     items: [
       { id: "internship-workspace", name: "Internship Workspace", icon: BriefcaseBusiness, roles: internshipRoles, items: [
