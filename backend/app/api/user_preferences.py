@@ -96,8 +96,12 @@ async def patch_my_preferences(
         record.notification_preferences = {**(record.notification_preferences or {}), **changes["notification_preferences"]}
 
     for key, value in changes.items():
-        if key != "notification_preferences":
+        if key not in {"notification_preferences", "email_notifications_enabled"}:
             setattr(record, key, value)
+        elif key == "email_notifications_enabled":
+            # This value is stored for the future preference contract but deliberately
+            # does not affect delivery until the notification pipeline enforces it.
+            record.email_notifications_enabled = value
 
     await db.commit()
     await db.refresh(record)
