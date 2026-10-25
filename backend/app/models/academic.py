@@ -180,7 +180,13 @@ class StudentEnrollment(Base):
 
 class StudentProfile(Base):
     __tablename__ = "student_profiles"
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # SQLite requires INTEGER (not BIGINT) for rowid-backed autoincrement.
+    # MySQL retains the deployed BIGINT profile identity, independent of student.id.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
     student_id: Mapped[int] = mapped_column(
         MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
         ForeignKey("students.id", ondelete="CASCADE"), unique=True, nullable=False,
@@ -216,9 +222,14 @@ class FacultyProfile(Base):
     """
     __tablename__ = "faculty"
 
-    id: Mapped[int] = mapped_column(MYSQL_BIGINT(unsigned=True), primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
     account_id: Mapped[int] = mapped_column(
-        MYSQL_BIGINT(unsigned=True), ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False
     )
     employee_number: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
     employee_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
