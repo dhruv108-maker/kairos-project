@@ -10,7 +10,7 @@ from app.models.internship import InternshipApplication, InternshipOpportunity, 
 from app.models.academic import Account, Department, FacultyProfile, Programme, School, StudentProfile
 from app.models.employers import EmployerMembership
 from app.models.institutions import Institution
-from app.services.email import EmailDeliveryError, send_work_log_notification
+from app.services.email import send_work_log_notification
 from app.core.config import settings
 from app.modules.shared.exceptions import KairosDomainError
 from app.modules.internships.schemas import ApplicationStatusUpdate, OpportunityCreate, PlacementCreate, ProviderCreate, WorkLogCreate, WorkLogReviewCreate
@@ -199,6 +199,7 @@ async def _notify_progress_log_mentors(
         "Internship / Placement": opportunity.title if opportunity else (provider.company_name if provider else placement.id),
         "Submitted at (UTC)": readable_timestamp,
         "Progress log reference": log.id,
+        "Progress update": log.summary,
         "Work completed": log.tasks_completed,
         "Challenges and blockers": log.challenges or "",
         "Learning outcomes": log.learning_outcomes or log.skills_used or "",
@@ -237,6 +238,7 @@ async def _notify_student_feedback(
     reviewer_role: str,
     decision: str,
     feedback: str,
+    review_id: str,
 ) -> str:
     student_account = await db.scalar(
         select(Account).join(StudentProfile, Account.id == StudentProfile.account_id)
@@ -258,7 +260,7 @@ async def _notify_student_feedback(
             },
             message="Your mentor has recorded feedback in Kairos. Sign in to review the complete history and plan your next steps.",
             view_url=f"{settings.FRONTEND_URL.rstrip('/')}/internships/during?log={log.id}",
-            idempotency_key=f"progress-feedback:{log.id}:{reviewer_role}:{decision}:{log.updated_at.isoformat() if log.updated_at else 'current'}",
+            idempotency_key=f"progress-feedback:{log.id}:{review_id}",
         )
         return "ACCEPTED_BY_PROVIDER"
     except Exception as exc:
@@ -399,7 +401,7 @@ async def industry_mentor_review_work_log(work_log_id: str, payload: WorkLogRevi
     placement = await db.get(InternshipPlacement, row.placement_id)
     if placement is None or not await _is_active_assigned_industry_mentor(db, placement, account.id):
         raise HTTPException(status_code=404, detail="Work log not found")
-    if row.status != "SUBMITTED":
+    if row.status not in {"SUBMITTED", "INDUSTRY_REVIEWED", "REVIEWED"}:
         raise HTTPException(status_code=409, detail="Only submitted work logs can be reviewed")
     mentor_id = await _legacy_reviewer_profile_id(db, "INDUSTRY_MENTOR", account.id)
     review = InternshipWorkLogReview(
@@ -423,7 +425,7 @@ async def industry_mentor_review_work_log(work_log_id: str, payload: WorkLogRevi
     await db.refresh(review)
     notification_status = await _notify_student_feedback(
         db, log=row, reviewer_role="industry mentor",
-        decision=review.decision, feedback=review.feedback,
+        decision=review.decision, feedback=review.feedback, review_id=str(review.id),
     )
     return {"work_log": _work_log(row), "review": _review_payload(review),
             "student_notification_status": notification_status}
@@ -448,9 +450,19 @@ async def my_work_logs(account: CurrentAccount, db: DbSession, placement_id: str
     latest_by_log = {}
     for review in reviews:
         latest_by_log.setdefault(review.work_log_id, review)
-    return {"items": [{**_work_log(item), "latest_review": (
-        _review_payload(latest_by_log[item.id]) if item.id in latest_by_log else None
-    )} for item in logs]}
+    institution_name, programme_name, department_name = await _academic_email_context(db, student)
+    return {
+        "student_identity": {
+            "name": account.full_name,
+            "enrollment_number": student.enrollment_number,
+            "institution_name": institution_name or None,
+            "programme_name": programme_name or None,
+            "department_name": department_name or None,
+        },
+        "items": [{**_work_log(item), "latest_review": (
+            _review_payload(latest_by_log[item.id]) if item.id in latest_by_log else None
+        )} for item in logs],
+    }
 
 
 @router.post("/work-logs", status_code=201)
@@ -573,7 +585,7 @@ async def review_work_log(work_log_id: str, payload: WorkLogReviewCreate, accoun
     await db.refresh(review)
     notification_status = await _notify_student_feedback(
         db, log=row, reviewer_role="faculty mentor",
-        decision=review.decision, feedback=review.feedback,
+        decision=review.decision, feedback=review.feedback, review_id=str(review.id),
     )
     return {"work_log": _work_log(row), "review": {"id": review.id, "decision": review.decision,
         "feedback": review.feedback, "reviewer_role": review.reviewer_role,
