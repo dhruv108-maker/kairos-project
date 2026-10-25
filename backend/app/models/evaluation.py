@@ -208,7 +208,7 @@ class BlindAssessmentAssignment(Base):
     report_version_id: Mapped[str] = mapped_column(ForeignKey("report_versions.id", ondelete="RESTRICT"), nullable=False)
     institution_id: Mapped[str] = mapped_column(ForeignKey("institutions.id", ondelete="RESTRICT"), nullable=False)
     evaluator_faculty_id: Mapped[int] = mapped_column(
-        MYSQL_BIGINT(unsigned=True).with_variant(BigInteger, "sqlite"),
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
         ForeignKey("faculty.id", ondelete="RESTRICT"), nullable=False
     )
     policy_id: Mapped[str] = mapped_column(ForeignKey("internship_assessment_policies.id", ondelete="RESTRICT"), nullable=False)
@@ -233,7 +233,7 @@ class InternshipAcademicResult(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     report_submission_id: Mapped[str] = mapped_column(ForeignKey("report_submissions.id", ondelete="RESTRICT"), nullable=False)
     report_version_id: Mapped[str] = mapped_column(ForeignKey("report_versions.id", ondelete="RESTRICT"), nullable=False)
-    student_profile_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="RESTRICT"), nullable=False)
+    student_profile_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), ForeignKey("student_profiles.id", ondelete="RESTRICT"), nullable=False)
     institution_id: Mapped[str] = mapped_column(ForeignKey("institutions.id", ondelete="RESTRICT"), nullable=False)
     programme_id: Mapped[str] = mapped_column(ForeignKey("programmes.id", ondelete="RESTRICT"), nullable=False)
     cohort_id: Mapped[str | None] = mapped_column(ForeignKey("cohorts.id", ondelete="RESTRICT"))
