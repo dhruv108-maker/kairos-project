@@ -309,9 +309,9 @@ export default function AssessmentWorkspacePage() {
       setSelectedReport(null);
       await reload();
     } catch (error) {
-      setActionError(readableError(error));
       // A failed submit may have left a valid draft; reload so it stays visible and recoverable.
       await reload();
+      setActionError(readableError(error));
     } finally {
       setBusy(false);
     }
