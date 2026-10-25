@@ -10,7 +10,7 @@ from app.models import (
     RecruitmentDriveOpportunity,
 )
 from app.modules.employers.campus_recruitment_service import CampusRecruitmentService
-from app.modules.employers.service import EmployerError
+from app.modules.employers.service import EmployerError, EmployerService
 from app.modules.internships.repository import InternshipRepository
 from app.main import app
 
@@ -124,3 +124,20 @@ def test_campus_recruitment_routes_are_registered():
     assert "/api/v1/institutions/{institution_id}/recruitment-drives" in paths
     assert "/api/v1/recruitment-drives/{drive_id}/employers/{organization_id}" in paths
     assert "/api/v1/students/recruitment-drives/{drive_id}/opportunities" in paths
+
+
+@pytest.mark.asyncio
+async def test_public_job_discovery_filters_employment_and_posted_window(campus_session):
+    service = EmployerService(campus_session)
+    full_time, _ = await service.public_jobs(
+        None, None, "JOB", "HYBRID", 20, 0, employment_type="FULL_TIME", sort_by="newest"
+    )
+    internship, _ = await service.public_jobs(
+        None, None, None, None, 20, 0, employment_type="INTERNSHIP", sort_by="newest"
+    )
+    recent, _ = await service.public_jobs(
+        "Software Engineer", None, None, None, 20, 0, sort_by="relevance", posted_within_days=30
+    )
+    assert [job.id for job, _provider in full_time] == ["job"]
+    assert internship == []
+    assert [job.id for job, _provider in recent] == ["job"]
