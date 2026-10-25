@@ -55,7 +55,7 @@ async def get_my_faculty_affiliations(account: CurrentAccount, db: DbSession) ->
         "items": [{"department_id": (await db.scalar(
             select(FacultyProfile.department_id).where(FacultyProfile.account_id == account.id)
         ))}],
-        "schema_supported": True,
+        "schema_supported": False,
         "note": "The primary department is available; additional affiliation history is not included in this response yet.",
     }
 
