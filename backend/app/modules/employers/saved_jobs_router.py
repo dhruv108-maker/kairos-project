@@ -89,7 +89,7 @@ async def save_job(opportunity_id: str, account: CurrentAccount, db: DbSession):
             InternshipOpportunity.id == opportunity_id,
             InternshipOpportunity.lifecycle_status == "PUBLISHED",
             InternshipOpportunity.is_active.is_(True),
-            InternshipOpportunity.application_deadline >= __import__("datetime").date.today(),
+            InternshipOpportunity.application_deadline >= date.today(),
             EmployerOrganization.status == "ACTIVE",
         )
     )
