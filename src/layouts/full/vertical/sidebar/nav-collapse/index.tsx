@@ -44,8 +44,8 @@ function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: st
             render={
               <SidebarMenuButton isActive={active} tooltip={item.name} aria-expanded={open}>
                 {Icon ? <Icon /> : null}
-                <span>{item.name}</span>
-                <ChevronDown className="ml-auto transition-transform group-data-[open]/collapsible:rotate-180" />
+                <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">{item.name}</span>
+                <ChevronDown className="ml-auto size-4 shrink-0 transition-transform group-data-[open]/collapsible:rotate-180 group-data-[collapsible=icon]:hidden" />
               </SidebarMenuButton>
             }
           />
@@ -70,7 +70,7 @@ function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: st
           isActive={pathname === item.url || (item.url !== "/" && pathname.startsWith(`${item.url}/`))}
         >
           {Icon ? <Icon /> : null}
-          <span>{item.name}</span>
+          <span className="truncate">{item.name}</span>
         </SidebarMenuSubButton>
       </SidebarMenuSubItem>
     );
@@ -84,7 +84,7 @@ function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: st
         tooltip={item.name}
       >
         {Icon ? <Icon /> : null}
-        <span>{item.name}</span>
+        <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">{item.name}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
