@@ -158,7 +158,7 @@ export default function DuringInternshipPage() {
     const decision = reviewDecision[logId] || "ACKNOWLEDGED";
     if (!reviewText[logId]?.trim()) { toast.error("Feedback is required for a work-log review."); return; }
     setLogBusy(true);
-    try { const result = await apiRequest<{ work_log: WorkLog }>(`/modules/internships/work-logs/${encodeURIComponent(logId)}/review`, { method: "POST", body: JSON.stringify({ decision, feedback: reviewText[logId].trim() }) }); toast.success(`Work log ${prettyStatus(result.work_log.status)}.`); setReloadKey((n) => n + 1); }
+    try { await apiRequest<{ id: number; daily_log_id: number; decision: string }>(`/internship-feedback/daily-logs/${encodeURIComponent(logId)}/feedback`, { method: "POST", body: JSON.stringify({ decision: decision.toLowerCase(), feedback_text: reviewText[logId].trim() }) }); toast.success("Daily-log feedback saved to review history."); setReloadKey((n) => n + 1); }
     catch (e) { toast.error(errorMessage(e)); } finally { setLogBusy(false); }
   };
 
