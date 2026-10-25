@@ -2,6 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Integer, JSON, Numeric, String, Text, Enum, UniqueConstraint, Index, func
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from app.models.base import Base
 
 
@@ -186,6 +187,7 @@ class InternshipCurriculumMapping(Base):
     evidence_reference: Mapped[str | None] = mapped_column(Text)
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     reviewer_notes: Mapped[str | None] = mapped_column(Text)
+    change_history_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_by_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
     reviewed_by_account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"))
     reviewed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP)
@@ -205,7 +207,10 @@ class BlindAssessmentAssignment(Base):
     packet_code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     report_version_id: Mapped[str] = mapped_column(ForeignKey("report_versions.id", ondelete="RESTRICT"), nullable=False)
     institution_id: Mapped[str] = mapped_column(ForeignKey("institutions.id", ondelete="RESTRICT"), nullable=False)
-    evaluator_faculty_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("faculty.id", ondelete="RESTRICT"), nullable=False)
+    evaluator_faculty_id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(BigInteger, "sqlite"),
+        ForeignKey("faculty.id", ondelete="RESTRICT"), nullable=False
+    )
     policy_id: Mapped[str] = mapped_column(ForeignKey("internship_assessment_policies.id", ondelete="RESTRICT"), nullable=False)
     assigned_by_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
     rubric_snapshot_json: Mapped[dict] = mapped_column(JSON, nullable=False)
