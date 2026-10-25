@@ -81,7 +81,7 @@ CREATE TABLE `account_roles` (
   CONSTRAINT `fk_account_roles_institution` FOREIGN KEY (`institution_id`) REFERENCES `institutions` (`id`),
   CONSTRAINT `fk_account_roles_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`),
   CONSTRAINT `fk_account_roles_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -90,7 +90,7 @@ CREATE TABLE `account_roles` (
 
 LOCK TABLES `account_roles` WRITE;
 /*!40000 ALTER TABLE `account_roles` DISABLE KEYS */;
-INSERT INTO `account_roles` VALUES (1,2,7001,11,NULL,NULL,NULL,NULL,'2026-10-24 13:59:19',NULL);
+INSERT INTO `account_roles` VALUES (1,2,7001,11,NULL,NULL,NULL,NULL,'2026-10-24 13:59:19',NULL),(4,73001,7005,11,NULL,NULL,NULL,NULL,'2026-10-25 10:05:58',NULL);
 /*!40000 ALTER TABLE `account_roles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -123,7 +123,7 @@ CREATE TABLE `accounts` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_accounts_email` (`email`),
   CONSTRAINT `ck_accounts_status` CHECK ((`account_status` in (_utf8mb4'pending',_utf8mb4'active',_utf8mb4'locked',_utf8mb4'disabled')))
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=73002 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -132,7 +132,7 @@ CREATE TABLE `accounts` (
 
 LOCK TABLES `accounts` WRITE;
 /*!40000 ALTER TABLE `accounts` DISABLE KEYS */;
-INSERT INTO `accounts` VALUES (2,'23sc06007@gsfcuniversity.ac.in','$argon2id$v=19$m=65536,t=3,p=4$shHcN1z/+bu2xRWjHUuTXw$ynNJDCgzelDFcYapnvhSOtn8X0JvvjiUkofdThgG+fY','Dhruv Verma','active',NULL,'2026-10-25 05:00:07','2026-10-24 13:59:18','2026-10-25 05:00:07',NULL,'Dhruv Verma',NULL,1,1,0,'a7b5b6e459fae27c85e25e3a4572ae58e4a4da4dea3f0767fbe1d36a7c8e8341','6e18140fce8ba5e466b6276be7264bf469e15fdb720bcdb7d880bdc574381151','2026-10-24 14:49:05');
+INSERT INTO `accounts` VALUES (2,'23sc06007@gsfcuniversity.ac.in','$argon2id$v=19$m=65536,t=3,p=4$shHcN1z/+bu2xRWjHUuTXw$ynNJDCgzelDFcYapnvhSOtn8X0JvvjiUkofdThgG+fY','Dhruv Verma','active',NULL,'2026-10-25 08:34:25','2026-10-24 13:59:18','2026-10-25 08:36:48',NULL,'Dhruv Verma',NULL,1,1,3,'a7b5b6e459fae27c85e25e3a4572ae58e4a4da4dea3f0767fbe1d36a7c8e8341','6e18140fce8ba5e466b6276be7264bf469e15fdb720bcdb7d880bdc574381151','2026-10-24 14:49:05'),(73001,'vishal.harith@gsfcuniversity.ac.in','$argon2id$v=19$m=65536,t=3,p=4$CKz+Vx8MpDPM5DCT5/0gUw$W3nPYQy43v+jlZLR4mifsgZB8oPEIl+xemtLnA3WoTU','Vishal Hairth','active',NULL,'2026-10-25 10:53:21','2026-10-25 10:05:57','2026-10-25 10:53:21',NULL,'Vishal Hairth',NULL,1,1,0,'5fab4f9c1f28a7acc4ebe2c2f0ae2cec0e48f1b50276bd4eba3e902ff5f474fd',NULL,NULL);
 /*!40000 ALTER TABLE `accounts` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -173,11 +173,15 @@ CREATE TABLE `assessment_assignments` (
   `assigned_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `assignment_status` varchar(20) NOT NULL DEFAULT 'assigned',
   `selection_key` varchar(200) DEFAULT NULL,
+  `score` decimal(5,2) DEFAULT NULL,
+  `feedback_comments` text,
+  `submitted_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_campaign_faculty` (`campaign_id`,`faculty_id`),
   KEY `ix_assignment_faculty_status` (`faculty_id`,`assignment_status`),
   CONSTRAINT `fk_assignment_campaign` FOREIGN KEY (`campaign_id`) REFERENCES `assessment_campaigns` (`id`),
   CONSTRAINT `fk_assignment_faculty` FOREIGN KEY (`faculty_id`) REFERENCES `faculty` (`id`),
+  CONSTRAINT `ck_assignment_score_range` CHECK (((`score` is null) or ((`score` >= 0) and (`score` <= 100)))),
   CONSTRAINT `ck_assignment_status` CHECK ((`assignment_status` in (_utf8mb4'assigned',_utf8mb4'started',_utf8mb4'submitted',_utf8mb4'excused',_utf8mb4'cancelled')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -945,7 +949,7 @@ CREATE TABLE `faculty` (
   UNIQUE KEY `uq_faculty_employee_number` (`employee_number`),
   CONSTRAINT `fk_faculty_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`),
   CONSTRAINT `ck_faculty_status` CHECK ((`employment_status` in (_utf8mb4'active',_utf8mb4'inactive',_utf8mb4'ended')))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -954,6 +958,7 @@ CREATE TABLE `faculty` (
 
 LOCK TABLES `faculty` WRITE;
 /*!40000 ALTER TABLE `faculty` DISABLE KEYS */;
+INSERT INTO `faculty` VALUES (11,73001,'EMP-01','Vishal Hairth','active','2026-10-25 10:05:58','EMP-01',3,'23sc06007@gsfcuniversity.ac.in');
 /*!40000 ALTER TABLE `faculty` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1313,20 +1318,41 @@ CREATE TABLE `internship_daily_logs` (
   `student_id` bigint unsigned NOT NULL,
   `log_date` date NOT NULL,
   `work_summary` text NOT NULL,
+  `tasks_completed` text,
   `hours_worked` decimal(5,2) DEFAULT NULL,
   `skills_used` json DEFAULT NULL,
   `blockers` text,
+  `learning_outcomes` text,
   `next_day_plan` text,
   `status` varchar(20) NOT NULL DEFAULT 'draft',
   `submitted_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `faculty_review_status` enum('pending','acknowledged','revision_required') NOT NULL DEFAULT 'pending',
+  `faculty_feedback` text,
+  `faculty_reviewed_by_faculty_id` bigint unsigned DEFAULT NULL,
+  `faculty_reviewed_at` datetime DEFAULT NULL,
+  `industry_review_status` enum('pending','acknowledged','revision_required') NOT NULL DEFAULT 'pending',
+  `industry_feedback` text,
+  `industry_reviewed_by_mentor_id` bigint unsigned DEFAULT NULL,
+  `industry_reviewed_at` datetime DEFAULT NULL,
+  `placement_id` bigint unsigned DEFAULT NULL,
+  `work_date` date DEFAULT NULL,
+  `summary` varchar(255) DEFAULT NULL,
+  `challenges` text,
+  `next_steps` text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_daily_log_participation_date` (`participation_id`,`log_date`),
   KEY `ix_daily_log_student_date` (`student_id`,`log_date`),
   KEY `ix_daily_log_participation_status` (`participation_id`,`status`,`log_date`),
+  KEY `ix_daily_log_faculty_reviewer` (`faculty_reviewed_by_faculty_id`),
+  KEY `ix_daily_log_industry_reviewer` (`industry_reviewed_by_mentor_id`),
+  KEY `ix_internship_work_logs_placement_date` (`placement_id`,`log_date`),
+  CONSTRAINT `fk_daily_log_faculty_reviewer` FOREIGN KEY (`faculty_reviewed_by_faculty_id`) REFERENCES `faculty` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_daily_log_industry_reviewer` FOREIGN KEY (`industry_reviewed_by_mentor_id`) REFERENCES `industry_mentors` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_daily_log_participation` FOREIGN KEY (`participation_id`) REFERENCES `internship_participations` (`id`),
   CONSTRAINT `fk_daily_log_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
+  CONSTRAINT `fk_internship_daily_logs_placement_id` FOREIGN KEY (`placement_id`) REFERENCES `internship_placements` (`id`) ON DELETE CASCADE,
   CONSTRAINT `ck_daily_log_hours` CHECK (((`hours_worked` is null) or ((`hours_worked` >= 0) and (`hours_worked` <= 24)))),
   CONSTRAINT `ck_daily_log_status` CHECK ((`status` in (_utf8mb4'draft',_utf8mb4'submitted',_utf8mb4'locked')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -1458,6 +1484,7 @@ CREATE TABLE `internship_placements` (
   `application_id` bigint unsigned NOT NULL,
   `student_id` bigint unsigned NOT NULL,
   `faculty_supervisor_id` bigint unsigned DEFAULT NULL,
+  `industry_mentor_account_id` bigint unsigned DEFAULT NULL,
   `start_date` date NOT NULL,
   `end_date` date NOT NULL,
   `status` enum('ONGOING','COMPLETED','TERMINATED') NOT NULL DEFAULT 'ONGOING',
@@ -1465,9 +1492,12 @@ CREATE TABLE `internship_placements` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_internship_placements_application` (`application_id`),
+  UNIQUE KEY `uq_internship_placements_id_student` (`id`,`student_id`),
   KEY `ix_internship_placements_student` (`student_id`),
   KEY `ix_internship_placements_supervisor` (`faculty_supervisor_id`),
+  KEY `ix_internship_placements_industry_mentor_account_id` (`industry_mentor_account_id`),
   CONSTRAINT `fk_internship_placements_application` FOREIGN KEY (`application_id`) REFERENCES `internship_applications` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_internship_placements_industry_mentor_account` FOREIGN KEY (`industry_mentor_account_id`) REFERENCES `accounts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_internship_placements_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_internship_placements_supervisor` FOREIGN KEY (`faculty_supervisor_id`) REFERENCES `faculty` (`id`) ON DELETE SET NULL,
   CONSTRAINT `chk_internship_placements_dates` CHECK ((`end_date` >= `start_date`))
@@ -1568,6 +1598,45 @@ CREATE TABLE `internship_weekly_feedback` (
 LOCK TABLES `internship_weekly_feedback` WRITE;
 /*!40000 ALTER TABLE `internship_weekly_feedback` DISABLE KEYS */;
 /*!40000 ALTER TABLE `internship_weekly_feedback` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `internship_work_feedback`
+--
+
+DROP TABLE IF EXISTS `internship_work_feedback`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `internship_work_feedback` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `daily_log_id` bigint unsigned NOT NULL,
+  `reviewer_type` enum('faculty_mentor','industry_mentor') NOT NULL,
+  `reviewer_account_id` bigint unsigned NOT NULL,
+  `faculty_id` bigint unsigned DEFAULT NULL,
+  `industry_mentor_id` bigint unsigned DEFAULT NULL,
+  `decision` enum('acknowledged','revision_required') NOT NULL,
+  `feedback_text` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `ix_work_feedback_log_created` (`daily_log_id`,`created_at`),
+  KEY `ix_work_feedback_reviewer_created` (`reviewer_account_id`,`created_at`),
+  KEY `ix_work_feedback_faculty` (`faculty_id`),
+  KEY `ix_work_feedback_industry_mentor` (`industry_mentor_id`),
+  CONSTRAINT `fk_work_feedback_account` FOREIGN KEY (`reviewer_account_id`) REFERENCES `accounts` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_work_feedback_daily_log` FOREIGN KEY (`daily_log_id`) REFERENCES `internship_daily_logs` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_work_feedback_faculty` FOREIGN KEY (`faculty_id`) REFERENCES `faculty` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_work_feedback_industry_mentor` FOREIGN KEY (`industry_mentor_id`) REFERENCES `industry_mentors` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `chk_work_feedback_reviewer` CHECK ((((`reviewer_type` = _utf8mb4'faculty_mentor') and (`faculty_id` is not null) and (`industry_mentor_id` is null)) or ((`reviewer_type` = _utf8mb4'industry_mentor') and (`industry_mentor_id` is not null) and (`faculty_id` is null))))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `internship_work_feedback`
+--
+
+LOCK TABLES `internship_work_feedback` WRITE;
+/*!40000 ALTER TABLE `internship_work_feedback` DISABLE KEYS */;
+/*!40000 ALTER TABLE `internship_work_feedback` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1809,6 +1878,7 @@ DROP TABLE IF EXISTS `report_submissions`;
 CREATE TABLE `report_submissions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `participation_id` bigint unsigned NOT NULL,
+  `placement_id` bigint unsigned DEFAULT NULL,
   `requirement_id` bigint unsigned DEFAULT NULL,
   `current_version_id` bigint unsigned DEFAULT NULL,
   `accepted_version_id` bigint unsigned DEFAULT NULL,
@@ -1816,16 +1886,26 @@ CREATE TABLE `report_submissions` (
   `due_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `title` varchar(255) NOT NULL DEFAULT 'Internship report',
+  `latest_version_number` int unsigned NOT NULL DEFAULT '1',
+  `status` varchar(30) NOT NULL DEFAULT 'DRAFT',
+  `review_feedback` text,
+  `reviewed_by_account_id` bigint unsigned DEFAULT NULL,
+  `reviewed_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_report_submission_participation_requirement` (`participation_id`,`requirement_id`),
   KEY `ix_report_submission_status_due` (`workflow_status`,`due_at`),
   KEY `fk_report_submission_requirement` (`requirement_id`),
   KEY `fk_report_submission_current_version` (`current_version_id`),
   KEY `fk_report_submission_accepted_version` (`accepted_version_id`),
+  KEY `ix_report_submissions_placement_status` (`placement_id`,`status`,`updated_at`),
+  KEY `ix_report_submissions_reviewed_by` (`reviewed_by_account_id`),
   CONSTRAINT `fk_report_submission_accepted_version` FOREIGN KEY (`accepted_version_id`) REFERENCES `report_versions` (`id`),
   CONSTRAINT `fk_report_submission_current_version` FOREIGN KEY (`current_version_id`) REFERENCES `report_versions` (`id`),
   CONSTRAINT `fk_report_submission_participation` FOREIGN KEY (`participation_id`) REFERENCES `internship_participations` (`id`),
   CONSTRAINT `fk_report_submission_requirement` FOREIGN KEY (`requirement_id`) REFERENCES `report_requirements` (`id`),
+  CONSTRAINT `fk_report_submissions_placement` FOREIGN KEY (`placement_id`) REFERENCES `internship_placements` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_report_submissions_reviewed_by` FOREIGN KEY (`reviewed_by_account_id`) REFERENCES `accounts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `ck_report_submission_status` CHECK ((`workflow_status` in (_utf8mb4'awaiting_submission',_utf8mb4'submitted',_utf8mb4'under_evaluation',_utf8mb4'changes_requested',_utf8mb4'accepted',_utf8mb4'rejected',_utf8mb4'closed')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1961,7 +2041,7 @@ CREATE TABLE `roles` (
   `description` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_roles_code` (`code`)
-) ENGINE=InnoDB AUTO_INCREMENT=7002 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7006 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1970,7 +2050,7 @@ CREATE TABLE `roles` (
 
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
-INSERT INTO `roles` VALUES (7001,'STUDENT','STUDENT',NULL);
+INSERT INTO `roles` VALUES (7001,'STUDENT','STUDENT',NULL),(7005,'FACULTY','FACULTY',NULL);
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2421,6 +2501,38 @@ LOCK TABLES `teams` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `user_preferences`
+--
+
+DROP TABLE IF EXISTS `user_preferences`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_preferences` (
+  `account_id` bigint unsigned NOT NULL,
+  `accent_color` varchar(16) NOT NULL DEFAULT 'teal',
+  `font_size` varchar(16) NOT NULL DEFAULT 'default',
+  `interface_density` varchar(16) NOT NULL DEFAULT 'comfortable',
+  `theme_mode` varchar(16) NOT NULL DEFAULT 'system',
+  `email_notifications_enabled` tinyint(1) NOT NULL DEFAULT '1',
+  `notification_preferences` json NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`account_id`),
+  CONSTRAINT `fk_user_preferences_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `user_preferences`
+--
+
+LOCK TABLES `user_preferences` WRITE;
+/*!40000 ALTER TABLE `user_preferences` DISABLE KEYS */;
+INSERT INTO `user_preferences` VALUES (2,'neutral','default','comfortable','system',1,'{}','2026-10-25 08:23:37','2026-10-25 08:25:51'),(73001,'neutral','default','comfortable','system',1,'{}','2026-10-25 10:28:10','2026-10-25 11:05:59');
+/*!40000 ALTER TABLE `user_preferences` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Dumping events for database 'kairos'
 --
 
@@ -2437,4 +2549,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-25 10:51:22
+-- Dump completed on 2026-10-25 16:46:30
