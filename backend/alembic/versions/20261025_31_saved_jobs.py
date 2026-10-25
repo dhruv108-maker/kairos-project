@@ -19,7 +19,7 @@ def upgrade() -> None:
     op.create_table(
         "saved_jobs",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("account_id", sa.String(36), sa.ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("account_id", sa.dialects.mysql.BIGINT(unsigned=True), sa.ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False),
         sa.Column("opportunity_id", sa.String(36), sa.ForeignKey("internship_opportunities.id", ondelete="CASCADE"), nullable=False),
         sa.Column("created_at", sa.TIMESTAMP(), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint("account_id", "opportunity_id", name="uq_saved_job_account_opportunity"),
