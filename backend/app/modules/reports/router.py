@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import IntegrityError
 
-from app.api.dependencies import CurrentAccount, DbSession
+from app.api.dependencies import CurrentAccount, DbSession, require_role
 from app.modules.institutions.service import InstitutionAccessError
 from app.modules.reports.schemas import (
     ReportCreate, ReportReviewUpdate, ReportTitleUpdate, ReportVersionCreate,
@@ -118,6 +118,7 @@ async def set_report_requirement_active(institution_id: str, requirement_id: str
 
 @router.get("/faculty/me")
 async def list_faculty_reports(account: CurrentAccount, db: DbSession):
+    await require_role(db, account, "FACULTY")
     # Listing is restricted to placements explicitly assigned to this faculty account.
     from sqlalchemy import select
     from app.models.academic import FacultyProfile
