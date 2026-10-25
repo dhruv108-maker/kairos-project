@@ -369,8 +369,12 @@ export default function JobsHubPage() {
   }, [isStudent, isSavedPage]);
 
   const toggleSavedJob = async (job: Opportunity) => {
-    if (!isStudent) {
+    if (!account) {
       navigate("/auth/auth2/login");
+      return;
+    }
+    if (!isStudent) {
+      setApplicationError("Saved jobs are available to student accounts.");
       return;
     }
     const wasSaved = savedIds.has(job.id);
@@ -672,8 +676,12 @@ export function JobDetailRoute() {
     catch (err) { setActionError(errorMessage(err)); } finally { setApplying(null); }
   };
   const toggleSaved = async (item: Opportunity) => {
-    if (!account?.roles?.some((role) => role.toUpperCase() === "STUDENT")) {
+    if (!account) {
       window.location.assign("/auth/auth2/login");
+      return;
+    }
+    if (!account.roles.some((role) => role.toUpperCase() === "STUDENT")) {
+      setActionError("Saved jobs are available to student accounts.");
       return;
     }
     setActionError("");
