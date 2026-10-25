@@ -18,6 +18,7 @@ import { toast } from "sonner";
 type Placement = { id: string; application_id: string; student_id: number; faculty_supervisor_id: string | null; start_date: string; end_date: string; status: string };
 type Application = { id: string; status: string; applied_at?: string | null; opportunity?: { id: string; title: string; company_name?: string | null; starts_on?: string | null; ends_on?: string | null; location?: string | null } };
 type Report = { id: string; placement_id: string; requirement_id?: string | null; title: string; latest_version_number: number; status: string; review_feedback?: string | null; reviewed_by_account_id?: string | null; reviewed_at?: string | null; created_at?: string; updated_at?: string };
+type WorkLog = { id: string; placement_id: string; work_date: string; summary: string; tasks_completed: string; skills_used?: string | null; challenges?: string | null; learning_outcomes?: string | null; next_steps?: string | null; status: string; created_at?: string; updated_at?: string; latest_review?: { decision: string; feedback: string; reviewer_role: string; created_at?: string } | null };
 type ReportVersion = { id: string; submission_id: string; version_number: number; file_id: string; submission_notes?: string | null; submitted_at?: string };
 type Requirement = { id: string; title: string; description?: string | null; due_date?: string | null; is_required: boolean; is_active: boolean; submission_status?: string | null };
 type UploadResult = { id: string; original_name: string; file_size_bytes: number; mime_type: string; created_at?: string };
@@ -45,6 +46,20 @@ export default function DuringInternshipPage() {
   const [reports, setReports] = useState<AsyncState<Report[]>>(emptyState());
   const [placements, setPlacements] = useState<AsyncState<Placement[]>>(emptyState());
   const [requirements, setRequirements] = useState<AsyncState<Array<{ requirement: Requirement; submission_status?: string | null }>>>(emptyState());
+  const [workLogs, setWorkLogs] = useState<AsyncState<WorkLog[]>>(emptyState());
+  const [logPlacementId, setLogPlacementId] = useState("");
+  const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10));
+  const [logSummary, setLogSummary] = useState("");
+  const [logTasks, setLogTasks] = useState("");
+  const [logSkills, setLogSkills] = useState("");
+  const [logChallenges, setLogChallenges] = useState("");
+  const [logLearning, setLogLearning] = useState("");
+  const [logNext, setLogNext] = useState("");
+  const [editingLogId, setEditingLogId] = useState("");
+  const [logBusy, setLogBusy] = useState(false);
+  const [supervisedLogs, setSupervisedLogs] = useState<AsyncState<WorkLog[]>>(emptyState());
+  const [reviewText, setReviewText] = useState<Record<string, string>>({});
+  const [reviewDecision, setReviewDecision] = useState<Record<string, "ACKNOWLEDGED" | "REVISION_REQUIRED">>({});
   const [selectedReport, setSelectedReport] = useState("");
   const [versions, setVersions] = useState<ReportVersion[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
@@ -75,6 +90,64 @@ export default function DuringInternshipPage() {
       setPlacements({ loading: false, value: [], error: "Assigned industry-mentor endpoints are not implemented in this branch." });
     }
   }, [isStudent, isFaculty]);
+  const loadLogs = useCallback(async () => {
+    if (isStudent) {
+      setWorkLogs(emptyState());
+      try {
+        const r = await apiRequest<{ items: WorkLog[] }>("/modules/internships/work-logs/me");
+        setWorkLogs({ loading: false, value: r.items || [], error: null });
+        const p = await apiRequest<{ items: Placement[] }>("/modules/internships/placements/me");
+        setPlacements((old) => old.value === null ? { loading: false, value: p.items || [], error: null } : old);
+        if (!logPlacementId && p.items?.length) setLogPlacementId(p.items.find((x) => x.status === "ONGOING")?.id || "");
+      } catch (e) { setWorkLogs({ loading: false, value: null, error: errorMessage(e) }); }
+    } else if (isFaculty) {
+      setSupervisedLogs(emptyState());
+      try {
+        const r = await apiRequest<{ items: WorkLog[] }>("/modules/internships/work-logs/supervised");
+        setSupervisedLogs({ loading: false, value: r.items || [], error: null });
+      } catch (e) { setSupervisedLogs({ loading: false, value: null, error: errorMessage(e) }); }
+    }
+  }, [isStudent, isFaculty, logPlacementId]);
+  useEffect(() => { void loadLogs(); }, [loadLogs, reloadKey]);
+
+  const clearLogForm = () => {
+    setEditingLogId(""); setLogDate(new Date().toISOString().slice(0, 10)); setLogSummary("");
+    setLogTasks(""); setLogSkills(""); setLogChallenges(""); setLogLearning(""); setLogNext("");
+  };
+  const saveLog = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!logPlacementId || !logSummary.trim() || !logTasks.trim()) { toast.error("Choose an ongoing placement and complete the summary and tasks."); return; }
+    setLogBusy(true);
+    const payload = { placement_id: logPlacementId, work_date: logDate, summary: logSummary.trim(),
+      tasks_completed: logTasks.trim(), skills_used: logSkills.trim() || null, challenges: logChallenges.trim() || null,
+      learning_outcomes: logLearning.trim() || null, next_steps: logNext.trim() || null, status: "DRAFT" };
+    try {
+      const saved = await apiRequest<WorkLog>(editingLogId ? `/modules/internships/work-logs/${encodeURIComponent(editingLogId)}` : "/modules/internships/work-logs", {
+        method: editingLogId ? "PATCH" : "POST", body: JSON.stringify(payload)
+      });
+      toast.success(`Work-log ${prettyStatus(saved.status)} saved.`);
+      clearLogForm(); setReloadKey((n) => n + 1);
+    } catch (e) { toast.error(errorMessage(e)); } finally { setLogBusy(false); }
+  };
+  const editLog = (log: WorkLog) => {
+    setEditingLogId(log.id); setLogPlacementId(log.placement_id); setLogDate(log.work_date);
+    setLogSummary(log.summary); setLogTasks(log.tasks_completed); setLogSkills(log.skills_used || "");
+    setLogChallenges(log.challenges || ""); setLogLearning(log.learning_outcomes || ""); setLogNext(log.next_steps || "");
+    setView("activity");
+  };
+  const submitLog = async (logId: string) => {
+    setLogBusy(true);
+    try { const saved = await apiRequest<WorkLog>(`/modules/internships/work-logs/${encodeURIComponent(logId)}/submit`, { method: "POST" }); toast.success(`Work log ${prettyStatus(saved.status)}.`); setReloadKey((n) => n + 1); }
+    catch (e) { toast.error(errorMessage(e)); } finally { setLogBusy(false); }
+  };
+  const reviewLog = async (logId: string) => {
+    const decision = reviewDecision[logId] || "ACKNOWLEDGED";
+    if (!reviewText[logId]?.trim()) { toast.error("Feedback is required for a work-log review."); return; }
+    setLogBusy(true);
+    try { const result = await apiRequest<{ work_log: WorkLog }>(`/modules/internships/work-logs/${encodeURIComponent(logId)}/review`, { method: "POST", body: JSON.stringify({ decision, feedback: reviewText[logId].trim() }) }); toast.success(`Work log ${prettyStatus(result.work_log.status)}.`); setReloadKey((n) => n + 1); }
+    catch (e) { toast.error(errorMessage(e)); } finally { setLogBusy(false); }
+  };
+
   useEffect(() => { void load(); }, [load, reloadKey]);
 
   const openVersions = useCallback(async (reportId: string) => {
@@ -132,7 +205,25 @@ export default function DuringInternshipPage() {
         {selectedReportItem && <Card><CardHeader><CardTitle>Version history · {selectedReportItem.title}</CardTitle><CardDescription>Private files are fetched through the authorized storage endpoint.</CardDescription></CardHeader><CardContent>{versionsLoading ? <Skeleton className="h-12 w-full" /> : versionError ? <StateNotice title="Could not load version history" message={versionError} onRetry={() => void openVersions(selectedReport)} /> : !versions.length ? <p className="text-sm text-muted-foreground">No versions returned.</p> : <div className="divide-y">{versions.map((v) => <div key={v.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">Version {v.version_number}</p><p className="text-xs text-muted-foreground">{v.submission_notes || "No notes"} · {formatDateTime(v.submitted_at)}</p></div><Button variant="outline" size="sm" onClick={async () => { try { const response = await fetch(`/api/v1/storage/${encodeURIComponent(v.file_id)}`, { headers: { Authorization: `Bearer ${sessionStorage.getItem("kairos.access_token") || ""}` } }); if (!response.ok) throw new Error(`Download failed (${response.status})`); const url = URL.createObjectURL(await response.blob()); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `report-version-${v.version_number}`; anchor.click(); URL.revokeObjectURL(url); } catch (e) { toast.error(e instanceof Error ? e.message : "Download failed"); } }}><FileText className="mr-2 size-4" />Download version</Button></div>)}</div>}</CardContent></Card>}
       </div>}
       {view === "feedback" && <div className="space-y-4">{reports.value?.some((r) => r.review_feedback) ? reports.value.filter((r) => r.review_feedback).map((r) => <Card key={r.id}><CardHeader><CardTitle className="text-base">{r.title}</CardTitle><CardDescription>Report review · {formatDateTime(r.reviewed_at)} · {prettyStatus(r.status)}</CardDescription></CardHeader><CardContent><p className="whitespace-pre-wrap text-sm leading-6">{r.review_feedback}</p></CardContent></Card>) : <Card><CardContent className="py-10 text-center"><MessageSquareText className="mx-auto mb-2 size-7 text-muted-foreground" /><p className="font-medium">No report feedback recorded</p><p className="mt-1 text-sm text-muted-foreground">Industry and faculty feedback is shown only where persisted and authorized.</p></CardContent></Card>}</div>}
-      {view === "activity" && <div className="space-y-4"><Alert><BookOpen className="size-4" /><AlertTitle>Work-log workflow not present yet</AlertTitle><AlertDescription>The audited backend has no daily/weekly work-log model or routes, and no industry-mentor placement assignment contract. This view does not simulate submission or review. These APIs, ownership rules, migration, and tests remain an implementation blocker.</AlertDescription></Alert>{isFaculty && <Card><CardHeader><CardTitle>Supervision assignments</CardTitle><CardDescription>Only placements returned by the faculty-scoped route are shown.</CardDescription></CardHeader><CardContent>{placements.value?.length ? <div className="divide-y">{placements.value.map((p) => <div key={p.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">Placement {p.id}</p><p className="text-sm text-muted-foreground">{formatDate(p.start_date)} – {formatDate(p.end_date)}</p></div><StatusBadge status={p.status} /></div>)}</div> : <p className="py-5 text-sm text-muted-foreground">{placements.error ? "Assignments could not be loaded." : "No supervised placements returned."}</p>}</CardContent></Card>}</div>}
+      {view === "activity" && <div className="space-y-5">
+        {isStudent && <>
+          {placements.error && <StateNotice title="Placements unavailable" message={placements.error} onRetry={() => setReloadKey((n) => n + 1)} />}
+          {placements.value?.length ? <Card><CardHeader><CardTitle>Work log entry</CardTitle><CardDescription>Record your work against an ongoing persisted placement. Submitted logs are locked until reviewed.</CardDescription></CardHeader><CardContent><form className="grid gap-4" onSubmit={saveLog}>
+            <div className="grid gap-2"><Label htmlFor="log-placement">Internship placement</Label><select id="log-placement" required className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={logPlacementId} onChange={(e) => setLogPlacementId(e.target.value)}><option value="">Choose ongoing placement</option>{placements.value.filter((p) => p.status === "ONGOING").map((p) => <option key={p.id} value={p.id}>Placement {p.id} · {formatDate(p.start_date)} – {formatDate(p.end_date)}</option>)}</select></div>
+            <div className="grid gap-2"><Label htmlFor="log-date">Work date</Label><Input id="log-date" type="date" required max={new Date().toISOString().slice(0, 10)} value={logDate} onChange={(e) => setLogDate(e.target.value)} /></div>
+            <div className="grid gap-2"><Label htmlFor="log-summary">Summary</Label><Input id="log-summary" required minLength={3} maxLength={255} value={logSummary} onChange={(e) => setLogSummary(e.target.value)} placeholder="What did you work on?" /></div>
+            <div className="grid gap-2"><Label htmlFor="log-tasks">Tasks completed</Label><Textarea id="log-tasks" required minLength={3} maxLength={10000} value={logTasks} onChange={(e) => setLogTasks(e.target.value)} placeholder="Describe work completed and results." /></div>
+            <div className="grid gap-2"><Label htmlFor="log-skills">Skills / technologies used</Label><Input id="log-skills" value={logSkills} onChange={(e) => setLogSkills(e.target.value)} maxLength={5000} /></div>
+            <div className="grid gap-2"><Label htmlFor="log-challenges">Challenges encountered</Label><Textarea id="log-challenges" value={logChallenges} onChange={(e) => setLogChallenges(e.target.value)} maxLength={5000} /></div>
+            <div className="grid gap-2"><Label htmlFor="log-learning">Learning outcomes</Label><Textarea id="log-learning" value={logLearning} onChange={(e) => setLogLearning(e.target.value)} maxLength={5000} /></div>
+            <div className="grid gap-2"><Label htmlFor="log-next">Next steps</Label><Textarea id="log-next" value={logNext} onChange={(e) => setLogNext(e.target.value)} maxLength={5000} /></div>
+            <div className="flex flex-wrap gap-2"><Button type="submit" disabled={logBusy || !logPlacementId || !logSummary.trim() || !logTasks.trim()}>{logBusy ? "Saving…" : editingLogId ? "Save changes" : "Save draft"}</Button>{editingLogId && <Button type="button" variant="outline" onClick={clearLogForm}>Cancel edit</Button>}</div>
+          </form></CardContent></Card> : <Alert><BookOpen className="size-4" /><AlertTitle>No ongoing placement found</AlertTitle><AlertDescription>Work logs are enabled only after a manager creates a persisted placement for an OFFERED application.</AlertDescription></Alert>}
+          <Card><CardHeader><CardTitle>Work log history</CardTitle><CardDescription>Chronological entries with server-confirmed status and latest persisted review.</CardDescription></CardHeader><CardContent>{workLogs.loading ? <Skeleton className="h-24 w-full" /> : workLogs.error ? <StateNotice title="Could not load work logs" message={workLogs.error} onRetry={() => setReloadKey((n) => n + 1)} /> : workLogs.value?.length ? <div className="space-y-3">{workLogs.value.map((log) => <div key={log.id} className="rounded-lg border p-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-medium">{log.summary}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(log.work_date)} · Updated {formatDateTime(log.updated_at)}</p></div><StatusBadge status={log.status} /></div><p className="mt-3 whitespace-pre-wrap text-sm">{log.tasks_completed}</p>{log.skills_used && <p className="mt-2 text-sm text-muted-foreground">Skills: {log.skills_used}</p>}{log.latest_review && <Alert className="mt-3"><MessageSquareText className="size-4" /><AlertTitle>{prettyStatus(log.latest_review.decision)} · {log.latest_review.reviewer_role}</AlertTitle><AlertDescription><p className="whitespace-pre-wrap">{log.latest_review.feedback}</p><p className="mt-1 text-xs">Reviewed {formatDateTime(log.latest_review.created_at)}</p></AlertDescription></Alert>}<div className="mt-3 flex gap-2">{log.status === "DRAFT" && <><Button variant="outline" size="sm" disabled={logBusy} onClick={() => editLog(log)}>Edit draft</Button><Button size="sm" disabled={logBusy} onClick={() => void submitLog(log.id)}>Submit for review</Button></>}</div></div>)}</div> : <div className="py-8 text-center text-sm text-muted-foreground">No work logs recorded yet.</div>}</CardContent></Card>
+        </>}
+        {isFaculty && <><Alert><BookOpen className="size-4" /><AlertTitle>Assigned supervision only</AlertTitle><AlertDescription>Only work logs attached to placements explicitly assigned to your faculty profile are returned.</AlertDescription></Alert><Card><CardHeader><CardTitle>Submitted work logs</CardTitle><CardDescription>Review feedback is retained as an append-only history.</CardDescription></CardHeader><CardContent>{supervisedLogs.loading ? <Skeleton className="h-24 w-full" /> : supervisedLogs.error ? <StateNotice title="Could not load supervised logs" message={supervisedLogs.error} onRetry={() => setReloadKey((n) => n + 1)} /> : supervisedLogs.value?.length ? <div className="space-y-4">{supervisedLogs.value.map((log) => <div key={log.id} className="rounded-lg border p-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-medium">{log.summary}</p><p className="text-xs text-muted-foreground">{formatDate(log.work_date)} · Placement {log.placement_id}</p></div><StatusBadge status={log.status} /></div><p className="mt-3 whitespace-pre-wrap text-sm">{log.tasks_completed}</p>{log.status === "SUBMITTED" && <div className="mt-3 space-y-3"><Label htmlFor={`log-review-${log.id}`}>Faculty feedback</Label><Textarea id={`log-review-${log.id}`} maxLength={5000} value={reviewText[log.id] || ""} onChange={(e) => setReviewText((old) => ({ ...old, [log.id]: e.target.value }))} placeholder="Provide actionable academic feedback." /><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setReviewDecision((old) => ({ ...old, [log.id]: "ACKNOWLEDGED" }))} disabled={logBusy}>Acknowledge</Button><Button size="sm" variant="outline" onClick={() => setReviewDecision((old) => ({ ...old, [log.id]: "REVISION_REQUIRED" }))} disabled={logBusy}>Request revision</Button><Button size="sm" onClick={() => void reviewLog(log.id)} disabled={logBusy || !reviewText[log.id]?.trim()}>Submit review ({prettyStatus(reviewDecision[log.id] || "ACKNOWLEDGED")})</Button></div></div>}</div>)}</div> : <div className="py-8 text-center text-sm text-muted-foreground">No supervised work logs returned.</div>}</CardContent></Card></>}
+        {!isStudent && !isFaculty && <Alert variant="destructive"><AlertCircle className="size-4" /><AlertTitle>Mentor assignment contract missing</AlertTitle><AlertDescription>Industry mentor accounts do not have a canonical placement assignment model in this branch; access is therefore not inferred from employer organization or URL identifiers.</AlertDescription></Alert>}
+      </div>}
     </>}
     <Separator className="my-8" /><p className="text-xs text-muted-foreground">Kairos · authenticated workspace · server-confirmed states only</p>
   </div>;
