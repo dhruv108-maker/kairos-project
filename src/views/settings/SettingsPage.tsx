@@ -10,13 +10,13 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/auth/AuthContext";
-import { useTheme } from "@/context/shadcntheme/ThemeContext";
+import { useTheme, type Theme } from "@/context/shadcntheme/ThemeContext";
 import { apiRequest } from "@/api/kairos-client";
 
 type Accent = "teal" | "blue" | "green" | "amber" | "rose" | "neutral";
 type FontScale = "small" | "default" | "large" | "xlarge";
 type Density = "compact" | "comfortable" | "spacious";
-type ThemeMode = "light" | "dark" | "system";
+type ThemeMode = Theme;
 
 type Preferences = {
   accent_color: Accent;
