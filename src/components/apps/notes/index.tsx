@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import NotesSidebar from "@/components/apps/notes/notes-sidebar";
 import NoteContent from "@/components/apps/notes/note-content";
@@ -7,9 +7,7 @@ import AddNotes from "@/components/apps/notes/add-notes";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotesProvider } from "@/context/notes-context/index";
-import { useLocation } from "react-router";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { mutate } from "swr";
 
 interface colorsType {
   lineColor: string;
@@ -22,33 +20,6 @@ const NotesApp = () => {
   const handleClose = () => setIsOpen(false);
 
   
-
-  const location = useLocation();
-  const pathname = location.pathname;
-
-  // Reset Notes on browser refresh
-  const handleResetTickets = async () => {
-    await mutate("/api/notes");
-  };
-
-  useEffect(() => {
-    const isPageRefreshed = sessionStorage.getItem("isPageRefreshed");
-    if (isPageRefreshed === "true") {
-      console.log("page refreshed");
-      sessionStorage.removeItem("isPageRefreshed");
-      handleResetTickets();
-    }
-  }, [pathname]);
-
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      sessionStorage.setItem("isPageRefreshed", "true");
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
 
   const colorvariation: colorsType[] = [
     {
