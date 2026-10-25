@@ -73,7 +73,7 @@ export default function AuthFrame({
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#77717c] lg:mb-5 lg:text-xs">
             Your academic workspace
           </p>
-          <h1 className="max-w-lg break-words text-2xl font-medium leading-tight tracking-[-0.04em] text-white sm:text-3xl lg:text-4xl xl:text-5xl">
+          <h1 className="max-w-lg break-words text-2xl font-medium leading-tight tracking-[-0.04em] text-[#343238] sm:text-3xl lg:text-4xl xl:text-5xl">
             {asideTitle}
           </h1>
         </div>
