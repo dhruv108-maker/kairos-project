@@ -14,7 +14,18 @@ const routeTitles: Record<string, string> = {
   "/dashboards/modern": "Overview",
   "/pages/user-profile": "My profile",
   "/pages/tables": "Data tables",
-  "/pages/form": "Forms",\n  "/faculty/progress": "Student progress",\n  "/institution/dashboard": "Institution dashboard",\n  "/internships/during": "Internship workspace",\n  "/jobs": "Jobs hub",\n  "/jobs/applications": "My applications",\n  "/jobs/campus": "Campus recruitment",\n  "/jobs/recruiter": "Recruitment management",\n  "/settings": "Settings",\n  "/student/profile": "Student profile",\n  "/apps/notes": "Notes",\n  "/apps/tickets": "Support tickets",
+  "/pages/form": "Forms",
+  "/faculty/progress": "Student progress",
+  "/institution/dashboard": "Institution dashboard",
+  "/internships/during": "Internship workspace",
+  "/jobs": "Jobs hub",
+  "/jobs/applications": "My applications",
+  "/jobs/campus": "Campus recruitment",
+  "/jobs/recruiter": "Recruitment management",
+  "/settings": "Settings",
+  "/student/profile": "Student profile",
+  "/apps/notes": "Notes",
+  "/apps/tickets": "Support tickets",
 };
 
 const Header = () => {
