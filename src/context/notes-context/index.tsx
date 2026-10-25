@@ -1,11 +1,6 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, type ReactNode } from "react";
+import type { notesType } from "src/types/apps/notes";
 
-import React from 'react';
-import useSWR from 'swr';
-import { deleteFetcher, getFetcher, postFetcher, putFetcher } from 'src/api/global-fetcher';
-import { notesType } from 'src/types/apps/notes';
-
-// Define context type
 interface NotesContextType {
   notes: notesType[];
   loading: boolean;
@@ -17,10 +12,19 @@ interface NotesContextType {
   deleteNote: (id: number) => Promise<void>;
 }
 
-// Initial context values
+const initialNotes: notesType[] = [
+  {
+    id: 1,
+    color: "primary",
+    title: "Welcome to Notes. Add a note to capture something important.",
+    datef: new Date().toISOString(),
+    deleted: false,
+  },
+];
+
 const initialContext: NotesContextType = {
-  notes: [],
-  loading: true,
+  notes: initialNotes,
+  loading: false,
   error: null,
   selectedNoteId: 1,
   selectNote: () => {},
@@ -29,76 +33,43 @@ const initialContext: NotesContextType = {
   deleteNote: async () => {},
 };
 
-// Create context
 export const NotesContext = createContext<NotesContextType>(initialContext);
 
-// Provider component
-export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [notes, setNotes] = useState<notesType[]>(initialContext.notes);
-  const [loading, setLoading] = useState<boolean>(initialContext.loading);
-  const [error, setError] = useState<Error | null>(initialContext.error);
-  const [selectedNoteId, setSelectedNoteId] = useState<number>(initialContext.selectedNoteId);
+export function NotesProvider({ children }: { children: ReactNode }) {
+  const [notes, setNotes] = useState<notesType[]>(initialNotes);
+  const [selectedNoteId, setSelectedNoteId] = useState(1);
 
-  // Fetch notes from the server
-  const {
-    data: notesData,
-    isLoading: isNotesLoading,
-    error: notesError,
-    mutate,
-  } = useSWR('/api/data/notes/NotesData', getFetcher);
-  useEffect(() => {
-    if (notesData) {
-      setNotes(notesData.data);
-      setLoading(false);
-    } else if (notesError) {
-      setError(notesError);
-      setLoading(false);
-    } else {
-      setLoading(false);
-    }
-  }, [notesData, notesError, isNotesLoading]);
-
-  // Select a note by its ID
-  const selectNote = (id: number) => {
-    setSelectedNoteId(id);
-  };
-
-  // Add a new note
   const addNote = async (newNote: notesType) => {
-    try {
-      await mutate(postFetcher('/api/notes/add', newNote));
-    } catch (error) {
-      console.error('Error adding note:', error);
-    }
+    const note: notesType = {
+      ...newNote,
+      id: Math.max(0, ...notes.map((item) => item.id)) + 1,
+      datef: new Date().toISOString(),
+      deleted: false,
+    };
+    setNotes((current) => [...current, note]);
+    setSelectedNoteId(note.id);
   };
 
-  // Update a note by its ID
   const updateNote = async (id: number, title: string, color: string) => {
-    try {
-      await mutate(putFetcher('/api/notes/update', { id, title, color }));
-    } catch (error) {
-      console.error('Error updating note:', error);
-    }
+    setNotes((current) =>
+      current.map((note) => note.id === id ? { ...note, title, color } : note),
+    );
   };
 
-  // Delete a note by its ID
   const deleteNote = async (id: number) => {
-    try {
-      const response = await mutate(deleteFetcher('/api/notes/delete', { id }));
-      console.log(response.data);
-    } catch (error) {
-      console.error('Error deleting note:', error);
-    }
+    const remaining = notes.filter((note) => note.id !== id);
+    setNotes(remaining);
+    if (selectedNoteId === id) setSelectedNoteId(remaining[0]?.id ?? 0);
   };
 
   return (
     <NotesContext.Provider
       value={{
         notes,
-        loading,
-        error,
+        loading: false,
+        error: null,
         selectedNoteId,
-        selectNote,
+        selectNote: setSelectedNoteId,
         addNote,
         updateNote,
         deleteNote,
@@ -107,4 +78,4 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
     </NotesContext.Provider>
   );
-};
+}
