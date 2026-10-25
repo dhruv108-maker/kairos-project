@@ -79,7 +79,7 @@ async def send_transactional_email(
                 if response.is_error:
                     # Do not include provider body; it may contain recipient or request details.
                     raise EmailDeliveryError(
-                        f"Email provider rejected the message (HTTP {response.status_code})"
+                        f"Email provider permanently rejected the message (HTTP {response.status_code})"
                     )
                 try:
                     message_id = response.json().get("id")
