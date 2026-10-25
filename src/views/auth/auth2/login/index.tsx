@@ -18,6 +18,7 @@ const BoxedLogin = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
     setError("");
     setIsSubmitting(true);
     const form = new FormData(event.currentTarget);
@@ -27,7 +28,11 @@ const BoxedLogin = () => {
     try {
       await login(email, password);
       const state = location.state as { from?: unknown } | null;
-      const destination = typeof state?.from === "string" && state.from.startsWith("/")
+      // Only accept same-origin absolute paths. A value such as //evil.example
+      // also starts with "/" but is a protocol-relative external URL.
+      const destination = typeof state?.from === "string"
+        && state.from.startsWith("/")
+        && !state.from.startsWith("//")
         ? state.from
         : "/";
       navigate(destination, { replace: true });
