@@ -6,6 +6,7 @@ import { Separator } from "src/components/ui/separator";
 import { cn } from "src/lib/utils";
 import FullLogo from "../../shared/logo/FullLogo";
 import Profile from "./Profile";
+import Notifications from "./Notifications";
 import LightDark from "./Light-Dark";
 
 const routeTitles: Record<string, string> = {
@@ -36,6 +37,7 @@ const Header = () => {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <Notifications />
           <LightDark />
           <Profile />
         </div>
