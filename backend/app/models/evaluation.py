@@ -116,5 +116,5 @@ class FinalEvaluationOutcome(Base):
     final_grade: Mapped[str] = mapped_column(String(10), nullable=False)
     total_score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
-    signed_off_by_faculty_id: Mapped[str] = mapped_column(ForeignKey("faculty_profiles.id", ondelete="RESTRICT"), nullable=False)
+    signed_off_by_faculty_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("faculty.id", ondelete="RESTRICT"), nullable=False)
     signed_off_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
