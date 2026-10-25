@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -46,7 +47,7 @@ class UserPreferencesResponse(BaseModel):
     theme_mode: ThemeMode
     email_notifications_enabled: bool
     notification_preferences: dict[str, bool]
-    updated_at: Any = None
+    updated_at: datetime | None = None
 
 
 def _serialize(record: UserPreferences) -> UserPreferencesResponse:
@@ -66,8 +67,8 @@ async def _get_or_create(db, account_id: str) -> UserPreferences:
     record = await db.get(UserPreferences, account_id)
     if record is not None:
         return record
-    # Race-safe creation via MySQL upsert; the authenticated account ID is the key.
-    statement = mysql_insert(UserPreferences).values(account_id=account_id).on_duplicate_key_update(account_id=account_id)
+    # Race-safe creation via the current MySQL-compatible account-preferences key.
+    statement = mysql_insert(UserPreferences).values(account_id=account_id, notification_preferences={}).on_duplicate_key_update(account_id=account_id)
     await db.execute(statement)
     await db.commit()
     record = await db.get(UserPreferences, account_id)
