@@ -7,7 +7,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import CurrentAccount, DbSession, account_roles, require_role
 from app.models.internship import InternshipApplication, InternshipOpportunity, InternshipProvider, InternshipWorkLog, InternshipWorkLogReview, InternshipPlacement
-from app.models.academic import Account, Department, FacultyProfile, Programme, School, StudentProfile
+from app.models.academic import Account, AcademicYear, Cohort, Department, FacultyProfile, Programme, School, StudentProfile
 from app.models.employers import EmployerMembership
 from app.models.institutions import Institution
 from app.services.email import send_work_log_notification
@@ -141,6 +141,13 @@ async def _academic_email_context(db: AsyncSession, student: StudentProfile) -> 
                 institution = await db.get(Institution, school.institution_id)
                 if institution is not None:
                     institution_name = institution.name
+    if not institution_name and student.cohort_id:
+        cohort = await db.get(Cohort, student.cohort_id)
+        academic_year = await db.get(AcademicYear, cohort.academic_year_id) if cohort else None
+        if academic_year and academic_year.institution_id:
+            institution = await db.get(Institution, academic_year.institution_id)
+            if institution is not None:
+                institution_name = institution.name
     if student.programme_id:
         programme = await db.get(Programme, student.programme_id)
         if programme is not None:
@@ -279,9 +286,21 @@ async def my_placements(account: CurrentAccount, db: DbSession) -> dict:
     if student is None:
         raise HTTPException(status_code=404, detail="Student profile not found")
     rows = await repo.list_placements_for_student(student.id)
-    return {"items": [{"id": p.id, "application_id": p.application_id, "student_id": p.student_id,
-        "faculty_supervisor_id": p.faculty_supervisor_id, "industry_mentor_account_id": p.industry_mentor_account_id, "start_date": p.start_date.isoformat(),
-        "end_date": p.end_date.isoformat(), "status": p.status} for p in rows]}
+    items = []
+    for placement in rows:
+        application = await db.get(InternshipApplication, placement.application_id)
+        opportunity = await db.get(InternshipOpportunity, application.opportunity_id) if application else None
+        provider = await db.get(InternshipProvider, opportunity.provider_id) if opportunity else None
+        items.append({
+            "id": placement.id, "application_id": placement.application_id, "student_id": placement.student_id,
+            "faculty_supervisor_id": placement.faculty_supervisor_id,
+            "industry_mentor_account_id": placement.industry_mentor_account_id,
+            "opportunity_title": opportunity.title if opportunity else None,
+            "company_name": provider.company_name if provider else None,
+            "start_date": placement.start_date.isoformat(), "end_date": placement.end_date.isoformat(),
+            "status": placement.status,
+        })
+    return {"items": items}
 
 
 @router.get("/placements/supervised")
