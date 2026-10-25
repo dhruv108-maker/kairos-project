@@ -268,3 +268,29 @@ async def review_work_log(work_log_id: str, payload: WorkLogReviewCreate, accoun
     return {"work_log": _work_log(row), "review": {"id": review.id, "decision": review.decision,
         "feedback": review.feedback, "reviewer_role": review.reviewer_role,
         "created_at": review.created_at.isoformat() if review.created_at else None}}
+
+
+@router.get("/work-logs/{work_log_id}")
+async def get_work_log(work_log_id: str, account: CurrentAccount, db: DbSession) -> dict:
+    roles = await account_roles(db, account.id)
+    row = await db.get(InternshipWorkLog, work_log_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Work log not found")
+    if "STUDENT" in roles:
+        repo = InternshipRepository(db)
+        student = await repo.get_student_by_account(account.id)
+        if student is None or row.student_id != student.id:
+            raise HTTPException(status_code=404, detail="Work log not found")
+    elif "FACULTY" in roles:
+        faculty = await db.scalar(select(FacultyProfile).where(FacultyProfile.account_id == account.id))
+        placement = await db.get(InternshipPlacement, row.placement_id)
+        if faculty is None or placement is None or placement.faculty_supervisor_id != faculty.id:
+            raise HTTPException(status_code=404, detail="Work log not found")
+    else:
+        raise HTTPException(status_code=403, detail="Work-log access is not available for this role")
+    reviews = (await db.execute(select(InternshipWorkLogReview).where(
+        InternshipWorkLogReview.work_log_id == row.id
+    ).order_by(InternshipWorkLogReview.created_at.desc()))).scalars().all()
+    return {**_work_log(row), "reviews": [{"id": item.id, "decision": item.decision,
+        "feedback": item.feedback, "reviewer_role": item.reviewer_role,
+        "created_at": item.created_at.isoformat() if item.created_at else None} for item in reviews]}
