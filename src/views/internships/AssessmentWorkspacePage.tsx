@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Placement = {
   id: string;
@@ -849,7 +850,10 @@ export default function AssessmentWorkspacePage() {
               <>
                 {results.length < 2 && <p className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">One published result is available. A trend chart will appear when at least two results exist.</p>}
                 <div className="overflow-hidden rounded-xl border border-border">
-                  <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Assessment</th><th className="px-4 py-3 font-medium">Semester</th><th className="px-4 py-3 font-medium">Score</th><th className="px-4 py-3 font-medium">Grade</th><th className="px-4 py-3 font-medium">Published</th></tr></thead><tbody>{results.map((result) => <tr className="border-t border-border" key={result.id}><td className="px-4 py-3 font-medium">{result.title || "Internship assessment"}</td><td className="px-4 py-3">Semester {result.semester}</td><td className="px-4 py-3 tabular-nums">{result.total_score.toFixed(2)} / 100</td><td className="px-4 py-3"><Badge variant="outline">{result.grade}</Badge></td><td className="px-4 py-3 text-muted-foreground">{dateLabel(result.published_at)}</td></tr>)}</tbody></table></div>
+                  <div className="overflow-x-auto"><Table className="min-w-[540px]">
+                    <TableHeader><TableRow><TableHead>Assessment</TableHead><TableHead>Semester</TableHead><TableHead>Score</TableHead><TableHead>Grade</TableHead><TableHead>Published</TableHead></TableRow></TableHeader>
+                    <TableBody>{results.map((result) => <TableRow key={result.id}><TableCell className="font-medium">{result.title || "Internship assessment"}</TableCell><TableCell>Semester {result.semester}</TableCell><TableCell className="tabular-nums">{result.total_score.toFixed(2)} / 100</TableCell><TableCell><Badge variant="outline">{result.grade}</Badge></TableCell><TableCell className="text-muted-foreground">{dateLabel(result.published_at)}</TableCell></TableRow>)}</TableBody>
+                  </Table></div>
                 </div>
               </>}
             {results.length > 0 && <div className="space-y-3">
@@ -947,7 +951,10 @@ export default function AssessmentWorkspacePage() {
               <CardHeader><CardTitle className="text-base">Published internship results</CardTitle><CardDescription>Persisted academic records only. Scores are shown on a 0–100 scale.</CardDescription></CardHeader>
               <CardContent>
                 {supervisedResults.length >= 2 ? <div className="h-60 w-full" role="img" aria-label="Line chart of published internship assessment scores for the selected supervised student"><ResponsiveContainer width="100%" height="100%"><LineChart data={supervisedResults.map((item, index) => ({ period: `Sem ${item.semester} · ${index + 1}`, score: item.total_score }))} margin={{ top: 8, right: 12, left: -16, bottom: 6 }}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="period" tickLine={false} axisLine={false} /><YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={38} /><Tooltip formatter={(value) => [`${value} / 100`, "Score"]} /><Line type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 5 }} /></LineChart></ResponsiveContainer></div> : <p className="mb-4 rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">One published result is available; a trend chart appears after a second result is recorded.</p>}
-                <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full min-w-[480px] text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Assessment</th><th className="px-4 py-3 font-medium">Semester</th><th className="px-4 py-3 font-medium">Score</th><th className="px-4 py-3 font-medium">Grade</th></tr></thead><tbody>{supervisedResults.map((result) => <tr key={result.id} className="border-t border-border"><td className="px-4 py-3 font-medium">{result.title || "Internship assessment"}</td><td className="px-4 py-3">Semester {result.semester}</td><td className="px-4 py-3 tabular-nums">{result.total_score.toFixed(2)} / 100</td><td className="px-4 py-3"><Badge variant="outline">{result.grade}</Badge></td></tr>)}</tbody></table></div>
+                <div className="overflow-x-auto rounded-lg border border-border"><Table className="min-w-[480px]">
+                  <TableHeader><TableRow><TableHead>Assessment</TableHead><TableHead>Semester</TableHead><TableHead>Score</TableHead><TableHead>Grade</TableHead></TableRow></TableHeader>
+                  <TableBody>{supervisedResults.map((result) => <TableRow key={result.id}><TableCell className="font-medium">{result.title || "Internship assessment"}</TableCell><TableCell>Semester {result.semester}</TableCell><TableCell className="tabular-nums">{result.total_score.toFixed(2)} / 100</TableCell><TableCell><Badge variant="outline">{result.grade}</Badge></TableCell></TableRow>)}</TableBody>
+                </Table></div>
               </CardContent>
             </Card>
           )}
