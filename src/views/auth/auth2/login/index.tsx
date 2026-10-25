@@ -48,6 +48,7 @@ const BoxedLogin = () => {
       asideEyebrow="Your academic workspace"
       asideTitle="Your academic future, in focus."
       asideDescription=""
+      showDotGrid
       footer={<>New to Kairos? <Link to="/onboarding" className="font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground">Create an account</Link></>}
     >
       <div className="mb-8 min-w-0">
