@@ -62,7 +62,14 @@ type AcademicResult = {
   published_at?: string | null;
 };
 type Stage = { key: string; label: string; status: string; detail: string };
-type ProgressPayload = { submission_id: string; version_number: number; stages: Stage[] };
+type GriffinProgress = {
+  status: string; evaluation_created_at?: string | null; evaluation_updated_at?: string | null;
+  has_validated_job: boolean; attempt_count: number;
+  attempts: Array<{ attempt_number: number; status: string; started_at?: string | null; completed_at?: string | null; has_error: boolean }>;
+  result?: { alignment_score_raw: number; topic_match_count: number; evidence_summary: unknown; created_at?: string | null } | null;
+  message: string;
+};
+type ProgressPayload = { submission_id: string; version_number: number; stages: Stage[]; griffin?: GriffinProgress };
 type Assignment = { id: string; packet_code: string; report_version_id: string; status: string; assigned_at: string; submitted_at?: string | null; total_score?: number | null };
 type SupervisedStudent = { student_profile_id: number; full_name: string; enrollment_number: string; current_semester: number; programme_id?: string | null };
 type SupervisedSubmission = {
@@ -245,6 +252,10 @@ export default function AssessmentWorkspacePage() {
   const [submissionNotes, setSubmissionNotes] = useState("");
   const [reportFile, setReportFile] = useState<File | null>(null);
   const [presentationFile, setPresentationFile] = useState<File | null>(null);
+  const [revisionReportFile, setRevisionReportFile] = useState<File | null>(null);
+  const [revisionPresentationFile, setRevisionPresentationFile] = useState<File | null>(null);
+  const [revisionNotes, setRevisionNotes] = useState("");
+  const [studentMappingRows, setStudentMappingRows] = useState<CurriculumMappingRow[]>([]);
   const [packet, setPacket] = useState<Packet | null>(null);
   const [scoreDraft, setScoreDraft] = useState<Record<string, ScoreDraft>>({});
   const [evaluatorComments, setEvaluatorComments] = useState("");
@@ -287,6 +298,7 @@ export default function AssessmentWorkspacePage() {
     setSelectedReport(report);
     setVersions([]);
     setProgress(null);
+    setStudentMappingRows([]);
     setMappingMessage("");
     setDetailLoading(true);
     setActionError("");
@@ -294,10 +306,11 @@ export default function AssessmentWorkspacePage() {
       const [versionData, progressData, mappingData] = await Promise.all([
         apiRequest<{ items: ReportVersion[] }>(`/reports/${encodeURIComponent(report.id)}/versions`),
         apiRequest<ProgressPayload>(`/internship-assessments/submissions/${encodeURIComponent(report.id)}/progress`),
-        apiRequest<{ catalogue_available: boolean; message?: string | null }>(`/internship-assessments/submissions/${encodeURIComponent(report.id)}/mappings`),
+        apiRequest<CurriculumMappingPayload>(`/internship-assessments/submissions/${encodeURIComponent(report.id)}/mappings`),
       ]);
       setVersions(versionData.items ?? []);
       setProgress(progressData);
+      setStudentMappingRows(mappingData.items ?? []);
       setMappingMessage(mappingData.message || (mappingData.catalogue_available ? "Curriculum outcome catalogue is available." : ""));
     } catch (error) {
       setActionError(readableError(error));
@@ -496,6 +509,54 @@ export default function AssessmentWorkspacePage() {
     const formData = new FormData();
     formData.append("file", file);
     return apiRequest<UploadResult>("/storage/upload", { method: "POST", body: formData });
+  };
+
+  const submitRevisionPackage = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedReport || selectedReport.status !== "REVISION_REQUIRED") return;
+    setActionError("");
+    setNotice("");
+    if (!revisionReportFile || !revisionPresentationFile) {
+      setActionError("Attach both the revised report PDF and the revised PowerPoint presentation.");
+      return;
+    }
+    if (!revisionReportFile.name.toLowerCase().endsWith(".pdf") || revisionReportFile.type !== "application/pdf") {
+      setActionError("The revised report must be a PDF file.");
+      return;
+    }
+    if (!revisionPresentationFile.name.toLowerCase().endsWith(".pptx") || revisionPresentationFile.type !== "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+      setActionError("The revised presentation must be a PowerPoint PPTX file.");
+      return;
+    }
+    if (revisionReportFile.size > 10 * 1024 * 1024 || revisionPresentationFile.size > 10 * 1024 * 1024) {
+      setActionError("Each revised file must be 10 MiB or smaller.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const reportUpload = await uploadFile(revisionReportFile);
+      const presentationUpload = await uploadFile(revisionPresentationFile);
+      await apiRequest(`/reports/${encodeURIComponent(selectedReport.id)}/versions`, {
+        method: "POST",
+        body: JSON.stringify({
+          file_id: reportUpload.id,
+          presentation_file_id: presentationUpload.id,
+          submission_notes: revisionNotes.trim() || null,
+        }),
+      });
+      await apiRequest(`/reports/${encodeURIComponent(selectedReport.id)}/submit`, { method: "POST" });
+      setNotice("Your revised files were saved as a new version and resubmitted. Earlier assessed versions remain unchanged.");
+      setRevisionReportFile(null);
+      setRevisionPresentationFile(null);
+      setRevisionNotes("");
+      setSelectedReport(null);
+      await reload();
+    } catch (error) {
+      await reload();
+      setActionError(readableError(error));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const submitFinalPackage = async (event: FormEvent<HTMLFormElement>) => {
@@ -716,6 +777,14 @@ export default function AssessmentWorkspacePage() {
                       <h3 className="mb-4 font-medium">Assessment timeline</h3>
                       {progress ? <StageTimeline stages={progress.stages} /> : <p className="text-sm text-muted-foreground">No persisted stage data was returned.</p>}
                       {mappingMessage && <p className="mt-3 rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">{mappingMessage}</p>}
+                      {progress?.griffin && <div className="mt-5 rounded-xl border border-border p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-medium">Griffin evaluation details</h3><p className="mt-1 text-sm text-muted-foreground">Only persisted status, validated job metadata and validated result snapshots are shown. Griffin output is not the final academic grade.</p></div><Badge variant={badgeVariant(progress.griffin.status)}>{prettyStatus(progress.griffin.status)}</Badge></div>
+                        <p className="mt-3 text-sm leading-5 text-muted-foreground">{progress.griffin.message}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">Created {dateTimeLabel(progress.griffin.evaluation_created_at)} · {progress.griffin.attempt_count} recorded attempt(s) · {progress.griffin.has_validated_job ? "External job identifier validated" : "No validated external job identifier"}</p>
+                        {progress.griffin.attempts.length > 0 && <div className="mt-3 space-y-2">{progress.griffin.attempts.map((attempt) => <div key={attempt.attempt_number} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/30 p-2 text-sm"><span>Attempt {attempt.attempt_number} · {prettyStatus(attempt.status)}</span><span className="text-xs text-muted-foreground">{dateTimeLabel(attempt.completed_at || attempt.started_at)}{attempt.has_error ? " · error recorded" : ""}</span></div>)}</div>}
+                        {progress.griffin.result && <div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">Raw Griffin alignment score</p><p className="mt-1 text-lg font-semibold tabular-nums">{progress.griffin.result.alignment_score_raw}</p><p className="mt-1 text-xs text-muted-foreground">Scale is defined by the approved grading policy.</p></div><div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">Topic matches</p><p className="mt-1 text-lg font-semibold tabular-nums">{progress.griffin.result.topic_match_count}</p><p className="mt-1 text-xs text-muted-foreground">Persisted result snapshot · {dateTimeLabel(progress.griffin.result.created_at)}</p></div><div className="sm:col-span-2 rounded-lg border border-border p-3"><p className="text-sm font-medium">Extracted evidence summary</p><pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words text-xs text-muted-foreground">{JSON.stringify(progress.griffin.result.evidence_summary, null, 2)}</pre></div></div>}
+                      </div>}
+                      {studentMappingRows.length > 0 && <div className="mt-5 space-y-3"><h3 className="font-medium">Curriculum mapping and evidence</h3>{studentMappingRows.map((row) => <div key={row.outcome.id} className="rounded-lg border border-border p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-medium">{row.outcome.outcome_code} · {row.outcome.title}</p><p className="mt-1 text-sm text-muted-foreground">{row.outcome.expected_competency}</p><p className="mt-1 text-xs text-muted-foreground">Source: {row.outcome.source_reference}</p></div><Badge variant={badgeVariant(row.mapping?.status ?? "REVIEW_REQUIRED")}>{prettyStatus(row.mapping?.status ?? "REVIEW_REQUIRED")}</Badge></div>{row.mapping?.evidence_reference && <p className="mt-2 text-sm">Evidence reference: {row.mapping.evidence_reference}</p>}{row.mapping?.reviewer_notes && <p className="mt-2 text-sm text-muted-foreground">Reviewer notes: {row.mapping.reviewer_notes}</p>}</div>)}</div>}
                     </div>
                     <div>
                       <h3 className="mb-4 font-medium">Submission versions</h3>
@@ -733,6 +802,17 @@ export default function AssessmentWorkspacePage() {
                   </div>
                 )}
               </CardContent>
+              {selectedReport.status === "REVISION_REQUIRED" && <CardContent className="border-t border-border pt-5">
+                <div className="mb-4"><h3 className="font-semibold">Revision requested</h3><p className="mt-1 text-sm text-muted-foreground">Review the feedback above, upload both revised files, and resubmit. Kairos creates a new immutable version.</p></div>
+                <form onSubmit={submitRevisionPackage} className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2"><Label htmlFor="revision-report-pdf">Revised report (PDF)</Label><Input id="revision-report-pdf" type="file" accept=".pdf,application/pdf" onChange={(event) => setRevisionReportFile(event.target.files?.[0] ?? null)} required /><p className="text-xs text-muted-foreground">{revisionReportFile?.name || "PDF only · maximum 10 MiB"}</p></div>
+                    <div className="space-y-2"><Label htmlFor="revision-presentation-pptx">Revised presentation (PPTX)</Label><Input id="revision-presentation-pptx" type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" onChange={(event) => setRevisionPresentationFile(event.target.files?.[0] ?? null)} required /><p className="text-xs text-muted-foreground">{revisionPresentationFile?.name || "PPTX only · maximum 10 MiB"}</p></div>
+                  </div>
+                  <div className="space-y-2"><Label htmlFor="revision-notes">Revision notes (optional)</Label><Textarea id="revision-notes" rows={2} value={revisionNotes} onChange={(event) => setRevisionNotes(event.target.value)} maxLength={5000} placeholder="Summarize how the requested changes were addressed." /></div>
+                  <div className="flex justify-end"><Button type="submit" disabled={busy}>{busy ? "Resubmitting…" : "Submit revised version"}</Button></div>
+                </form>
+              </CardContent>}
             </Card>
           )}
 

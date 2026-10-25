@@ -21,7 +21,7 @@ from app.models.academic import (
     Programme, Role, School, StudentProfile,
 )
 from app.models.evaluation import (
-    BlindAssessmentAssignment, CurriculumOutcome, GriffinEvaluation, GriffinResultSnapshot,
+    BlindAssessmentAssignment, CurriculumOutcome, GriffinEvaluation, GriffinEvaluationAttempt, GriffinResultSnapshot,
     InternshipAcademicResult, InternshipAssessmentPolicy, InternshipCurriculumMapping,
     ReportSubmission, ReportVersion,
 )
@@ -954,6 +954,42 @@ class PostInternshipService:
         latest_eval = await self.db.scalar(select(GriffinEvaluation).where(
             GriffinEvaluation.report_version_id == version.id,
         ).order_by(GriffinEvaluation.created_at.desc()))
+        griffin_attempts = list((await self.db.scalars(select(GriffinEvaluationAttempt).where(
+            GriffinEvaluationAttempt.griffin_evaluation_id == latest_eval.id,
+        ).order_by(GriffinEvaluationAttempt.attempt_number))) .all()) if latest_eval else []
+        griffin_snapshot = await self.db.scalar(select(GriffinResultSnapshot).where(
+            GriffinResultSnapshot.griffin_evaluation_id == latest_eval.id,
+        )) if latest_eval and latest_eval.current_status == "COMPLETED" else None
+        griffin_details = {
+            "status": latest_eval.current_status if latest_eval else "NOT_STARTED",
+            "evaluation_created_at": latest_eval.created_at if latest_eval else None,
+            "evaluation_updated_at": latest_eval.updated_at if latest_eval else None,
+            "has_validated_job": bool(latest_eval and latest_eval.griffin_job_id),
+            "attempt_count": len(griffin_attempts),
+            "attempts": [
+                {
+                    "attempt_number": attempt.attempt_number,
+                    "status": attempt.execution_status,
+                    "started_at": attempt.started_at,
+                    "completed_at": attempt.completed_at,
+                    "has_error": bool(attempt.error_message),
+                }
+                for attempt in griffin_attempts
+            ],
+            "result": {
+                "alignment_score_raw": float(griffin_snapshot.alignment_score),
+                "topic_match_count": griffin_snapshot.topic_match_count,
+                "evidence_summary": griffin_snapshot.extracted_evidence_summary,
+                "created_at": griffin_snapshot.created_at,
+            } if griffin_snapshot else None,
+            "message": (
+                "A validated result snapshot is available for this exact report version."
+                if griffin_snapshot
+                else "No validated Griffin result exists for this version. Live dispatch remains unavailable until the authoritative Griffin contract and identifiers are configured."
+                if latest_eval is None or latest_eval.current_status == "FAILED"
+                else "Griffin has not produced a validated result snapshot yet. A job status alone is not a grade."
+            ),
+        }
         outcomes = list((await self.db.scalars(select(CurriculumOutcome.id).where(
             CurriculumOutcome.institution_id == submission.institution_id,
             CurriculumOutcome.programme_id == submission.programme_id,
@@ -974,6 +1010,7 @@ class PostInternshipService:
         ))
         return {
             "submission_id": submission.id, "version_number": version.version_number,
+            "griffin": griffin_details,
             "stages": [
                 {"key": "submission", "label": "Report and presentation", "status": "COMPLETE" if submission.status != "DRAFT" and version.presentation_file_id else "INCOMPLETE", "detail": "Both files are attached to this version." if version.presentation_file_id else "A presentation file is required."},
                 {"key": "griffin", "label": "Griffin evaluation", "status": latest_eval.current_status if latest_eval else "NOT_STARTED", "detail": "Evaluation status only; no result is treated as a final academic grade."},
