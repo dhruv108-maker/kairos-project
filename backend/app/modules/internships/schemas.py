@@ -48,6 +48,7 @@ class PlacementCreate(BaseModel):
     start_date: date
     end_date: date
     faculty_supervisor_id: str | None = Field(default=None, max_length=36)
+    industry_mentor_account_id: str | None = Field(default=None, max_length=36)
     @model_validator(mode="after")
     def validate_range(self):
         if self.end_date < self.start_date: raise ValueError("end_date must be on or after start_date")
