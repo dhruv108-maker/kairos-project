@@ -5,6 +5,7 @@ from app.api.faculty import router as faculty_router
 from app.api.internships import router as internships_router
 from app.api.students import router as students_router
 from app.api.user_preferences import router as user_preferences_router
+from app.api.internship_feedback import router as internship_feedback_router
 from app.modules.internships.router import router as modular_internships_router
 from app.modules.institutions.router import router as institutions_router
 from app.modules.institutions.invitation_router import admin_router as institution_invitation_router, accept_router as institution_invitation_accept_router
@@ -24,6 +25,7 @@ from app.modules.employers.campus_recruitment_router import router as campus_rec
 api_router = APIRouter()
 api_router.include_router(auth_router)
 api_router.include_router(user_preferences_router)
+api_router.include_router(internship_feedback_router)
 api_router.include_router(analytics_router)
 api_router.include_router(students_router)
 api_router.include_router(faculty_router)
