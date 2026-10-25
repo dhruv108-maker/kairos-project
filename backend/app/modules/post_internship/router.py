@@ -76,6 +76,16 @@ async def list_policies(institution_id: str, programme_id: str, account: Current
     return {"items": [_policy(item) for item in items]}
 
 
+@router.get("/curriculum-outcomes")
+async def list_curriculum_outcomes(
+    institution_id: str, programme_id: str, semester: int, account: CurrentAccount, db: DbSession
+):
+    items = await _call(
+        PostInternshipService(db).list_outcomes(account.id, institution_id, programme_id, semester), db
+    )
+    return {"items": [_outcome(item) for item in items]}
+
+
 @router.post("/curriculum-outcomes", status_code=201)
 async def create_curriculum_outcome(payload: CurriculumOutcomeCreate, account: CurrentAccount, db: DbSession):
     item = await _call(PostInternshipService(db).create_outcome(account.id, payload.model_dump()), db)
