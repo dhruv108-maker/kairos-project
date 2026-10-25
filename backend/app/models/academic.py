@@ -135,12 +135,22 @@ class StudentProfile(Base):
 
 
 class FacultyProfile(Base):
-    __tablename__ = "faculty_profiles"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False)
-    employee_code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    department_id: Mapped[str] = mapped_column(ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False)
-    designation: Mapped[str] = mapped_column(String(100), nullable=False)
+    """Faculty row mapped to the deployed MySQL `faculty` table.
+
+    The live identity schema uses BIGINT UNSIGNED auto-increment identifiers;
+    it does not contain the legacy `faculty_profiles` UUID table.
+    """
+    __tablename__ = "faculty"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    employee_number: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
+    employee_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    employment_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="active")
+    department_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    designation: Mapped[str | None] = mapped_column(String(150), nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
     account: Mapped[Account] = relationship(back_populates="faculty_profile")
