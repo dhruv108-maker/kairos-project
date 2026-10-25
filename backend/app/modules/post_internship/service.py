@@ -472,7 +472,8 @@ class PostInternshipService:
         else:
             raise PostInternshipError(404, "Assessment file not found")
         item = await self.db.get(StorageFile, file_id)
-        if item is None:
+        expected_mime = "application/pdf" if kind == "report" else "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        if item is None or item.mime_type != expected_mime:
             raise PostInternshipError(404, "Assessment file not found")
         path = (StorageService(self.db).root / item.file_path).resolve()
         root = StorageService(self.db).root
@@ -526,6 +527,8 @@ class PostInternshipService:
         submission, version = await _submission_version(self.db, submission_id)
         await _require_supervisor_or_admin(self.db, submission, actor_id)
         blockers: list[str] = []
+        if not version.presentation_file_id:
+            blockers.append("A PowerPoint presentation must be attached to this report version.")
         if submission.status != "APPROVED":
             blockers.append("The placement supervisor must approve the report submission.")
         if not submission.institution_id or not submission.programme_id or not submission.academic_semester:
@@ -650,7 +653,6 @@ class PostInternshipService:
         ).order_by(InternshipAcademicResult.revision_number.desc()))
         if existing is not None:
             return existing
-        student = await _student(self.db, (await self.db.get(InternshipPlacement, submission.placement_id)).student_id) if False else None
         placement = await _placement_for_submission(self.db, submission)
         student_profile = await self.db.get(StudentProfile, placement.student_id)
         if student_profile is None:
@@ -741,10 +743,20 @@ class PostInternshipService:
         ))
         if supervised is None:
             raise PostInternshipError(404, "Student result history not found")
+        supervised_submission_ids = select(ReportSubmission.id).join(
+            InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id
+        ).where(
+            InternshipPlacement.student_id == student_profile_id,
+            InternshipPlacement.faculty_supervisor_id == faculty.id,
+        )
         rows = (await self.db.execute(
             select(InternshipAcademicResult, ReportSubmission.title)
             .join(ReportSubmission, ReportSubmission.id == InternshipAcademicResult.report_submission_id)
-            .where(InternshipAcademicResult.student_profile_id == student_profile_id, InternshipAcademicResult.status == "PUBLISHED")
+            .where(
+                InternshipAcademicResult.student_profile_id == student_profile_id,
+                InternshipAcademicResult.status == "PUBLISHED",
+                InternshipAcademicResult.report_submission_id.in_(supervised_submission_ids),
+            )
             .order_by(InternshipAcademicResult.academic_semester, InternshipAcademicResult.published_at)
         )).all()
         return [self._result_json(result, title) for result, title in rows]
