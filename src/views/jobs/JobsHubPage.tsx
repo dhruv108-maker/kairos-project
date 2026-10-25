@@ -584,7 +584,7 @@ export default function JobsHubPage() {
     </section>
 
     <nav aria-label="Jobs navigation" className="flex flex-wrap items-center gap-1 border-b border-border pb-3">
-      <Button variant="secondary" className="rounded-full"><Search className="size-4" /> Explore opportunities</Button>
+      <span aria-current="page" className="inline-flex min-h-9 items-center gap-2 rounded-full bg-secondary px-4 text-sm font-medium text-secondary-foreground"><Search className="size-4" /> Explore opportunities</span>
       {account && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/")}>Back to workspace</Button>}
       {!account && <Button variant="outline" className="rounded-full" onClick={() => window.location.assign("/auth/auth2/login")}>Sign in</Button>}
       {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/saved")}><Bookmark className="size-4" /> Saved jobs{savedIds.size ? ` · ${savedIds.size}` : ""}</Button>}
