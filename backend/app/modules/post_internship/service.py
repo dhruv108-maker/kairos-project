@@ -717,6 +717,16 @@ class PostInternshipService:
             return result
         if result.status != "FINALIZED":
             raise PostInternshipError(409, "Only finalized results may be published")
+        previous_published = await self.db.scalar(select(InternshipAcademicResult.id).where(
+            InternshipAcademicResult.report_submission_id == result.report_submission_id,
+            InternshipAcademicResult.status == "PUBLISHED",
+            InternshipAcademicResult.id != result.id,
+        ))
+        if previous_published is not None:
+            raise PostInternshipError(
+                409,
+                "A published result already exists for this submission. The authorized correction workflow is not configured; the existing official result was left unchanged.",
+            )
         result.status = "PUBLISHED"
         result.published_by_account_id = actor_id
         result.published_at = _now()
@@ -757,14 +767,13 @@ class PostInternshipService:
         )).all()
         by_id: dict[int, dict] = {}
         for student, account in rows:
-            item = by_id.setdefault(student.id, {
+            by_id.setdefault(student.id, {
                 "student_profile_id": student.id,
                 "full_name": account.full_name,
                 "enrollment_number": student.enrollment_number,
                 "current_semester": student.current_semester,
                 "programme_id": student.programme_id,
             })
-            del item
         return list(by_id.values())
 
     async def faculty_student_results(self, student_profile_id: int, account_id: str) -> list[dict]:
