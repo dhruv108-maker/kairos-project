@@ -1,5 +1,5 @@
 import { uniqueId } from "lodash";
-import { BriefcaseBusiness, House, UserRound, type LucideIcon } from "lucide-react";
+import { Activity, BriefcaseBusiness, House, UserRound, type LucideIcon } from "lucide-react";
 
 export interface ChildItem {
   id?: number | string;
@@ -43,6 +43,7 @@ const SidebarContent: MenuItem[] = [
     items: [
       { id: uniqueId(), name: "Overview", icon: House, url: "/" },
       { id: uniqueId(), name: "Jobs & Internships", icon: BriefcaseBusiness, url: "/jobs" },
+      { id: uniqueId(), name: "During Internship", icon: Activity, url: "/internships/during" },
       { id: uniqueId(), name: "My Profile", icon: UserRound, url: "/pages/user-profile" },
       { id: uniqueId(), name: "Student Profile", icon: UserRound, url: "/student/profile" },
     ],
