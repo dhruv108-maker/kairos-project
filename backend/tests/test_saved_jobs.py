@@ -9,6 +9,8 @@ def test_saved_job_routes_are_registered():
     paths = set(app.openapi()["paths"])
     assert "/api/v1/students/saved-jobs" in paths
     assert "/api/v1/students/saved-jobs/{opportunity_id}" in paths
+    search_parameters = {item["name"] for item in paths["/api/v1/jobs"]["get"]["parameters"]}
+    assert {"employment_type", "sort_by", "posted_within_days"}.issubset(search_parameters)
 
 
 def test_saved_job_routes_require_authenticated_student():
