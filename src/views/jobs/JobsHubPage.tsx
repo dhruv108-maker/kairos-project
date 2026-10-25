@@ -75,6 +75,20 @@ const MODES = [
   { label: "Hybrid", value: "HYBRID" },
   { label: "Remote", value: "REMOTE" },
 ];
+const EMPLOYMENT_TYPES = [
+  { label: "Any employment type", value: "" },
+  { label: "Full-time", value: "FULL_TIME" },
+  { label: "Part-time", value: "PART_TIME" },
+  { label: "Internship", value: "INTERNSHIP" },
+  { label: "Contract", value: "CONTRACT" },
+  { label: "Temporary", value: "TEMPORARY" },
+];
+const POSTED_WINDOWS = [
+  { label: "Any time", value: "" },
+  { label: "Past 24 hours", value: "1" },
+  { label: "Past 7 days", value: "7" },
+  { label: "Past 30 days", value: "30" },
+];
 
 function dateLabel(value?: string | null) {
   if (!value) return null;
@@ -239,6 +253,9 @@ export default function JobsHubPage() {
   const [locationInput, setLocationInput] = useState(params.get("location") || "");
   const [kind, setKind] = useState(params.get("opportunity_type") || "");
   const [mode, setMode] = useState(params.get("work_mode") || "");
+  const [employmentType, setEmploymentType] = useState(params.get("employment_type") || "");
+  const [sortBy, setSortBy] = useState(params.get("sort_by") || "newest");
+  const [postedWithinDays, setPostedWithinDays] = useState(params.get("posted_within_days") || "");
   const [offset, setOffset] = useState(Number(params.get("offset") || 0));
   const [result, setResult] = useState<PageResult>({ items: [], limit: PAGE_SIZE, offset: 0 });
   const [selectedId, setSelectedId] = useState(params.get("job") || "");
@@ -269,6 +286,9 @@ export default function JobsHubPage() {
     if (location.trim()) search.set("location", location.trim());
     if (kind) search.set("opportunity_type", kind);
     if (mode) search.set("work_mode", mode);
+    if (employmentType) search.set("employment_type", employmentType);
+    if (sortBy) search.set("sort_by", sortBy);
+    if (postedWithinDays) search.set("posted_within_days", postedWithinDays);
     search.set("limit", String(PAGE_SIZE + 1));
     search.set("offset", String(offset));
     try {
@@ -287,7 +307,7 @@ export default function JobsHubPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [query, location, kind, mode, offset]);
+  }, [query, location, kind, mode, employmentType, sortBy, postedWithinDays, offset]);
 
   useEffect(() => {
     if (isApplicationsPage || isCampusPage || isSavedPage) return;
@@ -302,10 +322,13 @@ export default function JobsHubPage() {
     if (location.trim()) next.set("location", location.trim());
     if (kind) next.set("opportunity_type", kind);
     if (mode) next.set("work_mode", mode);
+    if (employmentType) next.set("employment_type", employmentType);
+    if (sortBy !== "newest") next.set("sort_by", sortBy);
+    if (postedWithinDays) next.set("posted_within_days", postedWithinDays);
     if (offset) next.set("offset", String(offset));
     if (selectedId) next.set("job", selectedId);
     if (next.toString() !== params.toString()) setParams(next, { replace: true });
-  }, [query, location, kind, mode, offset, selectedId, params, setParams]);
+  }, [query, location, kind, mode, employmentType, sortBy, postedWithinDays, offset, selectedId, params, setParams]);
 
   useEffect(() => {
     if (!isStudent) return;
@@ -472,7 +495,7 @@ export default function JobsHubPage() {
     return () => controller.abort();
   }, [isCampusPage, isStudent, selectedCampusDrive]);
 
-  const clearFilters = () => { setQuery(""); setQueryInput(""); setLocation(""); setLocationInput(""); setKind(""); setMode(""); setOffset(0); };
+  const clearFilters = () => { setQuery(""); setQueryInput(""); setLocation(""); setLocationInput(""); setKind(""); setMode(""); setEmploymentType(""); setSortBy("newest"); setPostedWithinDays(""); setOffset(0); };
   const runSearch = (event: FormEvent) => {
     event.preventDefault();
     const nextQuery = queryInput.trim();
@@ -574,8 +597,11 @@ export default function JobsHubPage() {
           <div className="flex flex-wrap items-end gap-3">
             <label className="min-w-40 space-y-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">Opportunity type<select aria-label="Opportunity type" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={kind} onChange={(event) => { setKind(event.target.value); setOffset(0); }} >{TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
             <label className="min-w-40 space-y-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">Workplace<select aria-label="Workplace arrangement" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={mode} onChange={(event) => { setMode(event.target.value); setOffset(0); }} >{MODES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            <label className="min-w-40 space-y-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">Employment type<select aria-label="Employment type" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={employmentType} onChange={(event) => { setEmploymentType(event.target.value); setOffset(0); }} >{EMPLOYMENT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            <label className="min-w-36 space-y-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">Posted<select aria-label="Posted within" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={postedWithinDays} onChange={(event) => { setPostedWithinDays(event.target.value); setOffset(0); }} >{POSTED_WINDOWS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            <label className="min-w-36 space-y-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">Sort by<select aria-label="Sort jobs" className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30" value={sortBy} onChange={(event) => { setSortBy(event.target.value); setOffset(0); }}><option value="newest">Newest</option><option value="relevance">Relevance</option></select></label>
           </div>
-          {(query || location || kind || mode) && <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-xs text-slate-500 dark:text-slate-400">Active filters</span>{query && <Badge variant="secondary">Keyword: {query}<button aria-label="Remove keyword filter" className="ml-1" onClick={() => { setQuery(""); setQueryInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{location && <Badge variant="secondary">Location: {location}<button aria-label="Remove location filter" className="ml-1" onClick={() => { setLocation(""); setLocationInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{kind && <Badge variant="secondary">{TYPES.find((item) => item.value === kind)?.label}<button aria-label="Remove type filter" className="ml-1" onClick={() => setKind("")}><X className="size-3" /></button></Badge>}{mode && <Badge variant="secondary">{MODES.find((item) => item.value === mode)?.label}<button aria-label="Remove workplace filter" className="ml-1" onClick={() => setMode("")}><X className="size-3" /></button></Badge>}<Button variant="link" size="sm" onClick={clearFilters}>Clear all</Button></div>}
+          {(query || location || kind || mode || employmentType || postedWithinDays || sortBy !== "newest") && <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-xs text-slate-500 dark:text-slate-400">Active filters</span>{query && <Badge variant="secondary">Keyword: {query}<button aria-label="Remove keyword filter" className="ml-1" onClick={() => { setQuery(""); setQueryInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{location && <Badge variant="secondary">Location: {location}<button aria-label="Remove location filter" className="ml-1" onClick={() => { setLocation(""); setLocationInput(""); setOffset(0); }}><X className="size-3" /></button></Badge>}{kind && <Badge variant="secondary">{TYPES.find((item) => item.value === kind)?.label}<button aria-label="Remove type filter" className="ml-1" onClick={() => setKind("")}><X className="size-3" /></button></Badge>}{mode && <Badge variant="secondary">{MODES.find((item) => item.value === mode)?.label}<button aria-label="Remove workplace filter" className="ml-1" onClick={() => setMode("")}><X className="size-3" /></button></Badge>}{employmentType && <Badge variant="secondary">{EMPLOYMENT_TYPES.find((item) => item.value === employmentType)?.label}<button aria-label="Remove employment type filter" className="ml-1" onClick={() => setEmploymentType("")}><X className="size-3" /></button></Badge>}{postedWithinDays && <Badge variant="secondary">{POSTED_WINDOWS.find((item) => item.value === postedWithinDays)?.label}<button aria-label="Remove posting date filter" className="ml-1" onClick={() => setPostedWithinDays("")}><X className="size-3" /></button></Badge>}{sortBy !== "newest" && <Badge variant="secondary">Relevance<button aria-label="Remove relevance sort" className="ml-1" onClick={() => setSortBy("newest")}><X className="size-3" /></button></Badge>}<Button variant="link" size="sm" onClick={clearFilters}>Clear all</Button></div>}
         </div>
 
         {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><div className="flex items-start gap-2"><CircleAlert className="mt-0.5 size-4 shrink-0" /><div className="flex-1">{error}<div className="mt-3"><Button size="sm" variant="outline" onClick={() => void loadJobs()}>Try again</Button></div></div></div></div>}
