@@ -67,12 +67,12 @@ class WorkLogCreate(BaseModel):
 
     @field_validator("summary", "tasks_completed", "skills_used", "challenges", "learning_outcomes", "next_steps")
     @classmethod
-    def clean_work_log_text(cls, value):
+    def clean_work_log_text(cls, value, info):
         if value is None:
             return value
         cleaned = value.strip()
-        if not cleaned and cls.info.field_name in {"summary", "tasks_completed"}:
-            raise ValueError("This field cannot be blank")
+        if info.field_name in {"summary", "tasks_completed"} and len(cleaned) < 3:
+            raise ValueError("This field must contain at least 3 non-whitespace characters")
         return cleaned
 
     @field_validator("status")
