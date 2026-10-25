@@ -51,7 +51,7 @@ assert.ok(schemas.includes("cohort_id: str | None = Field(default=None"));
 const authFrame = readFileSync("src/components/auth/AuthFrame.tsx", "utf8");
 const fullLogo = readFileSync("src/layouts/full/shared/logo/FullLogo.tsx", "utf8");
 const sidebarLogo = readFileSync("src/layouts/full/shared/logo/Logo.tsx", "utf8");
-assert.equal((authFrame.match(/<FullLogo linked=\{false\} \/>/g) ?? []).length, 2, "both auth-frame brand links must use presentational logo markup");
+assert.equal((authFrame.match(/<FullLogo linked=\{false\} \/>/g) ?? []).length, 1, "the single auth-frame brand link must use presentational logo markup");
 assert.ok(authFrame.includes('to={brandHref}'), "AuthFrame must preserve its configured brand destination");
 assert.ok(fullLogo.includes("linked = true"), "standalone FullLogo must remain linked by default");
 assert.ok(fullLogo.includes('to="/"'), "standalone FullLogo must navigate home");
