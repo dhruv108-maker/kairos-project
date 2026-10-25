@@ -266,11 +266,11 @@ html[data-card-shadow="false"] [data-slot="card"] {
 }
 
 [data-slot="input"] {
-  @apply focus-visible:border-primary focus-visible:ring-[0px];
+  @apply focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20;
 }
 
 [data-slot="textarea"] {
-  @apply focus-visible:border-primary focus-visible:ring-[0px];
+  @apply focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20;
 }
 
 /* Sidebar stays in icon-only mode until the user explicitly toggles it. */
