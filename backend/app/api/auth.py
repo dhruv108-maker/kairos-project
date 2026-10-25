@@ -88,6 +88,45 @@ async def _send_verification(account: Account, token: str) -> bool:
         return False
 
 
+async def _student_registration_identity_exists(db, payload: StudentRegistration) -> bool:
+    """Return whether this registration collides with a canonical student identity.
+
+    Used after a failed transaction as well as before writes, so unrelated FK,
+    schema, and NOT NULL failures are not mislabeled as duplicate-registration 409s.
+    """
+    return bool(await db.scalar(
+        text("""
+            SELECT
+                EXISTS (SELECT 1 FROM accounts WHERE LOWER(email) = :email)
+                OR EXISTS (SELECT 1 FROM students WHERE student_number = :enrollment_number)
+                OR EXISTS (SELECT 1 FROM student_profiles WHERE enrollment_number = :enrollment_number)
+        """),
+        {
+            "email": payload.email.strip().lower(),
+            "enrollment_number": payload.enrollment_number,
+        },
+    ))
+
+
+async def _faculty_registration_identity_exists(db, payload: FacultyRegistration) -> bool:
+    """Return whether email or employee identity is already assigned."""
+    return bool(await db.scalar(
+        text("""
+            SELECT
+                EXISTS (SELECT 1 FROM accounts WHERE LOWER(email) = :email)
+                OR EXISTS (
+                    SELECT 1 FROM faculty
+                    WHERE employee_number = :employee_code
+                       OR employee_code = :employee_code
+                )
+        """),
+        {
+            "email": payload.email.strip().lower(),
+            "employee_code": payload.employee_code,
+        },
+    ))
+
+
 async def _register_student_sqlite(payload: StudentRegistration, db) -> RegistrationResponse:
     """Exercise the mounted registration workflow with its canonical ORM schema.
 
@@ -242,10 +281,12 @@ async def _register_student_sqlite(payload: StudentRegistration, db) -> Registra
     except HTTPException:
         raise
     except IntegrityError:
-        raise HTTPException(
-            status_code=409,
-            detail="Registration conflicts with an existing account or enrollment number",
-        ) from None
+        if await _student_registration_identity_exists(db, payload):
+            raise HTTPException(
+                status_code=409,
+                detail="Registration conflicts with an existing account or enrollment number",
+            ) from None
+        raise
 
     sent = await _send_verification(account, token)
     return RegistrationResponse(
@@ -329,10 +370,12 @@ async def _register_faculty_sqlite(payload: FacultyRegistration, db) -> Registra
     except HTTPException:
         raise
     except IntegrityError:
-        raise HTTPException(
-            status_code=409,
-            detail="Registration conflicts with an existing account or employee code",
-        ) from None
+        if await _faculty_registration_identity_exists(db, payload):
+            raise HTTPException(
+                status_code=409,
+                detail="Registration conflicts with an existing account or employee code",
+            ) from None
+        raise
 
     sent = await _send_verification(account, token)
     return RegistrationResponse(
@@ -468,6 +511,12 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                 if valid_programme_id is None:
                     valid_programme_id = cohort["programme_id"]
 
+            if await _student_registration_identity_exists(db, payload):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Registration conflicts with an existing account or enrollment number",
+                )
+
             account_result = await db.execute(
                 text("""
                     INSERT INTO accounts (
@@ -590,10 +639,12 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
     except HTTPException:
         raise
     except IntegrityError:
-        raise HTTPException(
-            status_code=409,
-            detail="Registration conflicts with an existing account or enrollment number",
-        ) from None
+        if await _student_registration_identity_exists(db, payload):
+            raise HTTPException(
+                status_code=409,
+                detail="Registration conflicts with an existing account or enrollment number",
+            ) from None
+        raise
 
     try:
         await send_verification_email(payload.email, token)
@@ -668,6 +719,12 @@ async def register_faculty(payload: FacultyRegistration, db: DbSession) -> Regis
             if active_institution is None:
                 raise HTTPException(status_code=422, detail="The selected institution is inactive")
 
+            if await _faculty_registration_identity_exists(db, payload):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Registration conflicts with an existing account or employee code",
+                )
+
             account_result = await db.execute(
                 text("""
                     INSERT INTO accounts (
@@ -737,10 +794,12 @@ async def register_faculty(payload: FacultyRegistration, db: DbSession) -> Regis
     except HTTPException:
         raise
     except IntegrityError:
-        raise HTTPException(
-            status_code=409,
-            detail="Registration conflicts with an existing account or employee code",
-        ) from None
+        if await _faculty_registration_identity_exists(db, payload):
+            raise HTTPException(
+                status_code=409,
+                detail="Registration conflicts with an existing account or employee code",
+            ) from None
+        raise
 
     try:
         await send_verification_email(payload.email, token)
