@@ -68,7 +68,7 @@ export default function DuringInternshipPage() {
       setReports(emptyState()); setPlacements(emptyState());
       await Promise.all([
         apiRequest<{ items: Report[] }>("/reports/faculty/me").then((r) => setReports({ loading: false, value: r.items || [], error: null })).catch((e) => setReports({ loading: false, value: null, error: errorMessage(e) })),
-        apiRequest<{ items: Placement[] }>("/faculty/me/placements").then((r) => setPlacements({ loading: false, value: r.items || [], error: null })).catch((e) => setPlacements({ loading: false, value: null, error: errorMessage(e) })),
+        apiRequest<{ items: Placement[] }>("/modules/internships/placements/supervised").then((r) => setPlacements({ loading: false, value: r.items || [], error: null })).catch((e) => setPlacements({ loading: false, value: null, error: errorMessage(e) })),
       ]);
     } else {
       setApplications({ loading: false, value: [], error: null }); setReports({ loading: false, value: [], error: null }); setRequirements({ loading: false, value: [], error: null });
@@ -89,7 +89,7 @@ export default function DuringInternshipPage() {
     if (!selectedFile || !draftTitle.trim()) return;
     setReportBusy(true);
     try {
-      const placementResponse = await apiRequest<{ items: Array<{ id: string; status: string }> }>("/students/me/internships");
+      const placementResponse = await apiRequest<{ items: Array<{ id: string; status: string }> }>("/modules/internships/placements/me");
       const placement = (placementResponse.items || []).find((p) => p.status === "ONGOING");
       if (!placement) { toast.error("No ongoing persisted placement is linked to your account."); return; }
       const body = new FormData(); body.append("file", selectedFile);
