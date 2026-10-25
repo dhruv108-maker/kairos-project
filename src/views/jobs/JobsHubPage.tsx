@@ -610,6 +610,7 @@ export function JobDetailRoute() {
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [applying, setApplying] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  const [isSaved, setIsSaved] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -620,6 +621,17 @@ export function JobDetailRoute() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [jobId]);
+  useEffect(() => {
+    if (!account?.roles?.some((role) => role.toUpperCase() === "STUDENT")) {
+      setIsSaved(false);
+      return;
+    }
+    const controller = new AbortController();
+    apiRequest<{ items: Opportunity[] }>("/students/saved-jobs", { signal: controller.signal })
+      .then((data) => { if (!controller.signal.aborted) setIsSaved((data.items || []).some((item) => item.id === jobId)); })
+      .catch(() => { /* Keep job details usable if saved-job state cannot be loaded. */ });
+    return () => controller.abort();
+  }, [account, jobId]);
   useEffect(() => {
     if (!account?.roles?.some((role) => role.toUpperCase() === "STUDENT")) return;
     const controller = new AbortController();
@@ -633,5 +645,19 @@ export function JobDetailRoute() {
     try { await apiRequest(`/modules/internships/opportunities/${encodeURIComponent(item.id)}/applications`, { method: "POST" }); setAppliedIds((prev) => new Set(prev).add(item.id)); }
     catch (err) { setActionError(errorMessage(err)); } finally { setApplying(null); }
   };
-  return <main className="mx-auto max-w-4xl space-y-4 py-2"><Link to="/jobs" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100"><ArrowLeft className="size-4" /> Back to opportunities</Link>{loading ? <div className="h-96 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-900" /> : error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">{error}<div className="mt-3"><Button variant="outline" onClick={() => window.location.assign("/jobs")}>Return to search</Button></div></div> : job ? <><h1 className="sr-only">{job.title}</h1>{actionError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{actionError}</div>}<DetailPanel job={job} account={account} appliedIds={appliedIds} saved={false} onApply={apply} onToggleSave={() => undefined} applying={applying} /></> : null}</main>;
+  const toggleSaved = async (item: Opportunity) => {
+    if (!account?.roles?.some((role) => role.toUpperCase() === "STUDENT")) {
+      window.location.assign("/auth/auth2/login");
+      return;
+    }
+    setActionError("");
+    try {
+      await apiRequest(`/students/saved-jobs/${encodeURIComponent(item.id)}`, { method: isSaved ? "DELETE" : "POST" });
+      setIsSaved(!isSaved);
+    } catch (err) {
+      setActionError(errorMessage(err));
+    }
+  };
+
+  return <main className="mx-auto max-w-4xl space-y-4 py-2"><Link to="/jobs" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100"><ArrowLeft className="size-4" /> Back to opportunities</Link>{loading ? <div className="h-96 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-900" /> : error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">{error}<div className="mt-3"><Button variant="outline" onClick={() => window.location.assign("/jobs")}>Return to search</Button></div></div> : job ? <><h1 className="sr-only">{job.title}</h1>{actionError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{actionError}</div>}<DetailPanel job={job} account={account} appliedIds={appliedIds} saved={isSaved} onApply={apply} onToggleSave={toggleSaved} applying={applying} /></> : null}</main>;
 }
