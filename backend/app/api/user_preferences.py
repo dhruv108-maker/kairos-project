@@ -40,7 +40,7 @@ class UserPreferencesPatch(BaseModel):
 
 
 class UserPreferencesResponse(BaseModel):
-    account_id: int
+    account_id: str
     accent_color: Accent
     font_size: FontSize
     interface_density: Density
@@ -63,11 +63,11 @@ def _serialize(record: UserPreferences) -> UserPreferencesResponse:
     )
 
 
-async def _get_or_create(db, account_id: int) -> UserPreferences:
+async def _get_or_create(db, account_id: str) -> UserPreferences:
     record = await db.get(UserPreferences, account_id)
     if record is not None:
         return record
-    # Race-safe creation via the current MySQL-compatible account-preferences key.
+    # Insert-or-ignore is safe when simultaneous first requests initialize the row.
     statement = mysql_insert(UserPreferences).values(account_id=account_id, notification_preferences={}).on_duplicate_key_update(account_id=account_id)
     await db.execute(statement)
     await db.commit()
@@ -99,8 +99,7 @@ async def patch_my_preferences(
         if key not in {"notification_preferences", "email_notifications_enabled"}:
             setattr(record, key, value)
         elif key == "email_notifications_enabled":
-            # This value is stored for the future preference contract but deliberately
-            # does not affect delivery until the notification pipeline enforces it.
+            # Stored for the future preference contract; delivery enforcement is separate.
             record.email_notifications_enabled = value
 
     await db.commit()

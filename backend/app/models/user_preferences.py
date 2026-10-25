@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -15,9 +14,9 @@ class UserPreferences(Base):
 
     __tablename__ = "user_preferences"
 
-    # Match accounts.id exactly: BIGINT UNSIGNED AUTO_INCREMENT.
-    account_id: Mapped[int] = mapped_column(
-        BIGINT(unsigned=True),
+    # Account IDs are UUID strings in the canonical accounts table.
+    account_id: Mapped[str] = mapped_column(
+        String(36),
         ForeignKey("accounts.id", ondelete="CASCADE"),
         primary_key=True,
     )
