@@ -71,8 +71,8 @@ class WorkLogCreate(BaseModel):
         if value is None:
             return value
         cleaned = value.strip()
-        if not cleaned and value is not None and cls.__name__ in {"WorkLogCreate"}:
-            return None
+        if not cleaned and cls.info.field_name in {"summary", "tasks_completed"}:
+            raise ValueError("This field cannot be blank")
         return cleaned
 
     @field_validator("status")
