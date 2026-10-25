@@ -55,6 +55,24 @@ const densityOptions: Array<{ value: Density; label: string; detail: string }> =
   { value: "comfortable", label: "Comfortable", detail: "Balanced everyday layout" },
   { value: "spacious", label: "Spacious", detail: "More room between elements" },
 ];
+function applyInitialThemeFromCache() {
+  try {
+    const saved = localStorage.getItem("kairos.preferences.cache");
+    if (!saved) return;
+    const parsed = JSON.parse(saved) as Partial<Preferences>;
+    if (parsed.accent_color && ["teal", "blue", "green", "amber", "rose", "neutral"].includes(parsed.accent_color)) {
+      applyAccent(parsed.accent_color);
+    }
+    if (parsed.font_size && ["small", "default", "large", "xlarge"].includes(parsed.font_size)) {
+      document.documentElement.dataset.kairosFontSize = parsed.font_size;
+    }
+    if (parsed.interface_density && ["compact", "comfortable", "spacious"].includes(parsed.interface_density)) {
+      document.documentElement.dataset.kairosDensity = parsed.interface_density;
+    }
+  } catch {
+    // The server remains authoritative if the local bootstrap cache is invalid.
+  }
+}
 function hydrateLocalAppearance() {
   try {
     const root = document.documentElement;
@@ -123,6 +141,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    applyInitialThemeFromCache();
     hydrateLocalAppearance();
     let active = true;
     setLoading(true);
@@ -181,6 +200,7 @@ export default function SettingsPage() {
       const merged = { ...defaults, ...saved, notification_preferences: saved.notification_preferences || {} };
       setPreferences(merged);
       setInitialPreferences(merged);
+      try { localStorage.setItem("kairos.preferences.cache", JSON.stringify(merged)); } catch { /* server is the source of truth */ }
       setApiAvailable(true);
       applyVisualPreferences(merged);
       setTheme(merged.theme_mode);
