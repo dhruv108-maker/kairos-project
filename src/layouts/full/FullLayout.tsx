@@ -22,7 +22,7 @@ const FullLayout: FC<FullLayoutProps> = ({ allowAnonymous = false }) => {
   return (
     <SidebarProvider defaultOpen={true} style={{ "--sidebar-width-icon": "52px" } as React.CSSProperties}>
       <Sidebar />
-      <SidebarInset className="min-h-svh overflow-x-clip rounded-xl border border-border/70 bg-background shadow-sm">
+      <SidebarInset className="min-h-svh min-w-0 overflow-x-clip bg-background">
         <Header />
         <div className="flex flex-1 flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
           <div className={cn("w-full mx-auto", "container")}>
