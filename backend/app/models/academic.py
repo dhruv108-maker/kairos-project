@@ -167,8 +167,14 @@ class StudentEnrollment(Base):
 class StudentProfile(Base):
     __tablename__ = "student_profiles"
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    student_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
-    account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False)
+    student_id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        ForeignKey("students.id", ondelete="CASCADE"), unique=True, nullable=False,
+    )
+    account_id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False,
+    )
     enrollment_number: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
     profile_photo_url: Mapped[str | None] = mapped_column(String(500))
     bio: Mapped[str | None] = mapped_column(Text)
