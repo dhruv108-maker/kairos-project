@@ -103,6 +103,16 @@ class StorageService:
             raise StorageWorkflowError(422, "File content does not match JPEG format")
         if extension == ".txt" and b"\x00" in content:
             raise StorageWorkflowError(422, "Text files cannot contain binary null bytes")
+        if extension == ".pptx":
+            if not content.startswith(b"PK\x03\x04"):
+                raise StorageWorkflowError(422, "File content does not match PowerPoint presentation format")
+            try:
+                with zipfile.ZipFile(BytesIO(content)) as archive:
+                    names = set(archive.namelist())
+                    if "[Content_Types].xml" not in names or "ppt/presentation.xml" not in names:
+                        raise StorageWorkflowError(422, "PowerPoint package is missing its presentation document")
+            except (zipfile.BadZipFile, OSError):
+                raise StorageWorkflowError(422, "PowerPoint file is not a valid Office Open XML package") from None
 
     async def save_upload(self, account_id: str, original_name: str, mime_type: str, content: bytes) -> StorageFile:
         if len(content) > MAX_UPLOAD_BYTES:
