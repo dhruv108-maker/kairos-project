@@ -21,7 +21,7 @@ def upgrade() -> None:
         "user_preferences",
         sa.Column(
             "account_id",
-            sa.String(length=36),
+            sa.dialects.mysql.BIGINT(unsigned=True),
             sa.ForeignKey("accounts.id", ondelete="CASCADE"),
             primary_key=True,
             nullable=False,
