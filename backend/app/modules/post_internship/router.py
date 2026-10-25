@@ -173,6 +173,12 @@ async def get_my_published_results(account: CurrentAccount, db: DbSession):
     return {"items": items}
 
 
+@router.get("/supervised-students")
+async def list_authorized_supervised_students(account: CurrentAccount, db: DbSession):
+    items = await _call(PostInternshipService(db).supervised_students(account.id), db)
+    return {"items": items}
+
+
 @router.get("/results/students/{student_profile_id}")
 async def get_authorized_student_results(
     student_profile_id: int, account: CurrentAccount, db: DbSession
