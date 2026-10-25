@@ -144,6 +144,8 @@ class InternshipAssessmentPolicy(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     criteria_json: Mapped[list] = mapped_column(JSON, nullable=False)
     component_weights_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    griffin_score_max: Mapped[Decimal] = mapped_column(Numeric(9, 3), nullable=False)
+    curriculum_status_scores_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     grade_bands_json: Mapped[list] = mapped_column(JSON, nullable=False)
     passing_score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     final_approver_role: Mapped[str] = mapped_column(String(50), nullable=False)
