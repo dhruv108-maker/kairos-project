@@ -88,6 +88,8 @@ async def persisted_role_workflow():
         session.add_all(organizations)
         await session.flush()
         session.add_all([
+            EmployerMembership(id="owner-membership1", organization_id="org1", account_id="owner1", role="OWNER", status="ACTIVE"),
+            EmployerMembership(id="owner-membership2", organization_id="org2", account_id="owner2", role="OWNER", status="ACTIVE"),
             EmployerMembership(id="membership1", organization_id="org1", account_id="mentor1", role="INDUSTRY_MENTOR", status="ACTIVE"),
             EmployerMembership(id="membership2", organization_id="org2", account_id="mentor2", role="INDUSTRY_MENTOR", status="ACTIVE"),
         ])
@@ -265,3 +267,101 @@ async def test_persisted_student_faculty_industry_mentor_workflow_is_isolated(pe
             "faculty1@campus.test", "mentor1@company.test", "faculty2@campus.test",
             "mentor2@company.test", "student1@campus.test",
         }
+
+
+
+@pytest.mark.asyncio
+async def test_student_application_is_scoped_to_owning_recruiter_and_status_syncs(persisted_role_workflow):
+    ctx = persisted_role_workflow
+    client = ctx["client"]
+    job_id = "job3"
+
+    async with ctx["session_factory"]() as session:
+        session.add(InternshipOpportunity(
+            id=job_id, provider_id="provider1", title="Data Science Internship",
+            description="Build data pipelines and analytical products for students.",
+            location="Remote", application_deadline=date.today() + timedelta(days=30),
+            is_active=True, lifecycle_status="PUBLISHED", opportunity_type="INTERNSHIP",
+            employment_type="INTERNSHIP", work_mode="REMOTE", created_by_account_id="owner1",
+        ))
+        await session.commit()
+
+    # Student applies through the actual mounted application endpoint.
+    ctx["account"]["value"] = ctx["accounts"]["student1"]
+    applied = await client.post(f"/api/v1/internships/opportunities/{job_id}/applications")
+    assert applied.status_code == 201, applied.text
+    application_id = applied.json()["id"]
+    assert applied.json()["status"] == "APPLIED"
+
+    async with ctx["session_factory"]() as session:
+        stored = await session.get(InternshipApplication, application_id)
+        assert stored is not None
+        assert stored.student_id == 101
+        assert stored.opportunity_id == job_id
+        assert stored.recruitment_stage == "SUBMITTED"
+
+    # The owning recruiter can list and inspect the private candidate record.
+    ctx["account"]["value"] = ctx["accounts"]["owner1"]
+    listed = await client.get("/api/v1/employers/organizations/org1/applications")
+    assert listed.status_code == 200, listed.text
+    item = next(row for row in listed.json()["items"] if row["id"] == application_id)
+    assert item["applicant_name"] == "Student One"
+    assert item["stage"] == "SUBMITTED"
+
+    detail = await client.get(
+        f"/api/v1/employers/organizations/org1/applications/{application_id}"
+    )
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["applicant"]["email"] == "student1@campus.test"
+
+    # A second organization cannot see or mutate this application, even when
+    # it supplies a valid application UUID belonging to the first organization.
+    ctx["account"]["value"] = ctx["accounts"]["owner2"]
+    other_list = await client.get("/api/v1/employers/organizations/org2/applications")
+    assert other_list.status_code == 200, other_list.text
+    assert application_id not in {row["id"] for row in other_list.json()["items"]}
+    denied_read = await client.get(
+        f"/api/v1/employers/organizations/org2/applications/{application_id}"
+    )
+    assert denied_read.status_code == 404
+    denied_write = await client.post(
+        f"/api/v1/employers/organizations/org2/applications/{application_id}/stage",
+        json={"stage": "UNDER_REVIEW", "note": "Unauthorized cross-organization attempt"},
+    )
+    assert denied_write.status_code == 404
+
+    async with ctx["session_factory"]() as session:
+        unchanged = await session.get(InternshipApplication, application_id)
+        assert unchanged is not None
+        assert unchanged.recruitment_stage == "SUBMITTED"
+        assert unchanged.status == "APPLIED"
+
+    # The owning recruiter advances the real persisted state and the student
+    # sees the allowed status update through their own application list.
+    ctx["account"]["value"] = ctx["accounts"]["owner1"]
+    under_review = await client.post(
+        f"/api/v1/employers/organizations/org1/applications/{application_id}/stage",
+        json={"stage": "UNDER_REVIEW", "note": "Initial review completed"},
+    )
+    assert under_review.status_code == 200, under_review.text
+    assert under_review.json()["stage"] == "UNDER_REVIEW"
+
+    shortlisted = await client.post(
+        f"/api/v1/employers/organizations/org1/applications/{application_id}/stage",
+        json={"stage": "SHORTLISTED", "note": "Candidate shortlisted"},
+    )
+    assert shortlisted.status_code == 200, shortlisted.text
+    assert shortlisted.json()["stage"] == "SHORTLISTED"
+    assert shortlisted.json()["legacy_status"] == "SHORTLISTED"
+
+    ctx["account"]["value"] = ctx["accounts"]["student1"]
+    my_applications = await client.get("/api/v1/internships/applications/me")
+    assert my_applications.status_code == 200, my_applications.text
+    student_view = next(row for row in my_applications.json()["items"] if row["id"] == application_id)
+    assert student_view["status"] == "SHORTLISTED"
+
+    async with ctx["session_factory"]() as session:
+        persisted = await session.get(InternshipApplication, application_id)
+        assert persisted is not None
+        assert persisted.status == "SHORTLISTED"
+        assert persisted.recruitment_stage == "SHORTLISTED"
