@@ -72,5 +72,5 @@ def test_login_and_registration_contracts_normalize_email_and_name():
 def test_auth_response_keeps_frontend_contract_fields():
     assert set(AuthResponse.model_fields) == {"access_token", "token_type", "expires_in", "account"}
     assert set(Account.__table__.columns.keys()) >= {
-        "id", "email", "password_hash", "full_name", "is_active", "is_verified", "token_version"
+        "id", "email", "password_hash", "full_name", "display_name", "account_status", "is_active", "is_verified", "token_version"
     }
