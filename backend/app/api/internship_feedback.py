@@ -124,9 +124,10 @@ async def list_feedback_participations(account: CurrentAccount, db: DbSession) -
         params = {"account_id": account_id}
     elif kind == "faculty_mentor":
         sql = """SELECT DISTINCT p.id,p.student_id,p.title,p.starts_on,p.ends_on,p.status,COALESCE(ip.company_name,'') company_name
-          FROM internship_participations p JOIN faculty_mentorships fm ON fm.student_id=p.student_id
-          JOIN faculty f ON f.id=fm.faculty_id LEFT JOIN internship_providers ip ON ip.id=p.provider_id
-          WHERE f.account_id=:account_id AND fm.status='active' ORDER BY p.starts_on DESC"""
+          FROM internship_participations p LEFT JOIN faculty_mentorships fm ON fm.student_id=p.student_id AND fm.status='active'
+          LEFT JOIN faculty f ON f.id=fm.faculty_id LEFT JOIN internship_placements pl ON pl.student_id=p.student_id
+          LEFT JOIN faculty f2 ON f2.id=pl.faculty_supervisor_id LEFT JOIN internship_providers ip ON ip.id=p.provider_id
+          WHERE f.account_id=:account_id OR f2.account_id=:account_id ORDER BY p.starts_on DESC"""
         params = {"account_id": account_id}
     else:
         sql = """SELECT DISTINCT p.id,p.student_id,p.title,p.starts_on,p.ends_on,p.status,COALESCE(ip.company_name,'') company_name
@@ -153,6 +154,8 @@ async def save_weekly_feedback(participation_id: int, week_start: date, payload:
     kind, profile_id = await _reviewer(db, account_id, await account_roles(db, str(account.id)))
     p = await _authorize(db, account_id, kind, profile_id, participation_id, week_start)
     if p.status not in {"active", "completed"}: raise HTTPException(409, "Feedback is available only for active or completed internships")
+    # Lock the parent participation before checking the nullable unique key; MySQL permits duplicates when a key component is NULL.
+    await db.execute(text("SELECT id FROM internship_participations WHERE id=:id FOR UPDATE"), {"id": participation_id})
     params = {"participation_id": participation_id, "week_start": week_start, "reviewer_type": kind,
               "account_id": account_id, "mentor_id": profile_id if kind == "industry_mentor" else None}
     existing = (await db.execute(text("""
@@ -200,6 +203,34 @@ async def submit_weekly_feedback(participation_id: int, week_start: date, accoun
     await db.commit()
     saved = (await db.execute(text("SELECT * FROM internship_weekly_feedback WHERE id=:id"), {"id": row.id})).first()
     return _json(saved)
+
+async def _faculty_feedback_transition(participation_id: int, week_start: date, feedback_id: int, action: str, account: CurrentAccount, db: DbSession) -> dict:
+    account_id = _account_id(account)
+    kind, profile_id = await _reviewer(db, account_id, await account_roles(db, str(account.id)))
+    if kind != "faculty_mentor":
+        raise HTTPException(403, "Only the assigned faculty mentor can review student reflections")
+    await _authorize(db, account_id, kind, profile_id, participation_id, week_start)
+    row = (await db.execute(text("""SELECT id, reviewer_type, status FROM internship_weekly_feedback
+      WHERE id=:feedback_id AND participation_id=:participation_id AND week_start=:week_start FOR UPDATE"""),
+      {"feedback_id": feedback_id, "participation_id": participation_id, "week_start": week_start})).first()
+    if row is None or row.reviewer_type != "student_self":
+        raise HTTPException(404, "Student feedback not found")
+    if row.status != "submitted":
+        raise HTTPException(409, "Only submitted student feedback can be returned or locked")
+    next_status = "returned" if action == "return" else "locked"
+    await db.execute(text("UPDATE internship_weekly_feedback SET status=:status,updated_at=CURRENT_TIMESTAMP WHERE id=:id"),
+      {"status": next_status, "id": feedback_id})
+    await db.commit()
+    saved = (await db.execute(text("SELECT * FROM internship_weekly_feedback WHERE id=:id"), {"id": feedback_id})).first()
+    return _json(saved)
+
+@router.post("/participations/{participation_id}/weeks/{week_start}/records/{feedback_id}/return")
+async def return_student_feedback(participation_id: int, week_start: date, feedback_id: int, account: CurrentAccount, db: DbSession) -> dict:
+    return await _faculty_feedback_transition(participation_id, week_start, feedback_id, "return", account, db)
+
+@router.post("/participations/{participation_id}/weeks/{week_start}/records/{feedback_id}/lock")
+async def lock_student_feedback(participation_id: int, week_start: date, feedback_id: int, account: CurrentAccount, db: DbSession) -> dict:
+    return await _faculty_feedback_transition(participation_id, week_start, feedback_id, "lock", account, db)
 
 @router.post("/daily-logs/{daily_log_id}/feedback")
 async def review_daily_log(daily_log_id: int, payload: DailyLogFeedbackInput, account: CurrentAccount, db: DbSession) -> dict:

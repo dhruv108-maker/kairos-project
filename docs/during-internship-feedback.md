@@ -1,13 +1,17 @@
 # During-internship feedback API
 
-The weekly workflow uses the existing `internship_weekly_feedback` table. Daily-log review history uses `internship_work_feedback`; review status and compatibility fields on `internship_daily_logs` are updated in the same transaction.
+Weekly feedback persists in the existing `internship_weekly_feedback` table. Daily-log reviews persist in `internship_work_feedback`; the corresponding `internship_daily_logs` review fields are updated in the same transaction.
 
 All routes are mounted under `/api/v1/internship-feedback` and require an authenticated account.
 
-- `GET /participations`: participation list scoped to the authenticated student's account, active faculty supervision/mentorship, or active industry mentor assignments.
-- `GET /participations/{participation_id}?week_start=YYYY-MM-DD`: authorized weekly feedback cards for a participation and optional Monday week anchor.
-- `PUT /participations/{participation_id}/weeks/{week_start}`: save/update the caller's draft. Reviewer type and identity are derived server-side.
-- `POST /participations/{participation_id}/weeks/{week_start}/submit`: submit a saved draft or returned record.
-- `POST /daily-logs/{daily_log_id}/feedback`: append a faculty/industry review to the daily work-feedback history and update the matching denormalized review fields atomically.
+- `GET /participations`: lists participations scoped to the authenticated student, assigned faculty supervision/mentorship, or active industry mentor assignment.
+- `GET /participations/{participation_id}?week_start=YYYY-MM-DD`: retrieves authorized weekly feedback records.
+- `PUT /participations/{participation_id}/weeks/{week_start}`: saves or updates the caller's draft. Reviewer role and identity are derived server-side.
+- `POST /participations/{participation_id}/weeks/{week_start}/submit`: submits a saved draft or returned record.
+- `POST /participations/{participation_id}/weeks/{week_start}/records/{feedback_id}/return`: assigned faculty mentor returns a submitted student reflection for correction.
+- `POST /participations/{participation_id}/weeks/{week_start}/records/{feedback_id}/lock`: assigned faculty mentor locks a submitted student reflection.
+- `POST /daily-logs/{daily_log_id}/feedback`: appends authorized faculty/industry feedback to daily-log history and updates denormalized review fields atomically.
 
-The API intentionally does not add a feedback table or schema migration; the checked-in MySQL dump already defines the required tables. Verify the deployed schema matches `kairos_full_backup.sql` before deployment. `returned` records can be edited and resubmitted; `submitted` and `locked` records are read-only through ordinary draft operations. No API to return or lock feedback is introduced because the current documented workflow does not define an authorized actor for those transitions.
+The API uses the existing tables from `kairos_full_backup.sql`; no feedback table or migration is added. The save operation locks the parent participation while checking the existing reviewer key because MySQL permits duplicate rows for unique keys containing NULL values. The current state policy allows draft edits, submitted records to be returned/locked by the assigned faculty mentor, returned records to be corrected/resubmitted, and submitted/locked records to be read-only for ordinary save operations.
+
+Verify the deployed database matches the checked-in schema dump before deployment. Remote repository access cannot prove that the production database has this exact schema or that migrations have been applied.
