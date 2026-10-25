@@ -82,6 +82,12 @@ class Account(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # The deployed accounts table retains display_name alongside full_name.
+    # Derive it from full_name for ORM-created accounts unless explicitly supplied.
+    display_name: Mapped[str] = mapped_column(
+        String(255), nullable=False,
+        default=lambda context: context.get_current_parameters().get("full_name", ""),
+    )
     phone_number: Mapped[str | None] = mapped_column(String(32))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
