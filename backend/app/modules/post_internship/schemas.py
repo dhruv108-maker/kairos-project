@@ -31,6 +31,9 @@ class PolicyCreate(BaseModel):
     name: str = Field(min_length=2, max_length=255)
     criteria: list[CriterionCreate] = Field(min_length=1, max_length=30)
     component_weights: dict[str, float]
+    # These values explicitly define how raw Griffin scores and mapping statuses are normalized.
+    griffin_score_max: float = Field(gt=0, le=100000)
+    curriculum_status_scores: dict[str, float]
     grade_bands: list[GradeBand] = Field(min_length=1, max_length=20)
     passing_score: float = Field(ge=0, le=100)
     final_approver_role: Literal["INSTITUTION_ADMIN", "DEAN", "DEPT_HEAD"]
@@ -49,6 +52,16 @@ class PolicyCreate(BaseModel):
         keys = [item.key for item in self.criteria]
         if len(keys) != len(set(keys)):
             raise ValueError("rubric criterion keys must be unique")
+        expected_mapping_statuses = {"MAPPED", "PARTIALLY_MAPPED", "NOT_EVIDENCED"}
+        if set(self.curriculum_status_scores) != expected_mapping_statuses:
+            raise ValueError("curriculum_status_scores must explicitly define MAPPED, PARTIALLY_MAPPED, and NOT_EVIDENCED")
+        if any(value < 0 or value > 100 for value in self.curriculum_status_scores.values()):
+            raise ValueError("curriculum status scores must be between 0 and 100")
+        if not (
+            self.curriculum_status_scores["MAPPED"] >= self.curriculum_status_scores["PARTIALLY_MAPPED"]
+            >= self.curriculum_status_scores["NOT_EVIDENCED"]
+        ):
+            raise ValueError("curriculum status scores must be ordered from MAPPED to PARTIALLY_MAPPED to NOT_EVIDENCED")
         bands = sorted(self.grade_bands, key=lambda item: item.min_score)
         if bands[0].min_score != 0 or bands[-1].max_score != 100:
             raise ValueError("grade bands must explicitly cover scores from 0 to 100")
