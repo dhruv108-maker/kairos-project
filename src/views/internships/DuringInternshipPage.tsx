@@ -88,7 +88,7 @@ export default function DuringInternshipPage() {
     event.preventDefault(); if (!selectedFile || !draftTitle.trim()) return; setReportBusy(true);
     try {
       const body = new FormData(); body.append("file", selectedFile); const stored = await apiRequest<UploadResult>("/storage/upload", { method: "POST", body });
-      const placementResponse = await apiRequest<{ items: Placement[] }>("/students/me/placements");
+      const placementResponse = await apiRequest<{ items: Array<{ id: string; title: string; organization: string; start_date: string; end_date: string; status: string }> }>("/students/me/internships");
       const placement = (placementResponse.items || []).find((p) => p.status === "ONGOING");
       if (!placement) { toast.error("No ongoing persisted placement is linked to your account."); return; }
       const report = await apiRequest<Report>("/reports", { method: "POST", body: JSON.stringify({ placement_id: placement.id, title: draftTitle.trim(), file_id: stored.id, submission_notes: draftNotes.trim() || null }) });
