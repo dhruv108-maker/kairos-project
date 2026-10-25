@@ -32,6 +32,7 @@ export interface MenuItem {
 
 const recruiterRoles: KairosRole[] = ["EMPLOYER", "RECRUITER", "EMPLOYER_ADMIN", "ADMIN"];
 const studentRoles: KairosRole[] = ["STUDENT"];
+const studentFacultyRoles: KairosRole[] = ["STUDENT", "FACULTY"];
 const internshipRoles: KairosRole[] = ["STUDENT", "FACULTY", "INDUSTRY_MENTOR", "INSTITUTION_ADMIN", "ADMIN"];
 
 const sidebarItems: MenuItem[] = [
@@ -58,6 +59,7 @@ const sidebarItems: MenuItem[] = [
     items: [
       { id: "internship-workspace", name: "Internship Workspace", icon: BriefcaseBusiness, roles: internshipRoles, items: [
         { id: "internship-active", name: "My Internship & Work Logs", icon: Activity, url: "/internships/during", roles: internshipRoles },
+        { id: "internship-assessment", name: "Final Assessment", icon: ClipboardList, url: "/internships/assessment", roles: studentFacultyRoles },
       ] },
     ],
   },
