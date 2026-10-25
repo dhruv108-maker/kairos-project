@@ -306,6 +306,7 @@ async def _is_active_assigned_industry_mentor(db: AsyncSession, placement: Inter
 
 @router.get("/placements/mentor/me")
 async def industry_mentor_placements(account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "INDUSTRY_MENTOR")
     rows = (await db.execute(
         select(InternshipPlacement, InternshipOpportunity, InternshipProvider, StudentProfile, Account)
         .join(InternshipApplication, InternshipApplication.id == InternshipPlacement.application_id)
@@ -335,6 +336,7 @@ async def industry_mentor_placements(account: CurrentAccount, db: DbSession) -> 
 
 @router.get("/work-logs/mentor/me")
 async def industry_mentor_work_logs(account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "INDUSTRY_MENTOR")
     rows = (await db.execute(
         select(InternshipWorkLog, InternshipPlacement, InternshipOpportunity, InternshipProvider, Account)
         .join(InternshipPlacement, InternshipPlacement.id == InternshipWorkLog.placement_id)
@@ -363,6 +365,7 @@ async def industry_mentor_work_logs(account: CurrentAccount, db: DbSession) -> d
 
 @router.post("/work-logs/{work_log_id}/mentor-review")
 async def industry_mentor_review_work_log(work_log_id: str, payload: WorkLogReviewCreate, account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "INDUSTRY_MENTOR")
     row = await db.get(InternshipWorkLog, work_log_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Work log not found")
