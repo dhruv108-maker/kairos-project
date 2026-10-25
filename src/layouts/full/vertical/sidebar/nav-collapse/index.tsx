@@ -28,7 +28,7 @@ function hasActiveDescendant(item: ChildItem, pathname: string): boolean {
 }
 
 function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: string; depth?: number }) {
-  const { state, isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const hasChildren = Boolean(item.items?.length);
   const active = hasActiveDescendant(item, pathname);
   const [manuallyOpen, setManuallyOpen] = useState(false);

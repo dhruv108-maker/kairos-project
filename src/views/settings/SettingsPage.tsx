@@ -139,7 +139,7 @@ function applyDensity(value: Density) {
 
 export default function SettingsPage() {
   const { account } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const [preferences, setPreferences] = useState<Preferences>(defaults);
   const [initialPreferences, setInitialPreferences] = useState<Preferences>(defaults);
   const [loading, setLoading] = useState(true);

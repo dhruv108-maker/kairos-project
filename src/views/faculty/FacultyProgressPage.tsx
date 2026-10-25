@@ -93,7 +93,7 @@ export default function FacultyProgressPage() {
   };
 
   if (!account?.roles.some((role) => role.toUpperCase() === "FACULTY")) {
-    return <main className="mx-auto max-w-5xl p-6"><Card><CardHeader><CardTitle>Faculty access required</CardTitle><CardDescription>This workspace is available to authenticated faculty accounts.</CardDescription></CardHeader><CardContent><Button asChild variant="outline"><Link to="/">Return to overview</Link></Button></CardContent></Card></main>;
+    return <main className="mx-auto max-w-5xl p-6"><Card><CardHeader><CardTitle>Faculty access required</CardTitle><CardDescription>This workspace is available to authenticated faculty accounts.</CardDescription></CardHeader><CardContent><Link to="/" className="inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent">Return to overview</Link></CardContent></Card></main>;
   }
 
   return <main className="mx-auto w-full max-w-7xl space-y-6 pb-8">

@@ -18,6 +18,11 @@ export interface ChildItem {
   roles?: KairosRole[];
   disabled?: boolean;
   external?: boolean;
+  color?: string;
+  badge?: boolean;
+  badgeType?: "filled" | "outlined";
+  badgeContent?: string;
+  isPro?: boolean;
 }
 
 export interface MenuItem {
