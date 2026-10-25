@@ -30,7 +30,12 @@ class IdentityService:
     async def ensure_role(self, name: str) -> Role:
         role = await self.session.scalar(select(Role).where(Role.name == name))
         if role is None:
-            role = Role(id=str(uuid4()), name=name, description=f"Kairos {name.lower()} role")
+            # The production roles table has an unsigned auto-increment key;
+            # only the SQLite test schema uses explicit UUID-like role IDs.
+            values = {"name": name, "description": f"Kairos {name.lower()} role"}
+            if self.session.get_bind().dialect.name == "sqlite":
+                values["id"] = str(uuid4())
+            role = Role(**values)
             self.session.add(role)
             await self.session.flush()
         return role
