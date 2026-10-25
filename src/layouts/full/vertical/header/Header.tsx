@@ -26,12 +26,21 @@ const routeTitles: Record<string, string> = {
   "/student/profile": "Student profile",
   "/apps/notes": "Notes",
   "/apps/tickets": "Support tickets",
+  "/apps/blog/post": "Blog",
+  "/apps/blog/create": "Create post",
+  "/apps/blog/manage-blog": "Manage posts",
 };
 
 const Header = () => {
   const { toggleSidebar } = useSidebar();
   const location = useLocation();
-  const title = routeTitles[location.pathname] ?? "Kairos workspace";
+  const title = routeTitles[location.pathname] ?? (
+    location.pathname.startsWith("/jobs/recruiter/") ? "Recruitment management" :
+    location.pathname.startsWith("/jobs/") ? "Job details" :
+    location.pathname.startsWith("/apps/blog/") ? "Blog" :
+    location.pathname.startsWith("/apps/tickets/") ? "Support tickets" :
+    "Kairos workspace"
+  );
 
   return (
     <header className={cn("sticky top-0 z-20 border-b border-border/75 bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80")}>
