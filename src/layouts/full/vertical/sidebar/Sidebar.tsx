@@ -1,8 +1,7 @@
 import React from "react";
-import SimpleBar from "simplebar-react";
 import FullLogo from "../../shared/logo/FullLogo";
 import {
-  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarSeparator,
+  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/auth/AuthContext";
 import NavCollapse from "./nav-collapse";
@@ -30,24 +29,21 @@ const SidebarLayout = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
 
   return (
     <Sidebar
-      variant="inset"
+      variant="sidebar"
       collapsible="icon"
       {...props}
-      className="sidebar-box **:data-[slot=sidebar-inner]:bg-sidebar **:data-[slot=sidebar-inner]:border **:data-[slot=sidebar-inner]:border-sidebar-border **:data-[slot=sidebar-inner]:shadow-sm"
+      className="sidebar-box"
       side="left"
     >
-      <SidebarHeader className="flex min-h-16 flex-row items-center justify-between overflow-hidden border-b border-sidebar-border/80 px-4 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1">
+      <SidebarHeader className="flex h-14 shrink-0 flex-row items-center justify-between overflow-hidden border-b border-sidebar-border/70 px-4 py-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1">
         <div className="min-w-0 overflow-hidden"><FullLogo /></div>
       </SidebarHeader>
-      <SidebarContent className="px-2.5 py-4">
-        <SimpleBar style={{ height: "100%" }}>
-          <SidebarGroup className="min-w-0 p-0 group-data-[collapsible=icon]:px-0">
-            <NavCollapse menu={menu} />
-          </SidebarGroup>
-        </SimpleBar>
+      <SidebarContent className="min-h-0 px-2 py-3">
+        <SidebarGroup className="min-w-0 p-0 group-data-[collapsible=icon]:px-0">
+          <NavCollapse menu={menu} />
+        </SidebarGroup>
       </SidebarContent>
-      <SidebarSeparator />
-      <SidebarFooter className="border-t border-sidebar-border/70 p-2.5">
+      <SidebarFooter className="border-t border-sidebar-border/70 p-2">
         <NavUser />
       </SidebarFooter>
     </Sidebar>
