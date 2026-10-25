@@ -40,7 +40,7 @@ class UserPreferencesPatch(BaseModel):
 
 
 class UserPreferencesResponse(BaseModel):
-    account_id: str
+    account_id: int
     accent_color: Accent
     font_size: FontSize
     interface_density: Density
@@ -63,7 +63,7 @@ def _serialize(record: UserPreferences) -> UserPreferencesResponse:
     )
 
 
-async def _get_or_create(db, account_id: str) -> UserPreferences:
+async def _get_or_create(db, account_id: int) -> UserPreferences:
     record = await db.get(UserPreferences, account_id)
     if record is not None:
         return record
@@ -79,7 +79,7 @@ async def _get_or_create(db, account_id: str) -> UserPreferences:
 
 @router.get("", response_model=UserPreferencesResponse)
 async def get_my_preferences(account: CurrentAccount, db: DbSession) -> UserPreferencesResponse:
-    record = await _get_or_create(db, str(account.id))
+    record = await _get_or_create(db, account.id)
     return _serialize(record)
 
 
@@ -90,7 +90,7 @@ async def patch_my_preferences(
     db: DbSession,
 ) -> UserPreferencesResponse:
     changes = payload.model_dump(exclude_unset=True, exclude_none=True)
-    record = await _get_or_create(db, str(account.id))
+    record = await _get_or_create(db, account.id)
 
     if "notification_preferences" in changes:
         record.notification_preferences = {**(record.notification_preferences or {}), **changes["notification_preferences"]}
