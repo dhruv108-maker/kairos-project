@@ -235,7 +235,9 @@ class FacultyProfile(Base):
     employee_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     employment_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="active")
-    department_id: Mapped[int | None] = mapped_column(MYSQL_BIGINT(unsigned=True), nullable=True)
+    department_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
+    )
     designation: Mapped[str | None] = mapped_column(String(150), nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
     account: Mapped[Account] = relationship(back_populates="faculty_profile")
