@@ -5,8 +5,9 @@ from datetime import date
 from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import CurrentAccount, DbSession, account_roles, require_role
-from app.models.internship import InternshipOpportunity, InternshipProvider, InternshipWorkLog, InternshipWorkLogReview, InternshipPlacement
-from app.models.academic import FacultyProfile
+from app.models.internship import InternshipApplication, InternshipOpportunity, InternshipProvider, InternshipWorkLog, InternshipWorkLogReview, InternshipPlacement
+from app.models.academic import Account, FacultyProfile, StudentProfile
+from app.models.employers import EmployerMembership
 from app.modules.shared.exceptions import KairosDomainError
 from app.modules.internships.schemas import ApplicationStatusUpdate, OpportunityCreate, PlacementCreate, ProviderCreate, WorkLogCreate, WorkLogReviewCreate
 from app.modules.internships.repository import InternshipRepository
@@ -135,6 +136,113 @@ async def supervised_work_logs(account: CurrentAccount, db: DbSession, placement
         stmt = stmt.where(InternshipPlacement.id == placement_id)
     logs = (await db.execute(stmt.order_by(InternshipWorkLog.work_date.desc(), InternshipWorkLog.created_at.desc()))).scalars().all()
     return {"items": [_work_log(item) for item in logs]}
+
+
+
+
+async def _is_active_assigned_industry_mentor(db: AsyncSession, placement: InternshipPlacement, account_id: str) -> bool:
+    if placement.industry_mentor_account_id != account_id:
+        return False
+    application = await db.get(InternshipApplication, placement.application_id)
+    if application is None:
+        return False
+    opportunity = await db.get(InternshipOpportunity, application.opportunity_id)
+    if opportunity is None:
+        return False
+    provider = await db.get(InternshipProvider, opportunity.provider_id)
+    if provider is None or not provider.employer_organization_id:
+        return False
+    membership = await db.scalar(select(EmployerMembership).where(
+        EmployerMembership.organization_id == provider.employer_organization_id,
+        EmployerMembership.account_id == account_id,
+        EmployerMembership.status == "ACTIVE",
+    ))
+    return membership is not None
+
+
+@router.get("/placements/mentor/me")
+async def industry_mentor_placements(account: CurrentAccount, db: DbSession) -> dict:
+    rows = (await db.execute(
+        select(InternshipPlacement, InternshipOpportunity, InternshipProvider, StudentProfile, Account)
+        .join(InternshipApplication, InternshipApplication.id == InternshipPlacement.application_id)
+        .join(InternshipOpportunity, InternshipOpportunity.id == InternshipApplication.opportunity_id)
+        .join(InternshipProvider, InternshipProvider.id == InternshipOpportunity.provider_id)
+        .join(EmployerMembership, (EmployerMembership.organization_id == InternshipProvider.employer_organization_id)
+              & (EmployerMembership.account_id == account.id) & (EmployerMembership.status == "ACTIVE"))
+        .join(StudentProfile, StudentProfile.id == InternshipPlacement.student_id)
+        .join(Account, Account.id == StudentProfile.account_id)
+        .where(InternshipPlacement.industry_mentor_account_id == account.id)
+        .order_by(InternshipPlacement.start_date.desc())
+    )).all()
+    items = []
+    for placement, opportunity, provider, student, student_account in rows:
+        latest_log = await db.scalar(select(InternshipWorkLog).where(
+            InternshipWorkLog.placement_id == placement.id
+        ).order_by(InternshipWorkLog.work_date.desc(), InternshipWorkLog.created_at.desc()).limit(1))
+        items.append({
+            "id": placement.id, "application_id": placement.application_id, "student_id": placement.student_id,
+            "student_name": student_account.full_name, "student_enrollment_number": student.enrollment_number,
+            "opportunity_title": opportunity.title, "company_name": provider.company_name,
+            "start_date": placement.start_date.isoformat(), "end_date": placement.end_date.isoformat(),
+            "status": placement.status, "latest_work_log_at": latest_log.work_date.isoformat() if latest_log else None,
+        })
+    return {"items": items}
+
+
+@router.get("/work-logs/mentor/me")
+async def industry_mentor_work_logs(account: CurrentAccount, db: DbSession) -> dict:
+    rows = (await db.execute(
+        select(InternshipWorkLog, InternshipPlacement, InternshipOpportunity, InternshipProvider, Account)
+        .join(InternshipPlacement, InternshipPlacement.id == InternshipWorkLog.placement_id)
+        .join(InternshipApplication, InternshipApplication.id == InternshipPlacement.application_id)
+        .join(InternshipOpportunity, InternshipOpportunity.id == InternshipApplication.opportunity_id)
+        .join(InternshipProvider, InternshipProvider.id == InternshipOpportunity.provider_id)
+        .join(EmployerMembership, (EmployerMembership.organization_id == InternshipProvider.employer_organization_id)
+              & (EmployerMembership.account_id == account.id) & (EmployerMembership.status == "ACTIVE"))
+        .join(StudentProfile, StudentProfile.id == InternshipPlacement.student_id)
+        .join(Account, Account.id == StudentProfile.account_id)
+        .where(InternshipPlacement.industry_mentor_account_id == account.id)
+        .order_by(InternshipWorkLog.work_date.desc(), InternshipWorkLog.created_at.desc())
+    )).all()
+    items = []
+    for log, placement, opportunity, provider, student_account in rows:
+        latest_review = await db.scalar(select(InternshipWorkLogReview).where(
+            InternshipWorkLogReview.work_log_id == log.id
+        ).order_by(InternshipWorkLogReview.created_at.desc()).limit(1))
+        items.append({
+            **_work_log(log), "student_name": student_account.full_name,
+            "opportunity_title": opportunity.title, "company_name": provider.company_name,
+            "latest_review": ({
+                "decision": latest_review.decision, "feedback": latest_review.feedback,
+                "reviewer_role": latest_review.reviewer_role,
+                "created_at": latest_review.created_at.isoformat() if latest_review.created_at else None,
+            } if latest_review else None),
+        })
+    return {"items": items}
+
+
+@router.post("/work-logs/{work_log_id}/mentor-review")
+async def industry_mentor_review_work_log(work_log_id: str, payload: WorkLogReviewCreate, account: CurrentAccount, db: DbSession) -> dict:
+    row = await db.get(InternshipWorkLog, work_log_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Work log not found")
+    placement = await db.get(InternshipPlacement, row.placement_id)
+    if placement is None or not await _is_active_assigned_industry_mentor(db, placement, account.id):
+        raise HTTPException(status_code=404, detail="Work log not found")
+    if row.status != "SUBMITTED":
+        raise HTTPException(status_code=409, detail="Only submitted work logs can be reviewed")
+    review = InternshipWorkLogReview(id=str(uuid4()), work_log_id=row.id, reviewer_account_id=account.id,
+        reviewer_role="INDUSTRY_MENTOR", decision=payload.decision, feedback=payload.feedback.strip())
+    db.add(review)
+    # Industry acknowledgement does not replace the faculty's academic review.
+    if payload.decision == "REVISION_REQUIRED":
+        row.status = "DRAFT"
+    await db.commit()
+    await db.refresh(row)
+    await db.refresh(review)
+    return {"work_log": _work_log(row), "review": {"id": review.id, "decision": review.decision,
+        "feedback": review.feedback, "reviewer_role": review.reviewer_role,
+        "created_at": review.created_at.isoformat() if review.created_at else None}}
 
 
 @router.get("/work-logs/me")
