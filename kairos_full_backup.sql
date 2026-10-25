@@ -132,8 +132,31 @@ CREATE TABLE `accounts` (
 
 LOCK TABLES `accounts` WRITE;
 /*!40000 ALTER TABLE `accounts` DISABLE KEYS */;
-INSERT INTO `accounts` VALUES (2,'23sc06007@gsfcuniversity.ac.in','$argon2id$v=19$m=65536,t=3,p=4$shHcN1z/+bu2xRWjHUuTXw$ynNJDCgzelDFcYapnvhSOtn8X0JvvjiUkofdThgG+fY','Dhruv Verma','active',NULL,'2026-10-24 14:22:04','2026-10-24 13:59:18','2026-10-24 14:22:03',NULL,'Dhruv Verma',NULL,1,1,0,'a7b5b6e459fae27c85e25e3a4572ae58e4a4da4dea3f0767fbe1d36a7c8e8341','6e18140fce8ba5e466b6276be7264bf469e15fdb720bcdb7d880bdc574381151','2026-10-24 14:49:05');
+INSERT INTO `accounts` VALUES (2,'23sc06007@gsfcuniversity.ac.in','$argon2id$v=19$m=65536,t=3,p=4$shHcN1z/+bu2xRWjHUuTXw$ynNJDCgzelDFcYapnvhSOtn8X0JvvjiUkofdThgG+fY','Dhruv Verma','active',NULL,'2026-10-25 05:00:07','2026-10-24 13:59:18','2026-10-25 05:00:07',NULL,'Dhruv Verma',NULL,1,1,0,'a7b5b6e459fae27c85e25e3a4572ae58e4a4da4dea3f0767fbe1d36a7c8e8341','6e18140fce8ba5e466b6276be7264bf469e15fdb720bcdb7d880bdc574381151','2026-10-24 14:49:05');
 /*!40000 ALTER TABLE `accounts` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `alembic_version`
+--
+
+DROP TABLE IF EXISTS `alembic_version`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `alembic_version` (
+  `version_num` varchar(32) NOT NULL,
+  PRIMARY KEY (`version_num`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `alembic_version`
+--
+
+LOCK TABLES `alembic_version` WRITE;
+/*!40000 ALTER TABLE `alembic_version` DISABLE KEYS */;
+INSERT INTO `alembic_version` VALUES ('20261022_01');
+/*!40000 ALTER TABLE `alembic_version` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -350,12 +373,13 @@ CREATE TABLE `audit_events` (
   `request_id` varchar(100) DEFAULT NULL,
   `occurred_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `details` json DEFAULT NULL,
+  `institution_id` varchar(36) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `ix_audit_entity_time` (`entity_type`,`entity_id`,`occurred_at`),
   KEY `ix_audit_actor_time` (`actor_account_id`,`occurred_at`),
   KEY `ix_audit_request` (`request_id`),
   CONSTRAINT `fk_audit_actor` FOREIGN KEY (`actor_account_id`) REFERENCES `accounts` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -364,6 +388,7 @@ CREATE TABLE `audit_events` (
 
 LOCK TABLES `audit_events` WRITE;
 /*!40000 ALTER TABLE `audit_events` DISABLE KEYS */;
+INSERT INTO `audit_events` VALUES (10,2,'storage.file_uploaded','storage_file','b19b35f4-991c-46e2-9c3a-5df4b85846c8',NULL,'2026-10-24 17:42:55','{\"mime_type\": \"application/pdf\", \"file_size_bytes\": 148490}',NULL);
 /*!40000 ALTER TABLE `audit_events` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -588,6 +613,126 @@ LOCK TABLES `departments` WRITE;
 /*!40000 ALTER TABLE `departments` DISABLE KEYS */;
 INSERT INTO `departments` VALUES (1,1,'Academic Programmes','SoCIS-GEN','active','2026-10-24 12:07:48','2026-10-24 12:07:48',1),(2,4,'Academic Programmes','SoCFS-GEN','active','2026-10-24 12:07:48','2026-10-24 12:07:48',1),(3,3,'Academic Programmes','SoCIT-GEN','active','2026-10-24 12:07:48','2026-10-24 12:07:48',1),(4,2,'Academic Programmes','SoLS-GEN','active','2026-10-24 12:07:48','2026-10-24 12:07:48',1),(5,5,'Academic Programmes','SoME-GEN','active','2026-10-24 12:07:48','2026-10-24 12:07:48',1);
 /*!40000 ALTER TABLE `departments` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `employer_invitations`
+--
+
+DROP TABLE IF EXISTS `employer_invitations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `employer_invitations` (
+  `id` varchar(36) NOT NULL,
+  `organization_id` varchar(36) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `role` varchar(20) NOT NULL,
+  `token_hash` varchar(64) NOT NULL,
+  `expires_at` timestamp NOT NULL,
+  `invited_by_account_id` varchar(36) NOT NULL,
+  `accepted_at` timestamp NULL DEFAULT NULL,
+  `revoked_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_employer_invitations_token_hash` (`token_hash`),
+  KEY `ix_employer_invitations_organization_id` (`organization_id`),
+  KEY `ix_employer_invitations_email` (`email`),
+  CONSTRAINT `fk_employer_invitation_organization` FOREIGN KEY (`organization_id`) REFERENCES `employer_organizations` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `employer_invitations`
+--
+
+LOCK TABLES `employer_invitations` WRITE;
+/*!40000 ALTER TABLE `employer_invitations` DISABLE KEYS */;
+/*!40000 ALTER TABLE `employer_invitations` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `employer_memberships`
+--
+
+DROP TABLE IF EXISTS `employer_memberships`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `employer_memberships` (
+  `id` varchar(36) NOT NULL,
+  `organization_id` varchar(36) NOT NULL,
+  `account_id` varchar(36) NOT NULL,
+  `role` varchar(20) NOT NULL DEFAULT 'VIEWER',
+  `status` varchar(20) NOT NULL DEFAULT 'ACTIVE',
+  `invited_by_account_id` varchar(36) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_employer_membership_account` (`organization_id`,`account_id`),
+  KEY `ix_employer_memberships_organization_id` (`organization_id`),
+  KEY `ix_employer_memberships_account_id` (`account_id`),
+  CONSTRAINT `fk_employer_membership_organization` FOREIGN KEY (`organization_id`) REFERENCES `employer_organizations` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `employer_memberships`
+--
+
+LOCK TABLES `employer_memberships` WRITE;
+/*!40000 ALTER TABLE `employer_memberships` DISABLE KEYS */;
+/*!40000 ALTER TABLE `employer_memberships` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `employer_organizations`
+--
+
+DROP TABLE IF EXISTS `employer_organizations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `employer_organizations` (
+  `id` varchar(36) NOT NULL,
+  `legal_name` varchar(255) NOT NULL,
+  `display_name` varchar(255) NOT NULL,
+  `normalized_name` varchar(255) NOT NULL,
+  `organization_type` varchar(40) NOT NULL DEFAULT 'COMPANY',
+  `industry` varchar(120) DEFAULT NULL,
+  `description` text,
+  `website_url` varchar(2048) DEFAULT NULL,
+  `business_email` varchar(255) DEFAULT NULL,
+  `phone` varchar(40) DEFAULT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  `state` varchar(100) DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `postal_code` varchar(30) DEFAULT NULL,
+  `headquarters_address` varchar(500) DEFAULT NULL,
+  `company_size` varchar(30) DEFAULT NULL,
+  `founded_year` int DEFAULT NULL,
+  `registration_identifier` varchar(120) DEFAULT NULL,
+  `careers_url` varchar(2048) DEFAULT NULL,
+  `logo_storage_key` varchar(500) DEFAULT NULL,
+  `cover_storage_key` varchar(500) DEFAULT NULL,
+  `status` varchar(30) NOT NULL DEFAULT 'PENDING_VERIFICATION',
+  `created_by_account_id` varchar(36) NOT NULL,
+  `reviewed_by_account_id` varchar(36) DEFAULT NULL,
+  `reviewed_at` timestamp NULL DEFAULT NULL,
+  `review_notes` text,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_employer_org_normalized_name` (`normalized_name`),
+  UNIQUE KEY `uq_employer_org_registration_identifier` (`registration_identifier`),
+  KEY `ix_employer_organizations_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `employer_organizations`
+--
+
+LOCK TABLES `employer_organizations` WRITE;
+/*!40000 ALTER TABLE `employer_organizations` DISABLE KEYS */;
+/*!40000 ALTER TABLE `employer_organizations` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1131,11 +1276,14 @@ CREATE TABLE `internship_applications` (
   `reviewed_by_account_id` bigint unsigned DEFAULT NULL,
   `reviewed_at` datetime DEFAULT NULL,
   `review_notes` text,
+  `recruitment_stage` varchar(20) NOT NULL DEFAULT 'SUBMITTED',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_application_student_opportunity` (`student_id`,`opportunity_id`),
   KEY `ix_applications_opportunity_status` (`opportunity_id`,`status`,`applied_at`),
   KEY `ix_applications_student_status` (`student_id`,`status`,`applied_at`),
   KEY `fk_application_reviewer` (`reviewed_by_account_id`),
+  KEY `ix_internship_applications_recruitment_stage` (`recruitment_stage`),
   CONSTRAINT `fk_application_opportunity` FOREIGN KEY (`opportunity_id`) REFERENCES `internship_opportunities` (`id`),
   CONSTRAINT `fk_application_reviewer` FOREIGN KEY (`reviewed_by_account_id`) REFERENCES `accounts` (`id`),
   CONSTRAINT `fk_application_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
@@ -1215,6 +1363,24 @@ CREATE TABLE `internship_opportunities` (
   `status` varchar(20) NOT NULL DEFAULT 'draft',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `stipend_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `is_active` tinyint(1) NOT NULL DEFAULT '0',
+  `summary` text,
+  `lifecycle_status` varchar(20) DEFAULT NULL,
+  `employment_type` varchar(50) DEFAULT NULL,
+  `department` varchar(150) DEFAULT NULL,
+  `experience_min_years` int DEFAULT NULL,
+  `experience_max_years` int DEFAULT NULL,
+  `compensation_min` decimal(10,2) DEFAULT NULL,
+  `compensation_max` decimal(10,2) DEFAULT NULL,
+  `compensation_currency` varchar(3) DEFAULT 'INR',
+  `compensation_period` varchar(20) DEFAULT NULL,
+  `compensation_visible` tinyint(1) NOT NULL DEFAULT '1',
+  `openings` int NOT NULL DEFAULT '1',
+  `required_skills` json DEFAULT NULL,
+  `preferred_skills` json DEFAULT NULL,
+  `education_requirements` text,
+  `public_application_url` varchar(2048) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `ix_opportunity_status_deadline` (`status`,`application_deadline`),
   KEY `ix_opportunity_provider` (`provider_id`,`status`),
@@ -1281,6 +1447,43 @@ LOCK TABLES `internship_participations` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `internship_placements`
+--
+
+DROP TABLE IF EXISTS `internship_placements`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `internship_placements` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `application_id` bigint unsigned NOT NULL,
+  `student_id` bigint unsigned NOT NULL,
+  `faculty_supervisor_id` bigint unsigned DEFAULT NULL,
+  `start_date` date NOT NULL,
+  `end_date` date NOT NULL,
+  `status` enum('ONGOING','COMPLETED','TERMINATED') NOT NULL DEFAULT 'ONGOING',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_internship_placements_application` (`application_id`),
+  KEY `ix_internship_placements_student` (`student_id`),
+  KEY `ix_internship_placements_supervisor` (`faculty_supervisor_id`),
+  CONSTRAINT `fk_internship_placements_application` FOREIGN KEY (`application_id`) REFERENCES `internship_applications` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_internship_placements_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_internship_placements_supervisor` FOREIGN KEY (`faculty_supervisor_id`) REFERENCES `faculty` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `chk_internship_placements_dates` CHECK ((`end_date` >= `start_date`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `internship_placements`
+--
+
+LOCK TABLES `internship_placements` WRITE;
+/*!40000 ALTER TABLE `internship_placements` DISABLE KEYS */;
+/*!40000 ALTER TABLE `internship_placements` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `internship_providers`
 --
 
@@ -1294,8 +1497,15 @@ CREATE TABLE `internship_providers` (
   `contact_email` varchar(254) DEFAULT NULL,
   `status` varchar(20) NOT NULL DEFAULT 'active',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `employer_organization_id` varchar(36) DEFAULT NULL,
+  `company_name` varchar(200) DEFAULT NULL,
+  `industry_sector` varchar(150) DEFAULT NULL,
+  `contact_person_name` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_internship_provider_employer_org` (`employer_organization_id`),
   KEY `ix_provider_name` (`name`),
+  KEY `ix_internship_providers_employer_organization_id` (`employer_organization_id`),
+  CONSTRAINT `fk_internship_provider_employer_org` FOREIGN KEY (`employer_organization_id`) REFERENCES `employer_organizations` (`id`) ON DELETE SET NULL,
   CONSTRAINT `ck_provider_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'inactive')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1485,6 +1695,76 @@ LOCK TABLES `programmes` WRITE;
 /*!40000 ALTER TABLE `programmes` DISABLE KEYS */;
 INSERT INTO `programmes` VALUES (1,1,'B.Sc. Data Science','SOCIS-BSC-DS','Undergraduate',NULL,'active',NULL,NULL,1),(2,1,'B.Sc. (Hons.) Chemistry','SOCIS-BSC-HONS-CHEM','Undergraduate',NULL,'active',NULL,NULL,1),(3,1,'Integrated B.Sc.–M.Sc. Chemistry','SOCIS-INT-CHEM','Integrated UG-PG',NULL,'active',NULL,NULL,1),(4,1,'Integrated B.Sc. (Hons.)–M.Sc. Data Science','SOCIS-INT-DS','Integrated UG-PG',NULL,'active',NULL,NULL,1),(5,1,'M.Sc. Chemistry (Organic / Analytical Chemistry)','SOCIS-MSC-CHEM','Postgraduate',NULL,'active',NULL,NULL,1),(6,1,'M.Sc. Data Science','SOCIS-MSC-DS','Postgraduate',NULL,'active',NULL,NULL,1),(7,1,'Ph.D. Chemistry','SOCIS-PHD-CHEM','Doctoral',NULL,'active',NULL,NULL,1),(8,1,'Ph.D. Mathematics','SOCIS-PHD-MATH','Doctoral',NULL,'active',NULL,NULL,1),(9,4,'B.Sc. (Hons.) Biotechnology','SOLS-BSC-BIOTECH','Undergraduate',NULL,'active',NULL,NULL,1),(10,4,'B.Sc. (Hons.) Microbiology','SOLS-BSC-MICRO','Undergraduate',NULL,'active',NULL,NULL,1),(11,4,'Integrated BS (Hons.)–MS Pharmaceutical Science','SOLS-INT-PHARMA','Integrated UG-PG',NULL,'active',NULL,NULL,1),(12,4,'M.Sc. Biotechnology','SOLS-MSC-BIOTECH','Postgraduate',NULL,'active',NULL,NULL,1),(13,4,'M.Sc. Microbiology','SOLS-MSC-MICRO','Postgraduate',NULL,'active',NULL,NULL,1),(14,4,'Ph.D. Biotechnology','SOLS-PHD-BIOTECH','Doctoral',NULL,'active',NULL,NULL,1),(15,4,'Ph.D. Microbiology','SOLS-PHD-MICRO','Doctoral',NULL,'active',NULL,NULL,1),(16,3,'BCA — Bachelor of Computer Applications','SOCIT-BCA','Undergraduate',NULL,'active',NULL,NULL,1),(17,3,'B.Tech. Computer Science & Engineering','SOCIT-BTECH-CSE','Undergraduate',NULL,'active',NULL,NULL,1),(18,3,'B.Tech. Electronics & Communication Engineering','SOCIT-BTECH-ECE','Undergraduate',NULL,'active',NULL,NULL,1),(19,3,'M.Tech. Computer Science & Engineering','SOCIT-MTECH-CSE','Postgraduate',NULL,'active',NULL,NULL,1),(20,3,'Ph.D. Computer Science & Engineering','SOCIT-PHD-CSE','Doctoral',NULL,'active',NULL,NULL,1),(21,2,'B.Tech. Chemical Engineering','SOCFS-BTECH-CHEM','Undergraduate',NULL,'active',NULL,NULL,1),(22,2,'B.Tech. Fire & Environment, Health & Safety (F&EHS)','SOCFS-BTECH-FEHS','Undergraduate',NULL,'active',NULL,NULL,1),(23,2,'M.Tech. Industrial Safety & Engineering','SOCFS-MTECH-SAFETY','Postgraduate',NULL,'active',NULL,NULL,1),(24,2,'PG Diploma in Industrial Safety','SOCFS-PGD-SAFETY','Diploma',NULL,'active',NULL,NULL,1),(25,5,'BBA — Business Analytics','SOME-BBA-BA','Undergraduate',NULL,'active',NULL,NULL,1),(26,5,'BBA — General','SOME-BBA-GEN','Undergraduate',NULL,'active',NULL,NULL,1),(27,5,'B.Com. / B.Com. (Hons.)','SOME-BCOM','Undergraduate',NULL,'active',NULL,NULL,1),(28,5,'Integrated BBA–MBA (with AI in Business)','SOME-INT-BBA-MBA','Integrated UG-PG',NULL,'active',NULL,NULL,1),(29,5,'MBA — Business Analytics','SOME-MBA-BA','Postgraduate',NULL,'active',NULL,NULL,1),(30,5,'MBA — Finance','SOME-MBA-FIN','Postgraduate',NULL,'active',NULL,NULL,1),(31,5,'MBA — Human Resource Management','SOME-MBA-HRM','Postgraduate',NULL,'active',NULL,NULL,1),(32,5,'MBA — Marketing','SOME-MBA-MKT','Postgraduate',NULL,'active',NULL,NULL,1),(33,5,'Ph.D. Management','SOME-PHD-MGMT','Doctoral',NULL,'active',NULL,NULL,1);
 /*!40000 ALTER TABLE `programmes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `recruitment_drive_opportunities`
+--
+
+DROP TABLE IF EXISTS `recruitment_drive_opportunities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `recruitment_drive_opportunities` (
+  `drive_id` varchar(36) NOT NULL,
+  `opportunity_id` bigint unsigned NOT NULL,
+  `added_by_account_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`drive_id`,`opportunity_id`),
+  KEY `ix_recruitment_drive_opportunity_opportunity` (`opportunity_id`),
+  KEY `ix_recruitment_drive_opportunity_added_by` (`added_by_account_id`),
+  CONSTRAINT `fk_rdo_added_by` FOREIGN KEY (`added_by_account_id`) REFERENCES `accounts` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_rdo_drive` FOREIGN KEY (`drive_id`) REFERENCES `recruitment_drives` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_rdo_opportunity` FOREIGN KEY (`opportunity_id`) REFERENCES `internship_opportunities` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `recruitment_drive_opportunities`
+--
+
+LOCK TABLES `recruitment_drive_opportunities` WRITE;
+/*!40000 ALTER TABLE `recruitment_drive_opportunities` DISABLE KEYS */;
+/*!40000 ALTER TABLE `recruitment_drive_opportunities` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `recruitment_drives`
+--
+
+DROP TABLE IF EXISTS `recruitment_drives`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `recruitment_drives` (
+  `id` varchar(36) NOT NULL,
+  `institution_id` bigint unsigned NOT NULL,
+  `academic_year_id` bigint unsigned DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `description` text,
+  `starts_on` date DEFAULT NULL,
+  `ends_on` date DEFAULT NULL,
+  `application_opens_at` timestamp NULL DEFAULT NULL,
+  `application_closes_at` timestamp NULL DEFAULT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'DRAFT',
+  `created_by_account_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `ix_recruitment_drives_institution` (`institution_id`),
+  KEY `ix_recruitment_drives_academic_year` (`academic_year_id`),
+  KEY `ix_recruitment_drives_creator` (`created_by_account_id`),
+  CONSTRAINT `fk_recruitment_drives_academic_year` FOREIGN KEY (`academic_year_id`) REFERENCES `academic_years` (`id`),
+  CONSTRAINT `fk_recruitment_drives_creator` FOREIGN KEY (`created_by_account_id`) REFERENCES `accounts` (`id`),
+  CONSTRAINT `fk_recruitment_drives_institution` FOREIGN KEY (`institution_id`) REFERENCES `institutions` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `recruitment_drives`
+--
+
+LOCK TABLES `recruitment_drives` WRITE;
+/*!40000 ALTER TABLE `recruitment_drives` DISABLE KEYS */;
+/*!40000 ALTER TABLE `recruitment_drives` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1759,6 +2039,84 @@ LOCK TABLES `semesters` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `storage_files`
+--
+
+DROP TABLE IF EXISTS `storage_files`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `storage_files` (
+  `id` varchar(36) NOT NULL,
+  `original_name` varchar(255) NOT NULL,
+  `file_path` varchar(512) NOT NULL,
+  `file_size_bytes` bigint unsigned NOT NULL,
+  `mime_type` varchar(150) NOT NULL,
+  `sha256_hash` char(64) NOT NULL,
+  `uploaded_by_account_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `ix_storage_files_hash` (`sha256_hash`),
+  KEY `ix_storage_files_uploader_created` (`uploaded_by_account_id`,`created_at`),
+  CONSTRAINT `fk_storage_files_uploaded_by` FOREIGN KEY (`uploaded_by_account_id`) REFERENCES `accounts` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `storage_files`
+--
+
+LOCK TABLES `storage_files` WRITE;
+/*!40000 ALTER TABLE `storage_files` DISABLE KEYS */;
+INSERT INTO `storage_files` VALUES ('b19b35f4-991c-46e2-9c3a-5df4b85846c8','Dhruv_Verma_resume.pdf','files/ff13bb11-d7a7-429d-95d8-6c59bad4e5e6/b19b35f4-991c-46e2-9c3a-5df4b85846c8.pdf',148490,'application/pdf','62f0593953de92932d3b7b294a813d29ae1c876f42a2f41ef4f1226d43d6a5bd',2,'2026-10-24 17:42:55');
+/*!40000 ALTER TABLE `storage_files` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `student_academic_records`
+--
+
+DROP TABLE IF EXISTS `student_academic_records`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `student_academic_records` (
+  `id` varchar(36) NOT NULL,
+  `student_profile_id` bigint unsigned NOT NULL,
+  `institution_name` varchar(255) NOT NULL,
+  `qualification` varchar(255) NOT NULL,
+  `field_of_study` varchar(255) DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `semester` varchar(32) DEFAULT NULL,
+  `grade_value` decimal(8,3) DEFAULT NULL,
+  `grade_max` decimal(8,3) DEFAULT NULL,
+  `grading_scale` varchar(100) DEFAULT NULL,
+  `description` text,
+  `is_verified` tinyint(1) NOT NULL DEFAULT '0',
+  `verified_by_account_id` bigint unsigned DEFAULT NULL,
+  `verified_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `ix_student_academic_records_owner_dates` (`student_profile_id`,`start_date`,`end_date`),
+  KEY `ix_student_academic_records_verifier` (`verified_by_account_id`),
+  CONSTRAINT `fk_student_academic_records_profile` FOREIGN KEY (`student_profile_id`) REFERENCES `student_profiles` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_student_academic_records_verifier` FOREIGN KEY (`verified_by_account_id`) REFERENCES `accounts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `ck_academic_grade_max_positive` CHECK (((`grade_max` is null) or (`grade_max` > 0))),
+  CONSTRAINT `ck_academic_grade_nonnegative` CHECK (((`grade_value` is null) or (`grade_value` >= 0))),
+  CONSTRAINT `ck_academic_grade_within_max` CHECK (((`grade_value` is null) or (`grade_max` is null) or (`grade_value` <= `grade_max`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `student_academic_records`
+--
+
+LOCK TABLES `student_academic_records` WRITE;
+/*!40000 ALTER TABLE `student_academic_records` DISABLE KEYS */;
+/*!40000 ALTER TABLE `student_academic_records` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `student_enrollments`
 --
 
@@ -1799,6 +2157,50 @@ LOCK TABLES `student_enrollments` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `student_portfolio_entries`
+--
+
+DROP TABLE IF EXISTS `student_portfolio_entries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `student_portfolio_entries` (
+  `id` varchar(36) NOT NULL,
+  `student_profile_id` bigint unsigned NOT NULL,
+  `kind` varchar(32) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `organization` varchar(255) DEFAULT NULL,
+  `url` varchar(2048) DEFAULT NULL,
+  `credential_id` varchar(255) DEFAULT NULL,
+  `proficiency` varchar(64) DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `issued_date` date DEFAULT NULL,
+  `is_verified` tinyint(1) NOT NULL DEFAULT '0',
+  `verified_by_account_id` bigint unsigned DEFAULT NULL,
+  `verified_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `ix_portfolio_entries_owner_kind` (`student_profile_id`,`kind`),
+  KEY `ix_portfolio_entries_owner_dates` (`student_profile_id`,`start_date`,`end_date`),
+  KEY `ix_student_portfolio_entries_verifier` (`verified_by_account_id`),
+  CONSTRAINT `fk_student_portfolio_entries_profile` FOREIGN KEY (`student_profile_id`) REFERENCES `student_profiles` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_student_portfolio_entries_verifier` FOREIGN KEY (`verified_by_account_id`) REFERENCES `accounts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `ck_portfolio_entry_kind` CHECK ((`kind` in (_utf8mb4'skill',_utf8mb4'project',_utf8mb4'certification',_utf8mb4'experience',_utf8mb4'research',_utf8mb4'award',_utf8mb4'achievement',_utf8mb4'activity')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `student_portfolio_entries`
+--
+
+LOCK TABLES `student_portfolio_entries` WRITE;
+/*!40000 ALTER TABLE `student_portfolio_entries` DISABLE KEYS */;
+/*!40000 ALTER TABLE `student_portfolio_entries` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `student_profiles`
 --
 
@@ -1808,8 +2210,8 @@ DROP TABLE IF EXISTS `student_profiles`;
 CREATE TABLE `student_profiles` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `student_id` bigint unsigned NOT NULL,
-  `account_id` bigint unsigned DEFAULT NULL,
-  `enrollment_number` varchar(80) DEFAULT NULL,
+  `account_id` bigint unsigned NOT NULL,
+  `enrollment_number` varchar(80) NOT NULL,
   `profile_photo_url` varchar(500) DEFAULT NULL,
   `bio` text,
   `linkedin_url` varchar(500) DEFAULT NULL,
@@ -1820,12 +2222,21 @@ CREATE TABLE `student_profiles` (
   `is_profile_complete` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `department_id` varchar(36) DEFAULT NULL,
-  `programme_id` varchar(36) DEFAULT NULL,
-  `cohort_id` varchar(36) DEFAULT NULL,
+  `department_id` bigint unsigned DEFAULT NULL,
+  `programme_id` bigint unsigned DEFAULT NULL,
+  `cohort_id` bigint unsigned DEFAULT NULL,
   `current_semester` int NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_student_profiles_student` (`student_id`),
+  UNIQUE KEY `uq_student_profiles_account` (`account_id`),
+  UNIQUE KEY `uq_student_profiles_enrollment_number` (`enrollment_number`),
+  KEY `ix_student_profiles_department` (`department_id`),
+  KEY `ix_student_profiles_programme` (`programme_id`),
+  KEY `ix_student_profiles_cohort` (`cohort_id`),
+  CONSTRAINT `fk_student_profiles_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_student_profiles_cohort` FOREIGN KEY (`cohort_id`) REFERENCES `cohorts` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_student_profiles_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_student_profiles_programme` FOREIGN KEY (`programme_id`) REFERENCES `programmes` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `fk_student_profiles_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE,
   CONSTRAINT `ck_student_profiles_cgpa` CHECK (((`cgpa` is null) or ((`cgpa` >= 0) and (`cgpa` <= 10)))),
   CONSTRAINT `ck_student_profiles_visibility` CHECK ((`profile_visibility` in (_utf8mb4'private',_utf8mb4'institution',_utf8mb4'public')))
@@ -1840,6 +2251,38 @@ LOCK TABLES `student_profiles` WRITE;
 /*!40000 ALTER TABLE `student_profiles` DISABLE KEYS */;
 INSERT INTO `student_profiles` VALUES (1,1,2,'23sc06007',NULL,NULL,NULL,NULL,NULL,NULL,'private',0,'2026-10-24 14:28:20','2026-10-24 14:36:39',NULL,NULL,NULL,1);
 /*!40000 ALTER TABLE `student_profiles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `student_resumes`
+--
+
+DROP TABLE IF EXISTS `student_resumes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `student_resumes` (
+  `id` varchar(36) NOT NULL,
+  `student_profile_id` bigint unsigned NOT NULL,
+  `storage_file_id` varchar(36) NOT NULL,
+  `label` varchar(255) NOT NULL,
+  `is_primary` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_student_resume_storage` (`student_profile_id`,`storage_file_id`),
+  KEY `ix_student_resumes_student_profile_id` (`student_profile_id`),
+  KEY `ix_student_resumes_storage_file_id` (`storage_file_id`),
+  CONSTRAINT `fk_student_resumes_profile` FOREIGN KEY (`student_profile_id`) REFERENCES `student_profiles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `student_resumes`
+--
+
+LOCK TABLES `student_resumes` WRITE;
+/*!40000 ALTER TABLE `student_resumes` DISABLE KEYS */;
+INSERT INTO `student_resumes` VALUES ('ab640b0a-35d8-48e0-9d62-4683d517d749',1,'b19b35f4-991c-46e2-9c3a-5df4b85846c8','Dhruv_Verma_resume.pdf',1,'2026-10-24 17:42:58');
+/*!40000 ALTER TABLE `student_resumes` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -1994,4 +2437,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-24 20:33:27
+-- Dump completed on 2026-10-25 10:51:22

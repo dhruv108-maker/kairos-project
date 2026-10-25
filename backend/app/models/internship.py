@@ -100,7 +100,7 @@ class RecruitmentNote(Base):
 
 class InternshipWorkLog(Base):
     """Student-authored work log for an existing persisted internship placement."""
-    __tablename__ = "internship_work_logs"
+    __tablename__ = "internship_daily_logs"
     __table_args__ = (
         Index("ix_internship_work_logs_placement_date", "placement_id", "work_date"),
         Index("ix_internship_work_logs_student_status", "student_id", "status"),
