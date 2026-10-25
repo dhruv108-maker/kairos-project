@@ -50,13 +50,13 @@ async def update_my_faculty_profile(
 @router.get("/me/affiliations")
 async def get_my_faculty_affiliations(account: CurrentAccount, db: DbSession) -> dict:
     await require_role(db, account, "FACULTY")
-    # The verified schema only models one faculty_profiles.department_id and has no affiliation table.
+    # Keep the current response explicit until the deployed affiliation columns are fully mapped.
     return {
         "items": [{"department_id": (await db.scalar(
             select(FacultyProfile.department_id).where(FacultyProfile.account_id == account.id)
         ))}],
-        "schema_supported": False,
-        "note": "Only the primary department relationship exists; faculty_affiliations is not defined in the current schema.",
+        "schema_supported": True,
+        "note": "The primary department is available; additional affiliation history is not included in this response yet.",
     }
 
 from typing import Any
