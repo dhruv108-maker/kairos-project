@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
@@ -142,15 +143,15 @@ class FacultyProfile(Base):
     """
     __tablename__ = "faculty"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(MYSQL_BIGINT(unsigned=True), primary_key=True, autoincrement=True)
     account_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False
+        MYSQL_BIGINT(unsigned=True), ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, nullable=False
     )
     employee_number: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
     employee_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     employment_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="active")
-    department_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    department_id: Mapped[int | None] = mapped_column(MYSQL_BIGINT(unsigned=True), nullable=True)
     designation: Mapped[str | None] = mapped_column(String(150), nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
     account: Mapped[Account] = relationship(back_populates="faculty_profile")
