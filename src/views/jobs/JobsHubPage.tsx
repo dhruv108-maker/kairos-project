@@ -154,7 +154,7 @@ function OpportunityCard({ job, selected, saved, onSelect, onToggleSave }: { job
   );
 }
 
-function DetailPanel({ job, account, appliedIds, onApply, applying }: {
+function DetailPanel({ job, account, appliedIds, saved, onApply, onToggleSave, applying }: {
   job: Opportunity; account: KairosAccount | null; appliedIds: Set<string>; saved: boolean;
   onApply: (job: Opportunity) => void; onToggleSave: (job: Opportunity) => void; applying: string | null;
 }) {
