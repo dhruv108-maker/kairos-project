@@ -588,7 +588,7 @@ export default function JobsHubPage() {
       {account && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/")}>Back to workspace</Button>}
       {!account && <Button variant="outline" className="rounded-full" onClick={() => window.location.assign("/auth/auth2/login")}>Sign in</Button>}
       {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/saved")}><Bookmark className="size-4" /> Saved jobs{savedIds.size ? ` · ${savedIds.size}` : ""}</Button>}
-      {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/applications")}><CheckCircle2 className="size-4" /> My applications</Button>
+      {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/applications")}><CheckCircle2 className="size-4" /> My applications</Button>}
       {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/campus")}><Users className="size-4" /> Campus recruitment</Button>}
     </nav>
 
