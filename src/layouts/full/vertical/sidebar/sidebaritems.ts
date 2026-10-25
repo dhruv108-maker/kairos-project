@@ -1,6 +1,6 @@
 import {
   Activity, BookOpen, BriefcaseBusiness, ClipboardList, FileText, House,
-  LayoutDashboard, NotebookTabs, Settings, Settings2, Ticket, UserRound, Users,
+  LayoutDashboard, NotebookTabs, Settings, Settings2, Ticket, UserRound, Users, GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,6 +39,12 @@ const sidebarItems: MenuItem[] = [
     heading: "Workspace",
     items: [
       { id: "overview", name: "Overview", icon: House, url: "/" },
+    ],
+  },
+  {
+    heading: "Institution",
+    items: [
+      { id: "institution-dashboard", name: "Institution Dashboard", icon: GraduationCap, roles: ["INSTITUTION_ADMIN"], url: "/institution/dashboard" },
     ],
   },
   {
