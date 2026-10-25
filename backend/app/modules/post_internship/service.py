@@ -364,6 +364,71 @@ class PostInternshipService:
         await self.db.commit()
         return await self.list_mappings(submission_id, actor_id)
 
+    async def assignment_options(self, submission_id: str, account_id: str) -> dict:
+        submission, version = await _submission_version(self.db, submission_id)
+        await _require_supervisor_or_admin(self.db, submission, account_id)
+        institution_id, programme_id, _semester = await _submission_context(submission)
+        placement = await _placement_for_submission(self.db, submission)
+        assignments = list((await self.db.scalars(select(BlindAssessmentAssignment).where(
+            BlindAssessmentAssignment.report_version_id == version.id,
+        ))).all())
+        if assignments:
+            policy_ids = {item.policy_id for item in assignments}
+            if len(policy_ids) != 1:
+                raise PostInternshipError(409, "Existing evaluator assignments do not share one policy version")
+            policies = list((await self.db.scalars(select(InternshipAssessmentPolicy).where(
+                InternshipAssessmentPolicy.id == next(iter(policy_ids)),
+                InternshipAssessmentPolicy.institution_id == institution_id,
+                InternshipAssessmentPolicy.programme_id == programme_id,
+            ))).all())
+        else:
+            policies = list((await self.db.scalars(select(InternshipAssessmentPolicy).where(
+                InternshipAssessmentPolicy.institution_id == institution_id,
+                InternshipAssessmentPolicy.programme_id == programme_id,
+                InternshipAssessmentPolicy.is_active.is_(True),
+            ).order_by(InternshipAssessmentPolicy.version.desc()))).all())
+        assigned_faculty_ids = {item.evaluator_faculty_id for item in assignments}
+        if policies and len(assignments) < policies[0].required_evaluator_count:
+            rows = (await self.db.execute(
+                select(FacultyProfile, Account, Department.name)
+                .join(Account, Account.id == FacultyProfile.account_id)
+                .join(Department, Department.id == FacultyProfile.department_id)
+                .join(School, School.id == Department.school_id)
+                .where(
+                    School.institution_id == institution_id,
+                    FacultyProfile.id != placement.faculty_supervisor_id,
+                    Account.is_active.is_(True),
+                    Account.is_verified.is_(True),
+                )
+                .order_by(Account.full_name, FacultyProfile.employee_code)
+            )).all()
+            evaluators = [
+                {
+                    "id": faculty.id, "full_name": account.full_name,
+                    "employee_code": faculty.employee_code, "designation": faculty.designation,
+                    "department_name": department_name,
+                }
+                for faculty, account, department_name in rows
+                if faculty.id not in assigned_faculty_ids
+            ]
+        else:
+            evaluators = []
+        return {
+            "report_submission_id": submission.id,
+            "report_version_id": version.id,
+            "policies": [_policy_json(policy) for policy in policies],
+            "evaluators": evaluators,
+            "assigned_count": len(assignments),
+            "required_evaluator_count": policies[0].required_evaluator_count if policies else None,
+            "message": (
+                "No active assessment policy is configured for this programme."
+                if not policies
+                else "The required number of evaluators has already been assigned."
+                if len(assignments) >= policies[0].required_evaluator_count
+                else None
+            ),
+        }
+
     async def assign_assessment(self, actor_id: str, data: dict) -> BlindAssessmentAssignment:
         version = await self.db.get(ReportVersion, data["report_version_id"])
         if version is None:
@@ -391,8 +456,16 @@ class PostInternshipService:
         if submission.status not in {"SUBMITTED", "UNDER_EVALUATION", "APPROVED"}:
             raise PostInternshipError(409, "Only a submitted report can be assigned for blind assessment")
         policy = await self.db.get(InternshipAssessmentPolicy, data["policy_id"])
-        if policy is None or not policy.is_active or policy.institution_id != institution_id or policy.programme_id != programme_id:
-            raise PostInternshipError(422, "The policy must be active and match the submission's institution and programme")
+        existing_assignments = (await self.db.scalars(select(BlindAssessmentAssignment).where(
+            BlindAssessmentAssignment.report_version_id == version.id,
+        ))).all()
+        if (
+            policy is None
+            or policy.institution_id != institution_id
+            or policy.programme_id != programme_id
+            or (not policy.is_active and not any(item.policy_id == policy.id for item in existing_assignments))
+        ):
+            raise PostInternshipError(422, "The policy must match the submission's institution and programme and be active for a new assignment")
         evaluator = await self.db.get(FacultyProfile, data["evaluator_faculty_id"])
         if evaluator is None:
             raise PostInternshipError(422, "The selected evaluator is not a faculty member")
@@ -407,9 +480,6 @@ class PostInternshipService:
         ))
         if existing:
             raise PostInternshipError(409, "This faculty evaluator is already assigned to the report version")
-        existing_assignments = (await self.db.scalars(select(BlindAssessmentAssignment).where(
-            BlindAssessmentAssignment.report_version_id == version.id,
-        ))).all()
         if any(item.policy_id != policy.id for item in existing_assignments):
             raise PostInternshipError(409, "All independent assessments for a report version must use the same policy version")
         if len(existing_assignments) >= policy.required_evaluator_count:
