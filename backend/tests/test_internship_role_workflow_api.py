@@ -115,7 +115,8 @@ async def persisted_role_workflow():
             InternshipPlacement(id="placement2", application_id="application2", student_id=102, faculty_supervisor_id=22, industry_mentor_account_id="mentor2", start_date=today - timedelta(days=7), end_date=today + timedelta(days=30), status="ONGOING"),
         ])
         await session.flush()
-        await session.connection().exec_driver_sql(
+        connection = await session.connection()
+        await connection.exec_driver_sql(
             "INSERT INTO industry_mentors (id, account_id, status) VALUES (201, 'mentor1', 'active'), (202, 'mentor2', 'active')"
         )
         await session.commit()
