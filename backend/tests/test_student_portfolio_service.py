@@ -29,7 +29,7 @@ async def portfolio_service_session():
                         name="Batch", graduation_year=2029)
         account = Account(id="account", email="student@example.test", password_hash="unused",
                           full_name="Student", is_active=True, is_verified=True)
-        profile = StudentProfile(id="student", account_id=account.id, enrollment_number="ENR-1",
+        profile = StudentProfile(id="student", student_id=1001, account_id=account.id, enrollment_number="ENR-1",
                                  cohort_id=cohort.id, current_semester=1)
         storage = StorageFile(id="file", original_name="resume.pdf", file_path="private/resume.pdf",
                               file_size_bytes=100, mime_type="application/pdf", sha256_hash="a" * 64,

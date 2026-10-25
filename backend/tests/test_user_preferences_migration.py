@@ -20,12 +20,18 @@ def test_user_preferences_migration_declares_per_account_storage(monkeypatch):
 
     calls = []
 
-    class FakeOp:
-        def create_table(self, *args, **kwargs):
-            calls.append((args, kwargs))
+    engine = sa.create_engine("sqlite:///:memory:")
+    with engine.connect() as connection:
+        class FakeOp:
+            def get_bind(self):
+                return connection
 
-    monkeypatch.setattr(migration, "op", FakeOp())
-    migration.upgrade()
+            def create_table(self, *args, **kwargs):
+                calls.append((args, kwargs))
+
+        monkeypatch.setattr(migration, "op", FakeOp())
+        migration.upgrade()
+    engine.dispose()
 
     args, kwargs = calls[0]
     assert args[0] == "user_preferences"

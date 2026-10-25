@@ -124,7 +124,10 @@ class Student(Base):
     """Canonical numeric student row from the deployed MySQL schema."""
     __tablename__ = "students"
 
-    id: Mapped[int] = mapped_column(MYSQL_BIGINT(unsigned=True), primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        primary_key=True, autoincrement=True,
+    )
     account_id: Mapped[int] = mapped_column(
         MYSQL_BIGINT(unsigned=True), ForeignKey("accounts.id", ondelete="RESTRICT"), unique=True, nullable=False
     )

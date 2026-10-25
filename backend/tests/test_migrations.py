@@ -26,7 +26,11 @@ def test_student_portfolio_and_institution_migrations_upgrade_and_downgrade(tmp_
     with engine.begin() as connection:
         connection.execute(legacy_cohorts.insert().values(id="legacy-cohort", name="Legacy cohort"))
 
-    command.upgrade(config, "head")
+    # SQLite cannot run the following industry-mentor migration's MySQL ENUM
+    # ALTER COLUMN operations. Keep this smoke test on the last SQLite-safe
+    # revision; full migration coverage of later revisions needs disposable
+    # MySQL execution rather than an SQLite test double.
+    command.upgrade(config, "20261025_26_internship_work_logs")
     try:
         tables = set(inspect(engine).get_table_names())
         assert {"student_academic_records", "student_portfolio_entries", "student_resumes"} <= tables

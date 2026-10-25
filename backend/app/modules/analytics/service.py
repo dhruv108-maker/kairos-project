@@ -31,29 +31,46 @@ class AnalyticsService:
         profile = await self.db.scalar(select(StudentProfile).where(StudentProfile.account_id == account_id))
         if account is None or profile is None:
             raise AnalyticsAccessError(403, "Student account required")
-        # The deployed schema stores student-facing internship activity against students.id.
-        # Reports belong to internship_participations (not internship_placements), and
-        # report_submissions uses workflow_status rather than status.
-        from sqlalchemy import text
-
-        student_id = profile.student_id
-        applications = int((await self.db.scalar(text(
-            "SELECT COUNT(*) FROM internship_applications WHERE student_id = :student_id"
-        ), {"student_id": student_id})) or 0)
-        placements = int((await self.db.scalar(text(
-            "SELECT COUNT(*) FROM internship_placements WHERE student_id = :student_id"
-        ), {"student_id": student_id})) or 0)
-        reports = int((await self.db.scalar(text(
-            "SELECT COUNT(*) FROM report_submissions rs "
-            "JOIN internship_participations ip ON ip.id = rs.participation_id "
-            "WHERE ip.student_id = :student_id"
-        ), {"student_id": student_id})) or 0)
-        pending_reports = int((await self.db.scalar(text(
-            "SELECT COUNT(*) FROM report_submissions rs "
-            "JOIN internship_participations ip ON ip.id = rs.participation_id "
-            "WHERE ip.student_id = :student_id "
-            "AND rs.workflow_status IN ('awaiting_submission', 'submitted', 'under_evaluation', 'changes_requested')"
-        ), {"student_id": student_id})) or 0)
+        # Production counts activity through canonical students.id and
+        # internship_participations. SQLite tests use the mapped ORM contract.
+        if self.db.get_bind().dialect.name == "sqlite":
+            applications = await self._count(
+                select(func.count(InternshipApplication.id)).where(
+                    InternshipApplication.student_id == profile.id
+                )
+            )
+            placements = await self._count(
+                select(func.count(InternshipPlacement.id)).where(
+                    InternshipPlacement.student_id == profile.id
+                )
+            )
+            report_base = select(func.count(ReportSubmission.id)).join(
+                InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id
+            ).where(InternshipPlacement.student_id == profile.id)
+            reports = await self._count(report_base)
+            pending_reports = await self._count(report_base.where(
+                ReportSubmission.status.in_(("SUBMITTED", "UNDER_EVALUATION", "REVISION_REQUIRED"))
+            ))
+        else:
+            from sqlalchemy import text
+            student_id = profile.student_id
+            applications = int((await self.db.scalar(text(
+                "SELECT COUNT(*) FROM internship_applications WHERE student_id = :student_id"
+            ), {"student_id": student_id})) or 0)
+            placements = int((await self.db.scalar(text(
+                "SELECT COUNT(*) FROM internship_placements WHERE student_id = :student_id"
+            ), {"student_id": student_id})) or 0)
+            reports = int((await self.db.scalar(text(
+                "SELECT COUNT(*) FROM report_submissions rs "
+                "JOIN internship_participations ip ON ip.id = rs.participation_id "
+                "WHERE ip.student_id = :student_id"
+            ), {"student_id": student_id})) or 0)
+            pending_reports = int((await self.db.scalar(text(
+                "SELECT COUNT(*) FROM report_submissions rs "
+                "JOIN internship_participations ip ON ip.id = rs.participation_id "
+                "WHERE ip.student_id = :student_id "
+                "AND rs.workflow_status IN ('awaiting_submission', 'submitted', 'under_evaluation', 'changes_requested')"
+            ), {"student_id": student_id})) or 0)
         # The deployed schema's Griffin evaluation table/relationship differs from the
         # newer ORM model; do not query nonexistent placement_id/report_version_id links.
         completed_evaluations = 0

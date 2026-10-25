@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, ForeignKey, String, Text, TIMESTAMP, func
+from sqlalchemy import Date, ForeignKey, Integer, String, Text, TIMESTAMP, func
 from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,12 +13,11 @@ class FacultyStudentMentorship(Base):
     __tablename__ = "faculty_mentorships"
 
     id: Mapped[int] = mapped_column(
-        MYSQL_BIGINT(unsigned=True), primary_key=True, autoincrement=True
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        primary_key=True, autoincrement=True,
     )
-    institution_id: Mapped[int] = mapped_column(
-        MYSQL_BIGINT(unsigned=True),
-        ForeignKey("institutions.id", ondelete="RESTRICT"),
-        nullable=False,
+    institution_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("institutions.id", ondelete="RESTRICT"), nullable=False,
     )
     faculty_id: Mapped[int] = mapped_column(
         MYSQL_BIGINT(unsigned=True),

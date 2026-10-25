@@ -41,13 +41,13 @@ async def academic_admin_session():
 @pytest.mark.asyncio
 async def test_admin_can_search_students_and_verify_academic_records(academic_admin_session):
     service = AcademicAdminService(academic_admin_session)
-    student = await academic_admin_session.get(StudentProfile, "student")
+    student = await academic_admin_session.get(StudentProfile, 1)
     student.cohort_id = None
     await academic_admin_session.commit()
     rows = await service.list_students("institution", "admin", "E-1", 50, 0)
     assert len(rows) == 1
-    assert rows[0][0].id == "student"
-    record = await service.verify_academic_record("institution", "admin", "student", "record", True)
+    assert rows[0][0].id == 1
+    record = await service.verify_academic_record("institution", "admin", 1, "record", True)
     assert record.is_verified is True
     assert record.verified_by_account_id == "admin"
     assert record.verified_at is not None
@@ -67,17 +67,17 @@ async def test_student_cannot_be_assigned_a_cohort_from_another_institution(acad
     await db.commit()
     service = AcademicAdminService(db)
     with pytest.raises(AcademicAdminError) as error:
-        await service.change_student_cohort("institution", "admin", "student", "other-cohort", None)
+        await service.change_student_cohort("institution", "admin", 1, "other-cohort", None)
     assert error.value.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_student_cannot_have_two_active_mentors(academic_admin_session):
     service = AcademicAdminService(academic_admin_session)
-    item = await service.create_mentorship("institution", "admin", "faculty", "student")
-    assert item.status == "ACTIVE"
+    item = await service.create_mentorship("institution", "admin", 1, 1)
+    assert item.status == "active"
     with pytest.raises(AcademicAdminError) as error:
-        await service.create_mentorship("institution", "admin", "faculty", "student")
+        await service.create_mentorship("institution", "admin", 1, 1)
     assert error.value.status_code == 409
 
 

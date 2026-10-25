@@ -22,7 +22,7 @@ def test_model_metadata_contains_spec_tables():
         "report_versions", "griffin_evaluations", "griffin_evaluation_attempts",
         "griffin_result_snapshots", "evaluation_workflows", "evaluation_stage_results",
         "final_evaluation_outcomes", "teams", "team_memberships", "assessment_campaigns",
-        "faculty_assessment_assignments",
+        "assessment_assignments",
     }
     assert expected <= set(Base.metadata.tables)
 

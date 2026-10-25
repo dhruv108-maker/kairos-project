@@ -116,11 +116,27 @@ async def public_academic_options(institution_id: str, db: DbSession):
         )
         .order_by(Department.name.asc(), Programme.name.asc())
     )).all()
+    cohorts = (await db.execute(
+        select(Cohort.id, Cohort.name, Cohort.programme_id)
+        .join(Programme, Programme.id == Cohort.programme_id)
+        .join(Department, Department.id == Programme.department_id)
+        .join(School, School.id == Department.school_id)
+        .where(
+            School.institution_id == institution_id,
+            School.is_active.is_(True),
+            func.upper(School.status) == "ACTIVE",
+            Department.is_active.is_(True),
+            func.upper(Department.status) == "ACTIVE",
+            func.upper(Programme.status) == "ACTIVE",
+            Cohort.is_active.is_(True),
+        )
+        .order_by(Programme.name.asc(), Cohort.name.asc())
+    )).all()
     return {
         "schools": [{"id": str(row.id), "name": row.name, "code": row.code} for row in schools],
         "departments": [{"id": str(row.id), "name": row.name, "code": row.code, "school_id": str(row.school_id)} for row in departments],
         "programmes": [{"id": str(row.id), "name": row.name, "code": row.code, "department_id": str(row.department_id)} for row in programmes],
-        "cohorts": [],
+        "cohorts": [{"id": str(row.id), "name": row.name, "programme_id": str(row.programme_id)} for row in cohorts],
     }
 
 @router.get("/{institution_id}/domains")

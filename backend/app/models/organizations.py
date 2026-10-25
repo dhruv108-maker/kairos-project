@@ -1,6 +1,6 @@
 from datetime import datetime, date
 from decimal import Decimal
-from sqlalchemy import Date, TIMESTAMP, ForeignKey, String, Text, Boolean, UniqueConstraint, Numeric, func
+from sqlalchemy import Date, TIMESTAMP, ForeignKey, Integer, String, Text, Boolean, UniqueConstraint, Numeric, func
 from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
@@ -27,7 +27,10 @@ class TeamMembership(Base):
 class AssessmentCampaign(Base):
     __tablename__ = "assessment_campaigns"
     # The deployed assessment schema uses unsigned auto-increment BIGINT identifiers.
-    id: Mapped[int] = mapped_column(MYSQL_BIGINT(unsigned=True), primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        primary_key=True, autoincrement=True,
+    )
     institution_id: Mapped[str | None] = mapped_column(ForeignKey("institutions.id", ondelete="RESTRICT"))
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
@@ -43,7 +46,10 @@ class FacultyAssessmentAssignment(Base):
     __table_args__ = (
         UniqueConstraint("campaign_id", "faculty_id", name="uq_campaign_faculty"),
     )
-    id: Mapped[int] = mapped_column(MYSQL_BIGINT(unsigned=True), primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(Integer, "sqlite"),
+        primary_key=True, autoincrement=True,
+    )
     campaign_id: Mapped[int] = mapped_column(
         MYSQL_BIGINT(unsigned=True), ForeignKey("assessment_campaigns.id"), nullable=False
     )

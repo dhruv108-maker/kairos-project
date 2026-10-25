@@ -20,7 +20,7 @@ async def invitation_session():
         institution = Institution(id="institution", name="Institute", slug="institute", status="ACTIVE", created_by_account_id="admin")
         school = School(id="school", institution_id="institution", code="SCH", name="School", is_active=True)
         department = Department(id="department", school_id="school", code="DEP", name="Department", is_active=True)
-        faculty = FacultyProfile(id="faculty-profile", account_id="faculty", employee_code="F-1", department_id="department", designation="Mentor")
+        faculty = FacultyProfile(id="faculty-profile", account_id="faculty", employee_code="F-1", display_name="Faculty", department_id="department", designation="Mentor")
         db.add_all([admin, faculty_account, institution, school, department, faculty])
         await db.flush()
         db.add(InstitutionMembership(institution_id="institution", account_id="admin", role="INSTITUTION_ADMIN", status="ACTIVE"))

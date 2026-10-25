@@ -18,7 +18,7 @@ def test_assessment_assignment_model_matches_deployed_table():
         "id", "campaign_id", "faculty_id", "assigned_at", "assignment_status", "selection_key"
     }
     assert table.c.assignment_status.default is None
-    assert table.c.assignment_status.server_default.arg.text.strip("'") == "assigned"
+    assert str(table.c.assignment_status.server_default.arg).strip("'") == "assigned"
     assert table.c.selection_key.type.length == 200
     assert any(constraint.name == "uq_campaign_faculty" for constraint in table.constraints)
     foreign_keys = {fk.target_fullname for fk in table.foreign_keys}

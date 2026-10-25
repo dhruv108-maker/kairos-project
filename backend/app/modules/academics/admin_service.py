@@ -1,7 +1,7 @@
 """Institution-authorized student/faculty administration and mentorship workflows."""
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import uuid4
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -154,32 +154,35 @@ class AcademicAdminService:
         return faculty
 
     async def create_mentorship(self, institution_id: str, actor_id: str, faculty_id: str, student_id: str):
+        """Assign faculty through the deployed mentorship keys and retain history."""
         await self.institutions.require_admin(institution_id, actor_id)
         faculty = await self.db.scalar(self._faculty_scope(institution_id).where(FacultyProfile.id == faculty_id))
         student = await self.db.scalar(self._student_scope(institution_id).where(StudentProfile.id == student_id))
         if faculty is None or student is None:
             raise AcademicAdminError(422, "Faculty and student must both belong to this institution")
+
+        today = date.today()
         active = await self.db.scalar(select(FacultyStudentMentorship.id).where(
             FacultyStudentMentorship.institution_id == institution_id,
-            FacultyStudentMentorship.student_profile_id == student_id,
-            FacultyStudentMentorship.status == "ACTIVE",
+            FacultyStudentMentorship.student_id == student.student_id,
+            FacultyStudentMentorship.status == "active",
+            (FacultyStudentMentorship.ends_on.is_(None) | (FacultyStudentMentorship.ends_on >= today)),
         ))
         if active is not None:
             raise AcademicAdminError(409, "Student already has an active faculty mentor")
-        item = await self.db.scalar(select(FacultyStudentMentorship).where(
-            FacultyStudentMentorship.institution_id == institution_id,
-            FacultyStudentMentorship.faculty_profile_id == faculty_id,
-            FacultyStudentMentorship.student_profile_id == student_id,
-        ))
-        if item is None:
-            item = FacultyStudentMentorship(id=str(uuid4()), institution_id=institution_id,
-                faculty_profile_id=faculty_id, student_profile_id=student_id,
-                assigned_by_account_id=actor_id, status="ACTIVE")
-            self.db.add(item)
-        else:
-            item.status = "ACTIVE"
-            item.assigned_by_account_id = actor_id
-        AuditService(self.db).record(actor_id, institution_id, "faculty.mentorship_assigned", "faculty_student_mentorship", item.id, {"faculty_profile_id": faculty_id, "student_profile_id": student_id})
+
+        item = FacultyStudentMentorship(
+            institution_id=institution_id, faculty_id=faculty.id,
+            student_id=student.student_id, starts_on=today, is_primary=True,
+            assigned_by_account_id=actor_id, status="active",
+        )
+        self.db.add(item)
+        await self.db.flush()
+        AuditService(self.db).record(
+            actor_id, institution_id, "faculty.mentorship_assigned",
+            "faculty_student_mentorship", str(item.id),
+            {"faculty_id": faculty.id, "student_profile_id": student.id},
+        )
         await self.db.commit()
         await self.db.refresh(item)
         return item
@@ -189,8 +192,15 @@ class AcademicAdminService:
         item = await self.db.get(FacultyStudentMentorship, mentorship_id)
         if item is None or item.institution_id != institution_id:
             raise AcademicAdminError(404, "Mentorship not found in this institution")
-        item.status = "ENDED"
-        AuditService(self.db).record(actor_id, institution_id, "faculty.mentorship_ended", "faculty_student_mentorship", item.id, {"student_profile_id": item.student_profile_id, "faculty_profile_id": item.faculty_profile_id})
+        if item.status.lower() != "active":
+            raise AcademicAdminError(409, "Only an active mentorship can be ended")
+        item.status = "ended"
+        item.ends_on = date.today()
+        AuditService(self.db).record(
+            actor_id, institution_id, "faculty.mentorship_ended",
+            "faculty_student_mentorship", str(item.id),
+            {"student_id": item.student_id, "faculty_id": item.faculty_id},
+        )
         await self.db.commit()
         await self.db.refresh(item)
         return item
@@ -199,8 +209,11 @@ class AcademicAdminService:
         await self.institutions.require_admin(institution_id, actor_id)
         query = select(FacultyStudentMentorship).where(FacultyStudentMentorship.institution_id == institution_id)
         if student_id:
-            query = query.where(FacultyStudentMentorship.student_profile_id == student_id)
+            student = await self.db.get(StudentProfile, student_id)
+            if student is None:
+                return []
+            query = query.where(FacultyStudentMentorship.student_id == student.student_id)
         if faculty_id:
-            query = query.where(FacultyStudentMentorship.faculty_profile_id == faculty_id)
+            query = query.where(FacultyStudentMentorship.faculty_id == faculty_id)
         result = await self.db.execute(query.order_by(FacultyStudentMentorship.created_at.desc()))
         return list(result.scalars().all())
