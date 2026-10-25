@@ -115,7 +115,7 @@ class InternshipWorkLog(Base):
     challenges: Mapped[str | None] = mapped_column(Text)
     learning_outcomes: Mapped[str | None] = mapped_column(Text)
     next_steps: Mapped[str | None] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(Enum("DRAFT", "SUBMITTED", "REVIEWED", name="internship_work_log_status"), nullable=False, server_default="DRAFT")
+    status: Mapped[str] = mapped_column(Enum("DRAFT", "SUBMITTED", "INDUSTRY_REVIEWED", "REVIEWED", name="internship_work_log_status"), nullable=False, server_default="DRAFT")
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
 
