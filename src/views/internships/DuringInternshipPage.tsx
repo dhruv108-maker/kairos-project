@@ -19,7 +19,8 @@ import { toast } from "sonner";
 type Placement = { id: string; application_id: string; student_id: number; faculty_supervisor_id: string | null; industry_mentor_account_id?: string | null; start_date: string; end_date: string; status: string; student_name?: string; student_enrollment_number?: string; opportunity_title?: string; company_name?: string; latest_work_log_at?: string | null };
 type Application = { id: string; status: string; applied_at?: string | null; opportunity?: { id: string; title: string; company_name?: string | null; starts_on?: string | null; ends_on?: string | null; location?: string | null } };
 type Report = { id: string; placement_id: string; requirement_id?: string | null; title: string; latest_version_number: number; status: string; review_feedback?: string | null; reviewed_by_account_id?: string | null; reviewed_at?: string | null; created_at?: string; updated_at?: string };
-type WorkLog = { id: string; placement_id: string; work_date: string; summary: string; tasks_completed: string; skills_used?: string | null; challenges?: string | null; learning_outcomes?: string | null; next_steps?: string | null; status: string; created_at?: string; updated_at?: string; student_name?: string; opportunity_title?: string; company_name?: string; latest_review?: { decision: string; feedback: string; reviewer_role: string; created_at?: string } | null };
+type WorkLog = { id: string; placement_id: string; work_date: string; summary: string; tasks_completed: string; skills_used?: string | null; challenges?: string | null; learning_outcomes?: string | null; next_steps?: string | null; status: string; created_at?: string; updated_at?: string; student_name?: string; opportunity_title?: string; company_name?: string; notification_status?: { status: string; accepted_by_provider: number; failed: number }; latest_review?: { decision: string; feedback: string; reviewer_role: string; created_at?: string } | null };
+type StudentIdentity = { name: string; enrollment_number: string; institution_name?: string | null; programme_name?: string | null; department_name?: string | null };
 type ReportVersion = { id: string; submission_id: string; version_number: number; file_id: string; submission_notes?: string | null; submitted_at?: string };
 type Requirement = { id: string; title: string; description?: string | null; due_date?: string | null; is_required: boolean; is_active: boolean; submission_status?: string | null };
 type UploadResult = { id: string; original_name: string; file_size_bytes: number; mime_type: string; created_at?: string };
@@ -50,6 +51,7 @@ export default function DuringInternshipPage() {
   const [placements, setPlacements] = useState<AsyncState<Placement[]>>(emptyState());
   const [requirements, setRequirements] = useState<AsyncState<Array<{ requirement: Requirement; submission_status?: string | null }>>>(emptyState());
   const [workLogs, setWorkLogs] = useState<AsyncState<WorkLog[]>>(emptyState());
+  const [studentIdentity, setStudentIdentity] = useState<StudentIdentity | null>(null);
   const [logPlacementId, setLogPlacementId] = useState("");
   const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10));
   const [logSummary, setLogSummary] = useState("");
@@ -101,8 +103,9 @@ export default function DuringInternshipPage() {
     if (isStudent) {
       setWorkLogs(emptyState());
       try {
-        const r = await apiRequest<{ items: WorkLog[] }>("/modules/internships/work-logs/me");
+        const r = await apiRequest<{ items: WorkLog[]; student_identity?: StudentIdentity }>("/modules/internships/work-logs/me");
         setWorkLogs({ loading: false, value: r.items || [], error: null });
+        setStudentIdentity(r.student_identity || null);
         const p = await apiRequest<{ items: Placement[] }>("/modules/internships/placements/me");
         setPlacements({ loading: false, value: p.items || [], error: null });
         if (!logPlacementId && p.items?.length) setLogPlacementId(p.items.find((x) => x.status === "ONGOING")?.id || "");
@@ -150,14 +153,32 @@ export default function DuringInternshipPage() {
   };
   const submitLog = async (logId: string) => {
     setLogBusy(true);
-    try { const saved = await apiRequest<WorkLog>(`/modules/internships/work-logs/${encodeURIComponent(logId)}/submit`, { method: "POST" }); toast.success(`Work log ${prettyStatus(saved.status)}.`); setReloadKey((n) => n + 1); }
+    try {
+      const saved = await apiRequest<WorkLog>(`/modules/internships/work-logs/${encodeURIComponent(logId)}/submit`, { method: "POST" });
+      if (saved.notification_status?.status === "ACCEPTED_BY_PROVIDER") {
+        toast.success("Progress log submitted. Email notifications were accepted by Resend.");
+      } else if (saved.notification_status?.status === "PARTIALLY_ACCEPTED") {
+        toast.warning("Progress log submitted, but one or more mentor email notifications failed.");
+      } else if (saved.notification_status?.status === "FAILED") {
+        toast.warning("Progress log submitted successfully; mentor email notifications failed. Contact your coordinator to follow up.");
+      } else {
+        toast.success("Progress log submitted. No eligible assigned mentors were available for email notification.");
+      }
+      setReloadKey((n) => n + 1);
+    }
     catch (e) { toast.error(errorMessage(e)); } finally { setLogBusy(false); }
   };
   const reviewLog = async (logId: string) => {
     const decision = reviewDecision[logId] || "ACKNOWLEDGED";
     if (!reviewText[logId]?.trim()) { toast.error("Feedback is required for a work-log review."); return; }
     setLogBusy(true);
-    try { const result = await apiRequest<{ work_log: WorkLog }>(`/modules/internships/work-logs/${encodeURIComponent(logId)}/review`, { method: "POST", body: JSON.stringify({ decision, feedback: reviewText[logId].trim() }) }); toast.success(`Work log ${prettyStatus(result.work_log.status)}.`); setReloadKey((n) => n + 1); }
+    try {
+      const endpoint = isIndustryMentor ? "mentor-review" : "review";
+      const result = await apiRequest<{ work_log: WorkLog; student_notification_status?: string }>(`/modules/internships/work-logs/${encodeURIComponent(logId)}/${endpoint}`, { method: "POST", body: JSON.stringify({ decision, feedback: reviewText[logId].trim() }) });
+      toast.success(`Work log ${prettyStatus(result.work_log.status)}. Feedback saved.`);
+      if (result.student_notification_status === "FAILED") toast.warning("Feedback was saved, but the student email notification failed.");
+      setReloadKey((n) => n + 1);
+    }
     catch (e) { toast.error(errorMessage(e)); } finally { setLogBusy(false); }
   };
 
@@ -196,7 +217,7 @@ export default function DuringInternshipPage() {
   const selectedReportItem = (reports.value || []).find((r) => r.id === selectedReport);
   const timeline = [
     { title: "Placement", done: (placements.value || []).some((p) => p.status === "ONGOING"), detail: isStudent ? "Uses saved placement records, not application status." : "Uses the faculty-scoped placement endpoint." },
-    { title: "Work logs", done: false, detail: "No work-log model or endpoint exists in this branch." },
+    { title: "Work logs", done: (workLogs.value || []).length > 0, detail: `${workLogs.value?.length ?? 0} persisted progress log(s) in your timeline.` },
     { title: "Reports", done: (reports.value || []).some((r) => r.status === "APPROVED"), detail: `${reports.value?.length ?? 0} report submission(s) returned by Kairos.` },
     { title: "Evaluation", done: false, detail: "Griffin evaluation is tracked separately and requires assigned faculty authorization." },
   ];
@@ -207,7 +228,7 @@ export default function DuringInternshipPage() {
     {errors.length > 0 && <div className="mb-4 space-y-2">{errors.map((message, i) => <StateNotice key={`${message}-${i}`} title="Workspace data unavailable" message={message} onRetry={() => setReloadKey((n) => n + 1)} />)}</div>}
     {loading ? <div className="space-y-4"><Skeleton className="h-28 w-full" /><div className="grid gap-4 md:grid-cols-2"><Skeleton className="h-36" /><Skeleton className="h-36" /></div></div> : <>
       {view === "overview" && <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-3"><Card><CardHeader><CardDescription>{isStudent ? "Applications" : isFaculty ? "Supervised placements" : "Assigned placements"}</CardDescription><CardTitle className="text-2xl">{isStudent ? applications.value?.length ?? "—" : placements.value?.length ?? "—"}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">{isStudent ? "Belonging to your authenticated account." : isFaculty ? "From faculty-scoped supervision records." : "Explicitly assigned to this employer account."}</CardContent></Card><Card><CardHeader><CardDescription>Reports</CardDescription><CardTitle className="text-2xl">{reports.value?.length ?? "—"}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">{pending.length} submitted or under evaluation</CardContent></Card><Card><CardHeader><CardDescription>Work logs</CardDescription><CardTitle className="text-2xl">Unavailable</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">The backend currently has no persisted work-log contract.</CardContent></Card></div>
+        <div className="grid gap-4 md:grid-cols-3"><Card><CardHeader><CardDescription>{isStudent ? "Applications" : isFaculty ? "Supervised placements" : "Assigned placements"}</CardDescription><CardTitle className="text-2xl">{isStudent ? applications.value?.length ?? "—" : placements.value?.length ?? "—"}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">{isStudent ? "Belonging to your authenticated account." : isFaculty ? "From faculty-scoped supervision records." : "Explicitly assigned to this employer account."}</CardContent></Card><Card><CardHeader><CardDescription>Reports</CardDescription><CardTitle className="text-2xl">{reports.value?.length ?? "—"}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">{pending.length} submitted or under evaluation</CardContent></Card><Card><CardHeader><CardDescription>Progress logs</CardDescription><CardTitle className="text-2xl">{workLogs.value?.length ?? "—"}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Persisted updates for your current internship placements.</CardContent></Card></div>
         <Card><CardHeader><CardTitle>Internship journey</CardTitle><CardDescription>Progress derives from persisted records, not page visits.</CardDescription></CardHeader><CardContent><div className="space-y-5">{timeline.map((item, i) => <div key={item.title} className="flex gap-3"><div className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border ${item.done ? "border-teal-600 bg-teal-50 text-teal-700" : "border-border text-muted-foreground"}`}>{item.done ? <CheckCircle2 className="size-4" /> : <span className="text-xs font-semibold">{i + 1}</span>}</div><div><div className="flex flex-wrap items-center gap-2"><p className="font-medium">{item.title}</p><Badge variant={item.done ? "default" : "outline"}>{item.done ? "Recorded" : "Pending / unsupported"}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{item.detail}</p></div></div>)}</div></CardContent></Card>
         {isStudent && requirements.value && requirements.value.length > 0 && <Card><CardHeader><CardTitle>Report requirements</CardTitle><CardDescription>Active requirements returned for your institution.</CardDescription></CardHeader><CardContent><div className="divide-y">{requirements.value.map(({ requirement: r, submission_status }) => <div key={r.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{r.title}</p>{r.description && <p className="text-sm text-muted-foreground">{r.description}</p>}<p className="mt-1 text-xs text-muted-foreground">Due {formatDate(r.due_date)} · {r.is_required ? "Required" : "Optional"}</p></div><Badge variant="outline">{prettyStatus(submission_status || "NOT_STARTED")}</Badge></div>)}</div></CardContent></Card>}
         <Card>
@@ -318,7 +339,8 @@ export default function DuringInternshipPage() {
       {view === "activity" && <div className="space-y-5">
         {isStudent && <>
           {placements.error && <StateNotice title="Placements unavailable" message={placements.error} onRetry={() => setReloadKey((n) => n + 1)} />}
-          {placements.value?.length ? <Card><CardHeader><CardTitle>Work log entry</CardTitle><CardDescription>Record your work against an ongoing persisted placement. Submitted logs are locked until reviewed.</CardDescription></CardHeader><CardContent><form className="grid gap-4" onSubmit={saveLog}>
+          {studentIdentity && <Card><CardHeader><CardTitle>Student identity</CardTitle><CardDescription>Read-only information resolved from your Kairos account and academic records.</CardDescription></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><div><p className="text-xs text-muted-foreground">Student name</p><p className="font-medium">{studentIdentity.name}</p></div><div><p className="text-xs text-muted-foreground">ERN / Enrollment Number</p><p className="font-medium">{studentIdentity.enrollment_number}</p></div><div><p className="text-xs text-muted-foreground">Institution</p><p className="font-medium">{studentIdentity.institution_name || "Not recorded in academic profile"}</p></div><div><p className="text-xs text-muted-foreground">Programme / Department</p><p className="font-medium">{[studentIdentity.programme_name, studentIdentity.department_name].filter(Boolean).join(" / ") || "Not recorded"}</p></div></CardContent></Card>}
+          {placements.value?.length ? <Card><CardHeader><CardTitle>Progress log entry</CardTitle><CardDescription>Record progress against an ongoing persisted placement. Submitted entries are retained as history and cannot be edited.</CardDescription></CardHeader><CardContent><form className="grid gap-4" onSubmit={saveLog}>
             <div className="grid gap-2"><Label htmlFor="log-placement">Internship placement</Label><Select value={logPlacementId} onValueChange={(value) => setLogPlacementId(value || "")}><SelectTrigger id="log-placement" className="w-full"><SelectValue placeholder="Choose ongoing placement" /></SelectTrigger><SelectContent>{placements.value.filter((p) => p.status === "ONGOING").map((p) => <SelectItem key={p.id} value={p.id}>Placement {p.id} · {formatDate(p.start_date)} – {formatDate(p.end_date)}</SelectItem>)}</SelectContent></Select></div>
             <div className="grid gap-2"><Label htmlFor="log-date">Work date</Label><Input id="log-date" type="date" required max={new Date().toISOString().slice(0, 10)} value={logDate} onChange={(e) => setLogDate(e.target.value)} /></div>
             <div className="grid gap-2"><Label htmlFor="log-summary">Summary</Label><Input id="log-summary" required minLength={3} maxLength={255} value={logSummary} onChange={(e) => setLogSummary(e.target.value)} placeholder="What did you work on?" /></div>
@@ -340,7 +362,7 @@ export default function DuringInternshipPage() {
               <p className="mt-3 whitespace-pre-wrap text-sm">{log.tasks_completed}</p>
               {log.skills_used && <p className="mt-2 text-sm text-muted-foreground">Skills: {log.skills_used}</p>}
               {log.latest_review && <Alert className="mt-3"><MessageSquareText className="size-4" /><AlertTitle>{prettyStatus(log.latest_review.decision)} · {log.latest_review.reviewer_role}</AlertTitle><AlertDescription><p className="whitespace-pre-wrap">{log.latest_review.feedback}</p><p className="mt-1 text-xs">Reviewed {formatDateTime(log.latest_review.created_at)}</p></AlertDescription></Alert>}
-              {log.status === "SUBMITTED" && <div className="mt-4 space-y-3"><Label htmlFor={`mentor-review-${log.id}`}>Workplace feedback</Label><Textarea id={`mentor-review-${log.id}`} value={reviewText[log.id] || ""} onChange={(e) => setReviewText((old) => ({ ...old, [log.id]: e.target.value }))} maxLength={5000} placeholder="Comment on practical delivery, professionalism, strengths, and areas to improve." /><div className="flex flex-wrap gap-2"><Button size="sm" variant={(reviewDecision[log.id] || "ACKNOWLEDGED") === "ACKNOWLEDGED" ? "default" : "outline"} onClick={() => setReviewDecision((old) => ({ ...old, [log.id]: "ACKNOWLEDGED" }))} disabled={logBusy}>Acknowledge</Button><Button size="sm" variant={reviewDecision[log.id] === "REVISION_REQUIRED" ? "default" : "outline"} onClick={() => setReviewDecision((old) => ({ ...old, [log.id]: "REVISION_REQUIRED" }))} disabled={logBusy}>Request revision</Button><Button size="sm" onClick={() => void reviewLog(log.id)} disabled={logBusy || !reviewText[log.id]?.trim()}>Submit workplace review</Button></div></div>}
+              {["SUBMITTED", "INDUSTRY_REVIEWED", "REVIEWED"].includes(log.status) && <div className="mt-4 space-y-3"><Label htmlFor={`mentor-review-${log.id}`}>Workplace feedback</Label><Textarea id={`mentor-review-${log.id}`} value={reviewText[log.id] || ""} onChange={(e) => setReviewText((old) => ({ ...old, [log.id]: e.target.value }))} maxLength={5000} placeholder="Comment on practical delivery, professionalism, strengths, and areas to improve." /><div className="flex flex-wrap gap-2"><Button size="sm" variant={(reviewDecision[log.id] || "ACKNOWLEDGED") === "ACKNOWLEDGED" ? "default" : "outline"} onClick={() => setReviewDecision((old) => ({ ...old, [log.id]: "ACKNOWLEDGED" }))} disabled={logBusy}>Acknowledge</Button><Button size="sm" variant={reviewDecision[log.id] === "REVISION_REQUIRED" ? "default" : "outline"} onClick={() => setReviewDecision((old) => ({ ...old, [log.id]: "REVISION_REQUIRED" }))} disabled={logBusy}>Request revision</Button><Button size="sm" onClick={() => void reviewLog(log.id)} disabled={logBusy || !reviewText[log.id]?.trim()}>Submit workplace review</Button></div></div>}
             </div>)}</div> : <div className="py-8 text-center text-sm text-muted-foreground">No assigned work logs are available yet.</div>}
           </CardContent></Card>
         </>}
