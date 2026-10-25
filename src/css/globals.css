@@ -180,29 +180,30 @@
 
 /* Account-level personalization tokens (owned by Settings). */
 :root {
-  --kairos-font-size: 16px;
+  --kairos-font-scale: 1;
   --kairos-density: 1;
 }
 
-/* Scale typography using a shared root token, leaving fixed-size icons alone. */
-html[data-kairos-font-size="small"] { --kairos-font-size: 14px; }
-html[data-kairos-font-size="default"] { --kairos-font-size: 16px; }
-html[data-kairos-font-size="large"] { --kairos-font-size: 18px; }
-html[data-kairos-font-size="xlarge"] { --kairos-font-size: 20px; }
+html[data-kairos-font-size="small"] { --kairos-font-scale: 0.875; }
+html[data-kairos-font-size="default"] { --kairos-font-scale: 1; }
+html[data-kairos-font-size="large"] { --kairos-font-scale: 1.125; }
+html[data-kairos-font-size="xlarge"] { --kairos-font-scale: 1.25; }
 
-html[data-kairos-font-size] body {
-  font-size: var(--kairos-font-size);
-}
-html[data-kairos-font-size] body :where(p, label, li, td, th, input, textarea, select, button, [data-slot="label"], [data-slot="input"], [data-slot="select-trigger"]) {
-  font-size: inherit;
-}
+body { font-size: calc(1rem * var(--kairos-font-scale, 1)); }
 
-html[data-kairos-font-size] body :where(h1) { font-size: calc(var(--kairos-font-size) * 2); }
-html[data-kairos-font-size] body :where(h2) { font-size: calc(var(--kairos-font-size) * 1.65); }
-html[data-kairos-font-size] body :where(h3) { font-size: calc(var(--kairos-font-size) * 1.35); }
-html[data-kairos-font-size] body :where(h4, h5, h6) { font-size: calc(var(--kairos-font-size) * 1.125); }
+/* Scale typography utilities while retaining hierarchy and rem-based layout. */
+html[data-kairos-font-size] :where(.text-xs) { font-size: calc(var(--text-xs) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-sm) { font-size: calc(var(--text-sm) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-base) { font-size: calc(var(--text-base) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-lg) { font-size: calc(var(--text-lg) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-xl) { font-size: calc(var(--text-xl) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-2xl) { font-size: calc(var(--text-2xl) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-3xl) { font-size: calc(var(--text-3xl) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-4xl) { font-size: calc(var(--text-4xl) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-5xl) { font-size: calc(var(--text-5xl) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-6xl) { font-size: calc(var(--text-6xl) * var(--kairos-font-scale)) !important; }
+html[data-kairos-font-size] :where(.text-7xl) { font-size: calc(var(--text-7xl) * var(--kairos-font-scale)) !important; }
 
-/* Density is a semantic multiplier used by settings and future shared layout primitives. */
 html[data-kairos-density="compact"] { --kairos-density: 0.75; }
 html[data-kairos-density="comfortable"] { --kairos-density: 1; }
 html[data-kairos-density="spacious"] { --kairos-density: 1.25; }
