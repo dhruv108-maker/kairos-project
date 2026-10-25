@@ -351,42 +351,124 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
 
 @router.post("/register/faculty", response_model=RegistrationResponse, status_code=201)
 async def register_faculty(payload: FacultyRegistration, db: DbSession) -> RegistrationResponse:
+    """Register faculty using the deployed MySQL identity schema.
+
+    The live schema uses accounts.id BIGINT UNSIGNED AUTO_INCREMENT and the
+    canonical faculty table (not faculty_profiles). Keep this flow on SQL
+    statements so UUID-based legacy ORM mappings cannot create incompatible rows.
+    """
+    if len(payload.full_name) > 200:
+        raise HTTPException(status_code=422, detail="Full name must be 200 characters or fewer")
+    if len(payload.employee_code) > 80:
+        raise HTTPException(status_code=422, detail="Employee code must be 80 characters or fewer")
+    if len(payload.designation) > 150:
+        raise HTTPException(status_code=422, detail="Designation must be 150 characters or fewer")
+
+    token: str
+    account_id: int
     try:
         async with db.begin():
-            department = await db.scalar(select(Department).join(School, School.id == Department.school_id).where(
-                Department.id == payload.department_id, School.id == payload.school_id,
-                School.is_active.is_(True), Department.is_active.is_(True),
-            ))
-            if department is None:
-                raise HTTPException(status_code=422, detail="Choose an active department within the selected school")
-            department_institution_id = await db.scalar(select(School.institution_id).where(School.id == payload.school_id))
-            if payload.institution_id:
-                institution = await db.get(Institution, payload.institution_id)
-                if institution is None or (institution.status or "").upper() != "ACTIVE":
-                    raise HTTPException(status_code=422, detail="Unknown or inactive institution_id")
-                if department_institution_id != institution.id:
-                    raise HTTPException(status_code=422, detail="The selected school and department do not belong to the selected institution")
-            account = Account(
-                id=str(uuid4()),
-                email=payload.email,
-                password_hash=hash_password(payload.password),
-                full_name=payload.full_name,
-                is_active=False,
-                is_verified=False,
+            department = await db.execute(
+                text("""
+                    SELECT d.id, s.institution_id
+                    FROM departments AS d
+                    JOIN schools AS s ON s.id = d.school_id
+                    WHERE d.id = :department_id
+                      AND s.id = :school_id
+                      AND d.is_active = 1
+                      AND s.is_active = 1
+                    LIMIT 1
+                """),
+                {"department_id": payload.department_id, "school_id": payload.school_id},
             )
-            profile = FacultyProfile(
-                id=str(uuid4()),
-                account_id=account.id,
-                employee_code=payload.employee_code,
-                department_id=payload.department_id,
-                designation=payload.designation,
+            department_row = department.mappings().first()
+            if department_row is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Choose an active department within the selected school",
+                )
+
+            institution_id = department_row["institution_id"]
+            if institution_id is None:
+                raise HTTPException(status_code=422, detail="The selected school is not linked to an institution")
+            if payload.institution_id and str(payload.institution_id) != str(institution_id):
+                raise HTTPException(
+                    status_code=422,
+                    detail="The selected school and department do not belong to the selected institution",
+                )
+            active_institution = await db.scalar(
+                text("SELECT id FROM institutions WHERE id = :institution_id AND UPPER(status) = 'ACTIVE' LIMIT 1"),
+                {"institution_id": institution_id},
             )
-            role = await _ensure_role(db, "FACULTY")
-            db.add_all([account, profile])
-            await db.flush()
-            db.add(AccountRole(account_id=account.id, role_id=role.id))
-            token = await _new_verification_token(account)
-            await db.flush()
+            if active_institution is None:
+                raise HTTPException(status_code=422, detail="The selected institution is inactive")
+
+            account_result = await db.execute(
+                text("""
+                    INSERT INTO accounts (
+                        email, password_hash, display_name, account_status, full_name,
+                        is_active, is_verified
+                    ) VALUES (
+                        :email, :password_hash, :display_name, 'pending', :full_name,
+                        0, 0
+                    )
+                """),
+                {
+                    "email": payload.email,
+                    "password_hash": hash_password(payload.password),
+                    "display_name": payload.full_name,
+                    "full_name": payload.full_name,
+                },
+            )
+            account_id = account_result.lastrowid
+            if not account_id:
+                raise RuntimeError("The database did not return the new account ID")
+
+            await db.execute(
+                text("""
+                    INSERT INTO faculty (
+                        account_id, employee_number, employee_code, display_name,
+                        employment_status, department_id, designation
+                    ) VALUES (
+                        :account_id, :employee_number, :employee_code, :display_name,
+                        'active', :department_id, :designation
+                    )
+                """),
+                {
+                    "account_id": account_id,
+                    "employee_number": payload.employee_code,
+                    "employee_code": payload.employee_code,
+                    "display_name": payload.full_name,
+                    "department_id": department_row["id"],
+                    "designation": payload.designation,
+                },
+            )
+
+            role_id = await db.scalar(
+                text("SELECT id FROM roles WHERE code = 'FACULTY' OR name = 'FACULTY' LIMIT 1")
+            )
+            if role_id is None:
+                role_result = await db.execute(
+                    text("INSERT INTO roles (code, name) VALUES ('FACULTY', 'FACULTY')")
+                )
+                role_id = role_result.lastrowid
+            await db.execute(
+                text("""
+                    INSERT INTO account_roles (account_id, role_id, institution_id)
+                    VALUES (:account_id, :role_id, :institution_id)
+                """),
+                {
+                    "account_id": account_id,
+                    "role_id": role_id,
+                    "institution_id": institution_id,
+                },
+            )
+
+            token = create_token(str(account_id), "email_verification", timedelta(minutes=30))
+            await db.execute(
+                text("UPDATE accounts SET verification_token = :token_hash WHERE id = :account_id"),
+                {"token_hash": hash_token(token), "account_id": account_id},
+            )
     except HTTPException:
         raise
     except IntegrityError:
@@ -395,9 +477,13 @@ async def register_faculty(payload: FacultyRegistration, db: DbSession) -> Regis
             detail="Registration conflicts with an existing account or employee code",
         ) from None
 
-    sent = await _send_verification(account, token)
+    try:
+        await send_verification_email(payload.email, token)
+        sent = True
+    except Exception:
+        sent = False
     return RegistrationResponse(
-        account_id=account.id,
+        account_id=str(account_id),
         message=(
             "Faculty account created. Verify the email; institutional approval is still required."
             if sent
