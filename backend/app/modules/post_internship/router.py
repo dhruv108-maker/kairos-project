@@ -27,7 +27,8 @@ def _policy(item):
     return {
         "id": item.id, "institution_id": item.institution_id, "programme_id": item.programme_id,
         "version": item.version, "name": item.name, "criteria": item.criteria_json,
-        "component_weights": item.component_weights_json, "grade_bands": item.grade_bands_json,
+        "component_weights": item.component_weights_json, "griffin_score_max": float(item.griffin_score_max),
+        "curriculum_status_scores": item.curriculum_status_scores_json, "grade_bands": item.grade_bands_json,
         "passing_score": float(item.passing_score), "final_approver_role": item.final_approver_role,
         "required_evaluator_count": item.required_evaluator_count,
         "show_curriculum_mapping_to_evaluator": item.show_curriculum_mapping_to_evaluator,
