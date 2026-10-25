@@ -33,13 +33,13 @@ const SidebarLayout = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
       variant="inset"
       collapsible="icon"
       {...props}
-      className="sidebar-box **:data-[slot=sidebar-inner]:bg-sidebar **:data-[slot=sidebar-inner]:border **:data-[slot=sidebar-inner]:border-sidebar-border"
+      className="sidebar-box **:data-[slot=sidebar-inner]:bg-sidebar **:data-[slot=sidebar-inner]:border **:data-[slot=sidebar-inner]:border-sidebar-border **:data-[slot=sidebar-inner]:shadow-sm"
       side="left"
     >
-      <SidebarHeader className="flex min-h-14 flex-row items-center justify-between overflow-hidden border-b border-sidebar-border p-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1">
+      <SidebarHeader className="flex min-h-16 flex-row items-center justify-between overflow-hidden border-b border-sidebar-border/80 px-4 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1">
         <div className="min-w-0 overflow-hidden"><FullLogo /></div>
       </SidebarHeader>
-      <SidebarContent className="px-2 py-3">
+      <SidebarContent className="px-2.5 py-4">
         <SimpleBar style={{ height: "100%" }}>
           <SidebarGroup className="min-w-0 p-0 group-data-[collapsible=icon]:px-0">
             <NavCollapse menu={menu} />
@@ -47,7 +47,7 @@ const SidebarLayout = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
         </SimpleBar>
       </SidebarContent>
       <SidebarSeparator />
-      <SidebarFooter className="p-2">
+      <SidebarFooter className="border-t border-sidebar-border/70 p-2.5">
         <NavUser />
       </SidebarFooter>
     </Sidebar>
