@@ -11,7 +11,7 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -754,6 +754,44 @@ class PostInternshipService:
             .order_by(InternshipAcademicResult.academic_semester, InternshipAcademicResult.published_at)
         )).all()
         return [self._result_json(result, title) for result, title in result_rows]
+
+    async def supervised_submissions(self, account_id: str) -> list[dict]:
+        """List report submissions only for placements supervised by this faculty member."""
+        faculty = await _faculty(self.db, account_id)
+        rows = (await self.db.execute(
+            select(ReportSubmission, ReportVersion, InternshipPlacement, StudentProfile, Account)
+            .join(InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id)
+            .join(StudentProfile, StudentProfile.id == InternshipPlacement.student_id)
+            .join(Account, Account.id == StudentProfile.account_id)
+            .outerjoin(
+                ReportVersion,
+                and_(
+                    ReportVersion.submission_id == ReportSubmission.id,
+                    ReportVersion.version_number == ReportSubmission.latest_version_number,
+                ),
+            )
+            .where(InternshipPlacement.faculty_supervisor_id == faculty.id)
+            .order_by(ReportSubmission.updated_at.desc())
+        )).all()
+        return [
+            {
+                "id": submission.id,
+                "placement_id": placement.id,
+                "title": submission.title,
+                "status": submission.status,
+                "latest_version_number": submission.latest_version_number,
+                "report_version_id": version.id if version else None,
+                "has_presentation": bool(version and version.presentation_file_id),
+                "institution_id": submission.institution_id,
+                "programme_id": submission.programme_id,
+                "academic_semester": submission.academic_semester,
+                "updated_at": submission.updated_at,
+                "student_profile_id": student.id,
+                "student_name": account.full_name,
+                "enrollment_number": student.enrollment_number,
+            }
+            for submission, version, placement, student, account in rows
+        ]
 
     async def supervised_students(self, account_id: str) -> list[dict]:
         """Expose identity only for students with a persisted placement supervised by this faculty member."""
