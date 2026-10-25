@@ -63,6 +63,8 @@ const categories = [
   { key: "account_security", label: "Account and security", description: "Important account and security communication" },
 ];
 
+const accentStorageKey = "kairos.accent-color";
+
 function applyAccent(value: Accent) {
   const root = document.documentElement;
   const tokens: Record<Accent, { primary: string; foreground: string; ring: string; sidebar: string }> = {
@@ -80,15 +82,12 @@ function applyAccent(value: Accent) {
   root.style.setProperty("--sidebar-primary", token.sidebar);
   root.style.setProperty("--sidebar-primary-foreground", token.foreground);
   root.dataset.kairosAccent = value;
+  try { localStorage.setItem(accentStorageKey, value); } catch { /* optional visual bootstrap cache */ }
 }
 function applyTypography(value: FontScale) {
-  const sizes: Record<FontScale, string> = { small: "14px", default: "16px", large: "18px", xlarge: "20px" };
-  document.documentElement.style.setProperty("--kairos-font-size", sizes[value]);
   document.documentElement.dataset.kairosFontSize = value;
 }
 function applyDensity(value: Density) {
-  const spacing: Record<Density, string> = { compact: "0.75", comfortable: "1", spacious: "1.25" };
-  document.documentElement.style.setProperty("--kairos-density", spacing[value]);
   document.documentElement.dataset.kairosDensity = value;
 }
 
@@ -200,7 +199,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 py-3">
+    <main className="mx-auto w-full max-w-5xl space-y-6 py-3" data-settings-density={preferences.interface_density}>
       <header className="space-y-1">
         <div className="flex items-center gap-2 text-sm text-muted-foreground"><Settings2 className="size-4" /> Personal preferences</div>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Settings</h1>
