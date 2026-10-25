@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { ChevronDown, type LucideIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -18,7 +18,7 @@ function routeMatches(pathname: string, url?: string) {
   if (pathname === url) return true;
   if (url === "/jobs") {
     const rest = pathname.slice("/jobs".length);
-    return rest.length > 0 && !rest.slice(1).includes("/") && !["/applications", "/campus", "/recruiter"].includes(rest);
+    return rest.length > 0 && !rest.slice(1).includes("/") && !["/applications", "/saved", "/campus", "/recruiter"].includes(rest);
   }
   return pathname.startsWith(url.endsWith("/") ? url : `${url}/`);
 }
@@ -31,21 +31,30 @@ function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: st
   const { isMobile, setOpenMobile } = useSidebar();
   const hasChildren = Boolean(item.items?.length);
   const active = hasActiveDescendant(item, pathname);
-  const [manuallyOpen, setManuallyOpen] = useState(false);
-  const open = active || manuallyOpen;
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
+  const open = manualOpen ?? active;
   const Icon = item.icon as LucideIcon | undefined;
   const onNavigate = () => { if (isMobile) setOpenMobile(false); };
+
+  useEffect(() => {
+    setManualOpen(null);
+  }, [pathname]);
 
   if (hasChildren) {
     return (
       <SidebarMenuItem>
-        <Collapsible open={open} onOpenChange={setManuallyOpen} className="group/collapsible">
+        <Collapsible open={open} onOpenChange={setManualOpen} className="group/collapsible">
           <CollapsibleTrigger
             render={
-              <SidebarMenuButton isActive={active} tooltip={item.name} aria-expanded={open}>
-                {Icon ? <Icon /> : null}
+              <SidebarMenuButton
+                isActive={active && !item.items?.some((child) => hasActiveDescendant(child, pathname))}
+                tooltip={item.name}
+                aria-expanded={open}
+                className="pr-2"
+              >
+                {Icon ? <Icon aria-hidden="true" /> : null}
                 <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">{item.name}</span>
-                <ChevronDown className="ml-auto size-4 shrink-0 transition-transform group-data-[open]/collapsible:rotate-180 group-data-[collapsible=icon]:hidden" />
+                <ChevronDown aria-hidden="true" className="ml-auto size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[open]/collapsible:rotate-180 group-data-[collapsible=icon]:hidden" />
               </SidebarMenuButton>
             }
           />
@@ -62,14 +71,19 @@ function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: st
   }
 
   if (!item.url) return null;
+  const childActive = pathname === item.url || (item.url !== "/" && pathname.startsWith(`${item.url}/`));
+
   if (depth > 0) {
     return (
       <SidebarMenuSubItem>
         <SidebarMenuSubButton
-          render={<Link to={item.url} onClick={onNavigate} />}
-          isActive={pathname === item.url || (item.url !== "/" && pathname.startsWith(`${item.url}/`))}
+          render={<Link to={item.url} onClick={onNavigate} aria-current={childActive ? "page" : undefined} />}
+          isActive={childActive}
+          className={item.disabled ? "pointer-events-none opacity-50" : undefined}
+          aria-disabled={item.disabled || undefined}
+          tabIndex={item.disabled ? -1 : undefined}
         >
-          {Icon ? <Icon /> : null}
+          {Icon ? <Icon aria-hidden="true" /> : null}
           <span className="truncate">{item.name}</span>
         </SidebarMenuSubButton>
       </SidebarMenuSubItem>
@@ -79,11 +93,14 @@ function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: st
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        render={<Link to={item.url} onClick={onNavigate} />}
+        render={<Link to={item.url} onClick={onNavigate} aria-current={childActive ? "page" : undefined} />}
         isActive={routeMatches(pathname, item.url)}
         tooltip={item.name}
+        className={item.disabled ? "pointer-events-none opacity-50" : undefined}
+        aria-disabled={item.disabled || undefined}
+        tabIndex={item.disabled ? -1 : undefined}
       >
-        {Icon ? <Icon /> : null}
+        {Icon ? <Icon aria-hidden="true" /> : null}
         <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">{item.name}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -97,9 +114,11 @@ export default function NavCollapse({ menu }: NavCollapseProps) {
       {menu.map((section) => {
         if (!section.items.length) return null;
         return (
-          <section key={section.heading} className="mb-3">
-            <SidebarGroupLabel>{section.heading}</SidebarGroupLabel>
-            <SidebarMenu>
+          <section key={section.heading} className="mb-4 last:mb-0">
+            <SidebarGroupLabel className="h-7 px-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-muted-foreground/80 group-data-[collapsible=icon]:hidden">
+              {section.heading}
+            </SidebarGroupLabel>
+            <SidebarMenu className="gap-0.5">
               {section.items.map((item) => (
                 <NavEntry key={item.id} item={item} pathname={pathname} />
               ))}
