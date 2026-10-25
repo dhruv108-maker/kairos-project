@@ -37,7 +37,7 @@ const SidebarLayout = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
       side="left"
     >
       <SidebarHeader className="flex min-h-14 flex-row items-center justify-between overflow-hidden border-b border-sidebar-border p-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1">
-        <div className="min-w-0 overflow-hidden group-data-[collapsible=icon]:hidden"><FullLogo /></div>
+        <div className="min-w-0 overflow-hidden"><FullLogo /></div>
       </SidebarHeader>
       <SidebarContent className="px-2 py-3">
         <SimpleBar style={{ height: "100%" }}>
