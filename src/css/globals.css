@@ -197,6 +197,11 @@ html[data-kairos-font-size] body :where(p, label, li, td, th, input, textarea, s
   font-size: inherit;
 }
 
+html[data-kairos-font-size] body :where(h1) { font-size: calc(var(--kairos-font-size) * 2); }
+html[data-kairos-font-size] body :where(h2) { font-size: calc(var(--kairos-font-size) * 1.65); }
+html[data-kairos-font-size] body :where(h3) { font-size: calc(var(--kairos-font-size) * 1.35); }
+html[data-kairos-font-size] body :where(h4, h5, h6) { font-size: calc(var(--kairos-font-size) * 1.125); }
+
 /* Density is a semantic multiplier used by settings and future shared layout primitives. */
 html[data-kairos-density="compact"] { --kairos-density: 0.75; }
 html[data-kairos-density="comfortable"] { --kairos-density: 1; }
