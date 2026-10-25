@@ -65,15 +65,19 @@ const AddNotes = ({ colors }: Props) => {
           <h6 className="text-base pt-4">Change Note Color</h6>
           <div className="flex gap-2 items-center">
             {colors?.map((color) => (
-              <div
+              <button
                 key={color.disp}
+                type="button"
+                aria-label={`Use ${color.disp} note color`}
+                aria-pressed={scolor === color.disp}
                 onClick={() => setColor(color.disp)}
-                className={`h-7 w-7 flex justify-center items-center rounded-full cursor-pointer bg-${color.disp}`}
+                style={{ backgroundColor: color.disp === "primary" ? "var(--primary)" : color.disp === "destructive" ? "var(--destructive)" : `var(--${color.disp})` }}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-border/70 shadow-sm transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {scolor === color.disp && (
                   <Check size={18} className="text-white" />
                 )}
-              </div>
+              </button>
             ))}
           </div>
         </div>
