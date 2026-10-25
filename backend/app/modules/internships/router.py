@@ -258,14 +258,10 @@ async def review_work_log(work_log_id: str, payload: WorkLogReviewCreate, accoun
         raise HTTPException(status_code=404, detail="Work log not found")
     if row.status != "SUBMITTED":
         raise HTTPException(status_code=409, detail="Only submitted work logs can be reviewed")
-    from uuid import uuid4
     review = InternshipWorkLogReview(id=str(uuid4()), work_log_id=row.id, reviewer_account_id=account.id,
         reviewer_role="FACULTY", decision=payload.decision, feedback=payload.feedback.strip())
     db.add(review)
-    if payload.decision == "ACKNOWLEDGED":
-        row.status = "REVIEWED"
-    else:
-        row.status = "DRAFT"
+    row.status = "REVIEWED" if payload.decision == "ACKNOWLEDGED" else "DRAFT"
     await db.commit()
     await db.refresh(row)
     await db.refresh(review)
