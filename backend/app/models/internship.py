@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import Index, BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Numeric, String, Text, Enum, func, UniqueConstraint, JSON
+from sqlalchemy import Index, BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Integer, Numeric, String, Text, Enum, func, UniqueConstraint, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -125,7 +125,7 @@ class InternshipWorkLogReview(Base):
     __tablename__ = "internship_work_feedback"
 
     # Physical schema uses an auto-incrementing BIGINT and legacy column names.
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     work_log_id: Mapped[int] = mapped_column("daily_log_id", BigInteger, nullable=False)
     reviewer_account_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     reviewer_role: Mapped[str] = mapped_column(
