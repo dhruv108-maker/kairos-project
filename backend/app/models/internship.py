@@ -69,7 +69,7 @@ class InternshipPlacement(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     application_id: Mapped[str] = mapped_column(ForeignKey("internship_applications.id", ondelete="RESTRICT"), unique=True, nullable=False)
     student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="RESTRICT"), nullable=False)
-    faculty_supervisor_id: Mapped[str | None] = mapped_column(ForeignKey("faculty_profiles.id", ondelete="SET NULL"))
+    faculty_supervisor_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("faculty.id", ondelete="SET NULL"))
     industry_mentor_account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"), index=True)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
