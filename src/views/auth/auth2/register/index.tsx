@@ -269,9 +269,9 @@ const BoxedRegister = () => {
 
   return (
     <AuthFrame
-      asideEyebrow="Your academic community"
-      asideTitle="One academic identity. A more connected experience."
-      asideDescription="Create your account with the details your institution uses, then verify your email to get started."
+      asideEyebrow="Your academic workspace"
+      asideTitle="Your next chapter starts here."
+      asideDescription=""
       footer={<>Already have an account? <Link to="/auth/auth2/login" className="font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground">Sign in</Link></>}
     >
       {message ? (
