@@ -1,9 +1,11 @@
 """Internship use cases, state-machine validation, and transaction boundaries."""
 from datetime import date
 from uuid import uuid4
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.internship import InternshipApplication, InternshipOpportunity, InternshipPlacement, InternshipProvider
+from app.models.employers import EmployerMembership
 from app.modules.internships.exceptions import DuplicateApplicationError, InternshipConflictError, InternshipNotFoundError, InternshipValidationError, InvalidInternshipStateTransitionError, ProviderNotFoundError
 from app.modules.internships.repository import InternshipRepository
 
@@ -89,8 +91,26 @@ class InternshipService:
         if data["end_date"] < data["start_date"]: raise InternshipValidationError("end_date must be on or after start_date")
         supervisor_id = data.get("faculty_supervisor_id")
         if supervisor_id and await self.repository.get_faculty(supervisor_id) is None: raise InternshipValidationError("Unknown faculty_supervisor_id")
+        industry_mentor_id = data.get("industry_mentor_account_id")
+        if industry_mentor_id:
+            opportunity = await self.repository.get_opportunity(item.opportunity_id)
+            provider = await self.repository.get_provider(opportunity.provider_id) if opportunity else None
+            organization_id = provider.employer_organization_id if provider else None
+            if not organization_id:
+                raise InternshipValidationError("An industry mentor can only be assigned to an opportunity linked to an employer organization")
+            membership = await self.session.scalar(select(EmployerMembership).where(
+                EmployerMembership.organization_id == organization_id,
+                EmployerMembership.account_id == industry_mentor_id,
+                EmployerMembership.status == "ACTIVE",
+            ))
+            if membership is None:
+                raise InternshipValidationError("industry_mentor_account_id must be an active member of the opportunity's employer organization")
         if await self.repository.get_placement_for_application(application_id): raise InternshipConflictError("A placement already exists for this application")
-        placement = InternshipPlacement(id=str(uuid4()), application_id=item.id, student_id=item.student_id, faculty_supervisor_id=supervisor_id, start_date=data["start_date"], end_date=data["end_date"], status="ONGOING")
+        placement = InternshipPlacement(
+            id=str(uuid4()), application_id=item.id, student_id=item.student_id,
+            faculty_supervisor_id=supervisor_id, industry_mentor_account_id=industry_mentor_id,
+            start_date=data["start_date"], end_date=data["end_date"], status="ONGOING"
+        )
         self.session.add(placement)
         try: await self.session.commit()
         except IntegrityError:
