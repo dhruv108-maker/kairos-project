@@ -35,6 +35,8 @@ def upgrade() -> None:
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("criteria_json", sa.JSON(), nullable=False),
         sa.Column("component_weights_json", sa.JSON(), nullable=False),
+        sa.Column("griffin_score_max", sa.Numeric(9, 3), nullable=False),
+        sa.Column("curriculum_status_scores_json", sa.JSON(), nullable=False),
         sa.Column("grade_bands_json", sa.JSON(), nullable=False),
         sa.Column("passing_score", sa.Numeric(5, 2), nullable=False),
         sa.Column("final_approver_role", sa.String(50), nullable=False),
