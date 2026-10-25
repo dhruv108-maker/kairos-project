@@ -367,6 +367,14 @@ class PostInternshipService:
         if submission is None:
             raise PostInternshipError(404, "Report submission not found")
         institution_id, programme_id, _semester = await _submission_context(submission)
+        if not version.presentation_file_id:
+            raise PostInternshipError(409, "A report PDF and presentation PPTX are both required before blind assessment")
+        report_file = await self.db.get(StorageFile, version.file_id)
+        presentation_file = await self.db.get(StorageFile, version.presentation_file_id)
+        if report_file is None or report_file.mime_type != "application/pdf":
+            raise PostInternshipError(415, "The blind assessment report must be a PDF file")
+        if presentation_file is None or presentation_file.mime_type != "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+            raise PostInternshipError(415, "The blind assessment presentation must be a PowerPoint PPTX file")
         placement = await _placement_for_submission(self.db, submission)
         faculty_actor = await self.db.scalar(select(FacultyProfile).where(FacultyProfile.account_id == actor_id))
         supervisor_authorized = faculty_actor is not None and placement.faculty_supervisor_id == faculty_actor.id
@@ -527,6 +535,8 @@ class PostInternshipService:
         submission, version = await _submission_version(self.db, submission_id)
         await _require_supervisor_or_admin(self.db, submission, actor_id)
         blockers: list[str] = []
+        if not version.presentation_file_id:
+            blockers.append("A PowerPoint presentation must be attached to this report version.")
         if not version.presentation_file_id:
             blockers.append("A PowerPoint presentation must be attached to this report version.")
         if submission.status != "APPROVED":
