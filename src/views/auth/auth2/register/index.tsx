@@ -272,6 +272,7 @@ const BoxedRegister = () => {
       asideEyebrow="Your academic workspace"
       asideTitle="Your next chapter starts here."
       asideDescription=""
+      showDotGrid
       footer={<>Already have an account? <Link to="/auth/auth2/login" className="font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground">Sign in</Link></>}
     >
       {message ? (
