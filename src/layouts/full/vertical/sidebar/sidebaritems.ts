@@ -34,7 +34,6 @@ const sidebarItems: MenuItem[] = [
     heading: "Workspace",
     items: [
       { id: "overview", name: "Overview", icon: House, url: "/" },
-      { id: "notifications", name: "Notifications", icon: Activity, url: "/apps/notes" },
     ],
   },
   {
