@@ -305,8 +305,22 @@ async def public_company_job_list(organization_id: str, db: DbSession, limit: in
 
 
 @public_router.get("/jobs")
-async def discover_jobs(db: DbSession, q: str | None = Query(default=None, max_length=100), location: str | None = Query(default=None, max_length=150), opportunity_type: str | None = Query(default=None, pattern="^(job|internship|JOB|INTERNSHIP)$"), work_mode: str | None = Query(default=None, pattern="^(onsite|hybrid|remote|ONSITE|HYBRID|REMOTE)$"), limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)):
-    items = await EmployerService(db).public_jobs(q, location, opportunity_type, work_mode, limit, offset)
+async def discover_jobs(
+    db: DbSession,
+    q: str | None = Query(default=None, max_length=100),
+    location: str | None = Query(default=None, max_length=150),
+    opportunity_type: str | None = Query(default=None, pattern="^(job|internship|JOB|INTERNSHIP)$"),
+    work_mode: str | None = Query(default=None, pattern="^(onsite|hybrid|remote|ONSITE|HYBRID|REMOTE)$"),
+    employment_type: str | None = Query(default=None, pattern="^(FULL_TIME|PART_TIME|INTERNSHIP|CONTRACT|TEMPORARY|full_time|part_time|internship|contract|temporary)$"),
+    sort_by: str = Query(default="newest", pattern="^(newest|relevance)$"),
+    posted_within_days: int | None = Query(default=None, ge=1, le=365),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    items = await EmployerService(db).public_jobs(
+        q, location, opportunity_type, work_mode, limit, offset,
+        employment_type=employment_type, sort_by=sort_by, posted_within_days=posted_within_days,
+    )
     return {"items": [_job(item, {"id": provider.employer_organization_id, "name": provider.company_name, "website": provider.website}) for item, provider in items], "limit": limit, "offset": offset}
 
 
