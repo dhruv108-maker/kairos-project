@@ -78,11 +78,15 @@ class ReportService:
         placement = await self._placement(placement_id)
         if placement.student_id != student.id:
             raise ReportWorkflowError(404, "Placement not found")
-        await self._owned_file(file_id, account_id)
+        report_file = await self._owned_file(file_id, account_id)
         if presentation_file_id is not None:
-            await self._owned_file(presentation_file_id, account_id)
+            presentation_file = await self._owned_file(presentation_file_id, account_id)
             if presentation_file_id == file_id:
                 raise ReportWorkflowError(422, "The presentation must be a separate uploaded file")
+            if report_file.mime_type != "application/pdf":
+                raise ReportWorkflowError(415, "A final internship report must be a PDF when submitted with a presentation")
+            if presentation_file.mime_type != "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                raise ReportWorkflowError(415, "The presentation must be a PowerPoint PPTX file")
         if placement.status != "ONGOING":
             raise ReportWorkflowError(409, "Reports can only be created for ongoing placements")
         if requirement_id is not None:
@@ -191,11 +195,15 @@ class ReportService:
         submission, placement = await self._owned_submission(submission_id, account_id)
         if submission.status not in {"DRAFT", "REVISION_REQUIRED"}:
             raise ReportWorkflowError(409, "Submitted versions are immutable; revisions require a revision-required status")
-        await self._owned_file(file_id, account_id)
+        report_file = await self._owned_file(file_id, account_id)
         if presentation_file_id is not None:
-            await self._owned_file(presentation_file_id, account_id)
+            presentation_file = await self._owned_file(presentation_file_id, account_id)
             if presentation_file_id == file_id:
                 raise ReportWorkflowError(422, "The presentation must be a separate uploaded file")
+            if report_file.mime_type != "application/pdf":
+                raise ReportWorkflowError(415, "A final internship report must be a PDF when submitted with a presentation")
+            if presentation_file.mime_type != "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                raise ReportWorkflowError(415, "The presentation must be a PowerPoint PPTX file")
         next_version = submission.latest_version_number + 1
         version = ReportVersion(
             id=str(uuid4()), submission_id=submission.id, version_number=next_version,
