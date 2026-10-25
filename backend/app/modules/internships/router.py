@@ -1,6 +1,6 @@
 """New modular internship API, mounted at /api/v1/modules/internships."""
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, text
 from datetime import date
 from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,33 @@ def _app(item) -> dict:
     return {"id": item.id, "opportunity_id": item.opportunity_id, "student_id": item.student_id, "status": item.status, "applied_at": item.applied_at.isoformat() if item.applied_at else None}
 def _placement(item) -> dict:
     return {"id": item.id, "application_id": item.application_id, "student_id": item.student_id, "faculty_supervisor_id": item.faculty_supervisor_id, "industry_mentor_account_id": item.industry_mentor_account_id, "start_date": item.start_date.isoformat(), "end_date": item.end_date.isoformat(), "status": item.status}
+
+def _review_payload(item: InternshipWorkLogReview) -> dict:
+    role = {"faculty_mentor": "FACULTY", "industry_mentor": "INDUSTRY_MENTOR"}.get(item.reviewer_role, item.reviewer_role)
+    return {
+        "id": item.id,
+        "decision": item.decision.upper(),
+        "feedback": item.feedback,
+        "reviewer_role": role,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+    }
+
+
+async def _legacy_reviewer_profile_id(db: AsyncSession, role: str, account_id: str) -> int:
+    if role == "FACULTY":
+        profile_id = await db.scalar(
+            text("SELECT id FROM faculty WHERE account_id = :account_id"),
+            {"account_id": account_id},
+        )
+    else:
+        profile_id = await db.scalar(
+            text("SELECT id FROM industry_mentors WHERE account_id = :account_id"),
+            {"account_id": account_id},
+        )
+    if profile_id is None:
+        label = "Faculty" if role == "FACULTY" else "Industry mentor"
+        raise HTTPException(status_code=404, detail=f"{label} record not found")
+    return int(profile_id)
 
 @router.get("/opportunities")
 async def list_opportunities(account: CurrentAccount, db: DbSession, q: str | None = Query(default=None, max_length=100), location: str | None = Query(default=None, max_length=150), limit: int = Query(default=50, ge=1, le=100), offset: int = Query(default=0, ge=0)) -> dict:
@@ -212,11 +239,7 @@ async def industry_mentor_work_logs(account: CurrentAccount, db: DbSession) -> d
         items.append({
             **_work_log(log), "student_name": student_account.full_name,
             "opportunity_title": opportunity.title, "company_name": provider.company_name,
-            "latest_review": ({
-                "decision": latest_review.decision, "feedback": latest_review.feedback,
-                "reviewer_role": latest_review.reviewer_role,
-                "created_at": latest_review.created_at.isoformat() if latest_review.created_at else None,
-            } if latest_review else None),
+            "latest_review": _review_payload(latest_review) if latest_review else None,
         })
     return {"items": items}
 
@@ -231,17 +254,19 @@ async def industry_mentor_review_work_log(work_log_id: str, payload: WorkLogRevi
         raise HTTPException(status_code=404, detail="Work log not found")
     if row.status != "SUBMITTED":
         raise HTTPException(status_code=409, detail="Only submitted work logs can be reviewed")
-    review = InternshipWorkLogReview(id=str(uuid4()), work_log_id=row.id, reviewer_account_id=account.id,
-        reviewer_role="INDUSTRY_MENTOR", decision=payload.decision, feedback=payload.feedback.strip())
+    mentor_id = await _legacy_reviewer_profile_id(db, "INDUSTRY_MENTOR", account.id)
+    review = InternshipWorkLogReview(
+        work_log_id=row.id, reviewer_account_id=account.id,
+        reviewer_role="industry_mentor", decision=payload.decision.lower(),
+        feedback=payload.feedback.strip(), industry_mentor_id=mentor_id,
+    )
     db.add(review)
     # Industry review is a separate gate; faculty review still follows acknowledgement.
     row.status = "DRAFT" if payload.decision == "REVISION_REQUIRED" else "INDUSTRY_REVIEWED"
     await db.commit()
     await db.refresh(row)
     await db.refresh(review)
-    return {"work_log": _work_log(row), "review": {"id": review.id, "decision": review.decision,
-        "feedback": review.feedback, "reviewer_role": review.reviewer_role,
-        "created_at": review.created_at.isoformat() if review.created_at else None}}
+    return {"work_log": _work_log(row), "review": _review_payload(review)}
 
 
 @router.get("/work-logs/me")
@@ -263,11 +288,9 @@ async def my_work_logs(account: CurrentAccount, db: DbSession, placement_id: str
     latest_by_log = {}
     for review in reviews:
         latest_by_log.setdefault(review.work_log_id, review)
-    return {"items": [{**_work_log(item), "latest_review": ({
-        "decision": latest_by_log[item.id].decision, "feedback": latest_by_log[item.id].feedback,
-        "reviewer_role": latest_by_log[item.id].reviewer_role,
-        "created_at": latest_by_log[item.id].created_at.isoformat() if latest_by_log[item.id].created_at else None
-    } if item.id in latest_by_log else None)} for item in logs]}
+    return {"items": [{**_work_log(item), "latest_review": (
+        _review_payload(latest_by_log[item.id]) if item.id in latest_by_log else None
+    )} for item in logs]}
 
 
 @router.post("/work-logs", status_code=201)
@@ -348,8 +371,7 @@ async def list_work_log_reviews(work_log_id: str, account: CurrentAccount, db: D
     reviews = (await db.execute(select(InternshipWorkLogReview).where(
         InternshipWorkLogReview.work_log_id == row.id
     ).order_by(InternshipWorkLogReview.created_at.desc()))).scalars().all()
-    return {"items": [{"id": r.id, "decision": r.decision, "feedback": r.feedback,
-        "reviewer_role": r.reviewer_role, "created_at": r.created_at.isoformat() if r.created_at else None} for r in reviews]}
+    return {"items": [_review_payload(review) for review in reviews]}
 
 
 @router.post("/work-logs/{work_log_id}/review")
@@ -366,8 +388,12 @@ async def review_work_log(work_log_id: str, payload: WorkLogReviewCreate, accoun
         raise HTTPException(status_code=404, detail="Work log not found")
     if row.status not in {"SUBMITTED", "INDUSTRY_REVIEWED"}:
         raise HTTPException(status_code=409, detail="Only submitted or industry-reviewed work logs can be reviewed")
-    review = InternshipWorkLogReview(id=str(uuid4()), work_log_id=row.id, reviewer_account_id=account.id,
-        reviewer_role="FACULTY", decision=payload.decision, feedback=payload.feedback.strip())
+    faculty_id = await _legacy_reviewer_profile_id(db, "FACULTY", account.id)
+    review = InternshipWorkLogReview(
+        work_log_id=row.id, reviewer_account_id=account.id,
+        reviewer_role="faculty_mentor", decision=payload.decision.lower(),
+        feedback=payload.feedback.strip(), faculty_id=faculty_id,
+    )
     db.add(review)
     row.status = "REVIEWED" if payload.decision == "ACKNOWLEDGED" else "DRAFT"
     await db.commit()
@@ -399,6 +425,4 @@ async def get_work_log(work_log_id: str, account: CurrentAccount, db: DbSession)
     reviews = (await db.execute(select(InternshipWorkLogReview).where(
         InternshipWorkLogReview.work_log_id == row.id
     ).order_by(InternshipWorkLogReview.created_at.desc()))).scalars().all()
-    return {**_work_log(row), "reviews": [{"id": item.id, "decision": item.decision,
-        "feedback": item.feedback, "reviewer_role": item.reviewer_role,
-        "created_at": item.created_at.isoformat() if item.created_at else None} for item in reviews]}
+    return {**_work_log(row), "reviews": [_review_payload(item) for item in reviews]}
