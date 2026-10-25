@@ -1,5 +1,5 @@
 import {
-  Activity, BookOpen, BriefcaseBusiness, ClipboardList, FileText, House,
+  Activity, BookOpen, Bookmark, BriefcaseBusiness, ClipboardList, FileText, House,
   LayoutDashboard, NotebookTabs, Settings, Settings2, Ticket, UserRound, Users, GraduationCap,
   type LucideIcon,
 } from "lucide-react";
@@ -67,6 +67,7 @@ const sidebarItems: MenuItem[] = [
       { id: "jobs-hub", name: "Jobs Hub", icon: BriefcaseBusiness, items: [
         { id: "job-discovery", name: "Discover Jobs", icon: BriefcaseBusiness, url: "/jobs" },
         { id: "my-applications", name: "My Applications", icon: FileText, url: "/jobs/applications", roles: studentRoles },
+        { id: "saved-jobs", name: "Saved Jobs", icon: Bookmark, url: "/jobs/saved", roles: studentRoles },
         { id: "campus-recruitment", name: "Campus Recruitment", icon: Users, url: "/jobs/campus", roles: studentRoles },
       ] },
       { id: "recruiter-management", name: "Recruitment Management", icon: ClipboardList, roles: recruiterRoles, items: [
