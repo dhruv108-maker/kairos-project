@@ -6,12 +6,14 @@ class ReportCreate(BaseModel):
     placement_id: str
     title: str = Field(min_length=2, max_length=255)
     file_id: str
+    presentation_file_id: str | None = None
     submission_notes: str | None = Field(default=None, max_length=5000)
     requirement_id: str | None = None
 
 
 class ReportVersionCreate(BaseModel):
     file_id: str
+    presentation_file_id: str | None = None
     submission_notes: str | None = Field(default=None, max_length=5000)
 
 
