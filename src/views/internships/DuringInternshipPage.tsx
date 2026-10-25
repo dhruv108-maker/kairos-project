@@ -16,10 +16,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
-type Placement = { id: string; application_id: string; student_id: number; faculty_supervisor_id: string | null; start_date: string; end_date: string; status: string };
+type Placement = { id: string; application_id: string; student_id: number; faculty_supervisor_id: string | null; industry_mentor_account_id?: string | null; start_date: string; end_date: string; status: string; student_name?: string; student_enrollment_number?: string; opportunity_title?: string; company_name?: string; latest_work_log_at?: string | null };
 type Application = { id: string; status: string; applied_at?: string | null; opportunity?: { id: string; title: string; company_name?: string | null; starts_on?: string | null; ends_on?: string | null; location?: string | null } };
 type Report = { id: string; placement_id: string; requirement_id?: string | null; title: string; latest_version_number: number; status: string; review_feedback?: string | null; reviewed_by_account_id?: string | null; reviewed_at?: string | null; created_at?: string; updated_at?: string };
-type WorkLog = { id: string; placement_id: string; work_date: string; summary: string; tasks_completed: string; skills_used?: string | null; challenges?: string | null; learning_outcomes?: string | null; next_steps?: string | null; status: string; created_at?: string; updated_at?: string; latest_review?: { decision: string; feedback: string; reviewer_role: string; created_at?: string } | null };
+type WorkLog = { id: string; placement_id: string; work_date: string; summary: string; tasks_completed: string; skills_used?: string | null; challenges?: string | null; learning_outcomes?: string | null; next_steps?: string | null; status: string; created_at?: string; updated_at?: string; student_name?: string; opportunity_title?: string; company_name?: string; latest_review?: { decision: string; feedback: string; reviewer_role: string; created_at?: string } | null };
 type ReportVersion = { id: string; submission_id: string; version_number: number; file_id: string; submission_notes?: string | null; submitted_at?: string };
 type Requirement = { id: string; title: string; description?: string | null; due_date?: string | null; is_required: boolean; is_active: boolean; submission_status?: string | null };
 type UploadResult = { id: string; original_name: string; file_size_bytes: number; mime_type: string; created_at?: string };
@@ -42,6 +42,7 @@ export default function DuringInternshipPage() {
   const roles = useMemo(() => (account?.roles || []).map((r) => r.toUpperCase()), [account]);
   const isStudent = roles.includes("STUDENT");
   const isFaculty = roles.includes("FACULTY");
+  const isIndustryMentor = !isStudent && !isFaculty;
   const [view, setView] = useState<View>("overview");
   const [reloadKey, setReloadKey] = useState(0);
   const [applications, setApplications] = useState<AsyncState<Application[]>>(emptyState());
@@ -89,7 +90,11 @@ export default function DuringInternshipPage() {
       ]);
     } else {
       setApplications({ loading: false, value: [], error: null }); setReports({ loading: false, value: [], error: null }); setRequirements({ loading: false, value: [], error: null });
-      setPlacements({ loading: false, value: [], error: "Assigned industry-mentor endpoints are not implemented in this branch." });
+      setPlacements(emptyState());
+      try {
+        const r = await apiRequest<{ items: Placement[] }>("/modules/internships/placements/mentor/me");
+        setPlacements({ loading: false, value: r.items || [], error: null });
+      } catch (e) { setPlacements({ loading: false, value: null, error: errorMessage(e) }); }
     }
   }, [isStudent, isFaculty]);
   const loadLogs = useCallback(async () => {
@@ -99,7 +104,7 @@ export default function DuringInternshipPage() {
         const r = await apiRequest<{ items: WorkLog[] }>("/modules/internships/work-logs/me");
         setWorkLogs({ loading: false, value: r.items || [], error: null });
         const p = await apiRequest<{ items: Placement[] }>("/modules/internships/placements/me");
-        setPlacements((old) => old.value === null ? { loading: false, value: p.items || [], error: null } : old);
+        setPlacements({ loading: false, value: p.items || [], error: null });
         if (!logPlacementId && p.items?.length) setLogPlacementId(p.items.find((x) => x.status === "ONGOING")?.id || "");
       } catch (e) { setWorkLogs({ loading: false, value: null, error: errorMessage(e) }); }
     } else if (isFaculty) {
@@ -108,8 +113,14 @@ export default function DuringInternshipPage() {
         const r = await apiRequest<{ items: WorkLog[] }>("/modules/internships/work-logs/supervised");
         setSupervisedLogs({ loading: false, value: r.items || [], error: null });
       } catch (e) { setSupervisedLogs({ loading: false, value: null, error: errorMessage(e) }); }
+    } else {
+      setSupervisedLogs(emptyState());
+      try {
+        const r = await apiRequest<{ items: WorkLog[] }>("/modules/internships/work-logs/mentor/me");
+        setSupervisedLogs({ loading: false, value: r.items || [], error: null });
+      } catch (e) { setSupervisedLogs({ loading: false, value: null, error: errorMessage(e) }); }
     }
-  }, [isStudent, isFaculty, logPlacementId]);
+  }, [isStudent, isFaculty, isIndustryMentor, logPlacementId]);
   useEffect(() => { void loadLogs(); }, [loadLogs, reloadKey]);
 
   const clearLogForm = () => {
@@ -191,7 +202,7 @@ export default function DuringInternshipPage() {
   ];
 
   return <div className="pb-8">
-    <PageHeading title={isStudent ? "My internship" : isFaculty ? "Internship supervision" : "During internship"} description={isStudent ? "Keep your placement, report submissions, requirements, and feedback in one workspace." : isFaculty ? "Review reports and inspect only placements returned by the faculty supervision API." : "This workspace only exposes workflows supported by your current Kairos permissions and backend contracts."} />
+    <PageHeading title={isStudent ? "My internship" : isFaculty ? "Internship supervision" : "Assigned interns"} description={isStudent ? "Keep your placement, report submissions, requirements, and feedback in one workspace." : isFaculty ? "Review reports and inspect only placements returned by the faculty supervision API." : "Monitor only placements explicitly assigned to your employer account and review submitted work logs."} />
     <div className="mb-6 flex flex-wrap gap-2 border-b pb-3">{([[ "overview", "Overview", Activity ], ["reports", "Reports", FileText], ["feedback", "Feedback", MessageSquareText], ["activity", isStudent ? "Work logs" : "Supervision", Clock3]] as const).map(([key, label, Icon]) => <Button key={key} variant={view === key ? "default" : "outline"} size="sm" onClick={() => setView(key)}><Icon className="mr-2 size-4" />{label}</Button>)}<div className="ml-auto"><Button variant="ghost" size="sm" onClick={() => setReloadKey((n) => n + 1)}><RefreshCw className="mr-2 size-4" />Refresh</Button></div></div>
     {errors.length > 0 && <div className="mb-4 space-y-2">{errors.map((message, i) => <StateNotice key={`${message}-${i}`} title="Workspace data unavailable" message={message} onRetry={() => setReloadKey((n) => n + 1)} />)}</div>}
     {loading ? <div className="space-y-4"><Skeleton className="h-28 w-full" /><div className="grid gap-4 md:grid-cols-2"><Skeleton className="h-36" /><Skeleton className="h-36" /></div></div> : <>
