@@ -1,7 +1,7 @@
 """Pydantic v2 request/response contracts for the internship domain."""
 from datetime import date, datetime
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 class ProviderCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -67,7 +67,7 @@ class WorkLogCreate(BaseModel):
 
     @field_validator("summary", "tasks_completed", "skills_used", "challenges", "learning_outcomes", "next_steps")
     @classmethod
-    def clean_work_log_text(cls, value, info):
+    def clean_work_log_text(cls, value, info: ValidationInfo):
         if value is None:
             return value
         cleaned = value.strip()
