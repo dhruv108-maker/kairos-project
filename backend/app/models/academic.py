@@ -111,6 +111,20 @@ class AccountRole(Base):
     role: Mapped[Role] = relationship(back_populates="accounts")
 
 
+class Student(Base):
+    """Canonical numeric student row from the deployed MySQL schema."""
+    __tablename__ = "students"
+
+    id: Mapped[int] = mapped_column(MYSQL_BIGINT(unsigned=True), primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(
+        MYSQL_BIGINT(unsigned=True), ForeignKey("accounts.id", ondelete="RESTRICT"), unique=True, nullable=False
+    )
+    student_number: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    legal_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
+
+
 class StudentProfile(Base):
     __tablename__ = "student_profiles"
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
