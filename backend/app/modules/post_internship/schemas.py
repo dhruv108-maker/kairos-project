@@ -37,7 +37,7 @@ class PolicyCreate(BaseModel):
     grade_bands: list[GradeBand] = Field(min_length=1, max_length=20)
     passing_score: float = Field(ge=0, le=100)
     final_approver_role: Literal["INSTITUTION_ADMIN", "DEAN", "DEPT_HEAD"]
-    required_evaluator_count: int = Field(default=1, ge=1, le=5)
+    required_evaluator_count: int = Field(ge=1, le=5)
     show_curriculum_mapping_to_evaluator: bool = False
 
     @model_validator(mode="after")
