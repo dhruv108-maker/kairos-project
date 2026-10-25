@@ -745,6 +745,28 @@ class PostInternshipService:
         )).all()
         return [self._result_json(result, title) for result, title in result_rows]
 
+    async def supervised_students(self, account_id: str) -> list[dict]:
+        """Expose identity only for students with a persisted placement supervised by this faculty member."""
+        faculty = await _faculty(self.db, account_id)
+        rows = (await self.db.execute(
+            select(StudentProfile, Account)
+            .join(InternshipPlacement, InternshipPlacement.student_id == StudentProfile.id)
+            .join(Account, Account.id == StudentProfile.account_id)
+            .where(InternshipPlacement.faculty_supervisor_id == faculty.id)
+            .order_by(Account.full_name, StudentProfile.enrollment_number)
+        )).all()
+        by_id: dict[int, dict] = {}
+        for student, account in rows:
+            item = by_id.setdefault(student.id, {
+                "student_profile_id": student.id,
+                "full_name": account.full_name,
+                "enrollment_number": student.enrollment_number,
+                "current_semester": student.current_semester,
+                "programme_id": student.programme_id,
+            })
+            del item
+        return list(by_id.values())
+
     async def faculty_student_results(self, student_profile_id: int, account_id: str) -> list[dict]:
         faculty = await _faculty(self.db, account_id)
         supervised = await self.db.scalar(select(InternshipPlacement.id).where(
