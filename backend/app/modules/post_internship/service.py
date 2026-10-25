@@ -268,6 +268,20 @@ class PostInternshipService:
         ).order_by(InternshipAssessmentPolicy.version.desc()))
         return list(result.all())
 
+    async def list_outcomes(
+        self, actor_id: str, institution_id: str, programme_id: str, semester: int
+    ) -> list[CurriculumOutcome]:
+        await _require_institution_admin(self.db, institution_id, actor_id)
+        await _programme_in_institution(self.db, programme_id, institution_id)
+        result = await self.db.scalars(
+            select(CurriculumOutcome).where(
+                CurriculumOutcome.institution_id == institution_id,
+                CurriculumOutcome.programme_id == programme_id,
+                CurriculumOutcome.semester == semester,
+            ).order_by(CurriculumOutcome.outcome_code)
+        )
+        return list(result.all())
+
     async def create_outcome(self, actor_id: str, data: dict) -> CurriculumOutcome:
         await _require_institution_admin(self.db, data["institution_id"], actor_id)
         await _programme_in_institution(self.db, data["programme_id"], data["institution_id"])
