@@ -36,6 +36,7 @@ export default function WeeklyFeedbackWorkspace() {
   const [form, setForm] = useState<Payload>(blank());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [transitionBusy, setTransitionBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selected = participations.find((p) => String(p.id) === participationId);
   const weeks = useMemo(() => {
