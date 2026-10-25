@@ -116,7 +116,7 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                     status_code=422,
                     detail="Your email domain is not verified for an active institution. Contact your institution administrator.",
                 )
-            if payload.institution_id and int(payload.institution_id) != int(resolved_institution_id):
+            if payload.institution_id and str(payload.institution_id) != str(resolved_institution_id):
                 raise HTTPException(status_code=422, detail="The institution does not match your verified email domain")
             if not payload.school_id or not payload.department_id:
                 raise HTTPException(status_code=422, detail="Choose a school and department")
