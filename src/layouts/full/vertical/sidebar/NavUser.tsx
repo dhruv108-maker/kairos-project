@@ -1,42 +1,55 @@
-import { LifeBuoy, BookOpen } from 'lucide-react';
-import { Link } from 'react-router';
-import { SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroupContent, SidebarGroup } from "@/components/ui/sidebar"
+import { LogOut, UserRound } from "lucide-react";
+import { Link, useNavigate } from "react-router";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+} from "@/components/ui/sidebar";
+import { useAuth } from "@/context/auth/AuthContext";
 
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "K";
+}
 
 export function NavUser() {
-    const navItems = [
-        {
-            title: "Help Center",
-            url: "https://demos.shadcndashboard.dev/theme-pages/faq",
-            icon: LifeBuoy,
-        },
-        {
-            title: "Documentation",
-            url: "https://shadcndashboard.dev/docs",
-            icon: BookOpen,
-        },
-    ]
+  const { account, logout } = useAuth();
+  const navigate = useNavigate();
+  if (!account) return null;
 
-    return (
-        <SidebarGroup className="mt-auto p-0">
-            <SidebarGroupContent>
-                <SidebarMenu className=" ">
-                    {navItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                            <SidebarMenuButton size="lg" className="h-full cursor-pointer">
-                                <Link to={item.url}>
-                                    <div className="flex items-center gap-3 w-full">
-                                        <item.icon className="shadow-none size-5 shrink-0" />
-                                        <div className="flex flex-col flex-1 text-left text-sm leading-tight hide-menu whitespace-nowrap">
-                                            <span className="truncate font-medium">{item.title}</span>
-                                        </div>
-                                    </div>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    ))}
-                </SidebarMenu>
-            </SidebarGroupContent>
-        </SidebarGroup>
-    )
+  const name = account.full_name || account.email || "Kairos account";
+  const handleLogout = () => {
+    logout();
+    navigate("/auth/auth2/login", { replace: true });
+  };
+
+  return (
+    <SidebarGroup className="p-0">
+      <SidebarGroupContent>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              tooltip="Account profile"
+              render={<Link to="/pages/user-profile" />}
+              className="h-auto py-2"
+            >
+              <Avatar className="size-8 rounded-lg">
+                <AvatarFallback className="rounded-lg text-xs">{initials(name)}</AvatarFallback>
+              </Avatar>
+              <span className="flex min-w-0 flex-1 flex-col text-left leading-tight">
+                <span className="truncate text-sm font-medium">{name}</span>
+                <span className="truncate text-xs text-muted-foreground">{account.email}</span>
+              </span>
+              <UserRound className="ml-auto size-4" />
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={handleLogout} tooltip="Sign out">
+              <LogOut />
+              <span>Sign out</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
 }
