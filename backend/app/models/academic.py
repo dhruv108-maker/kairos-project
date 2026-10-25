@@ -78,7 +78,12 @@ class Cohort(Base):
 
 class Account(TimestampMixin, Base):
     __tablename__ = "accounts"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    # Production accounts use BIGINT UNSIGNED AUTO_INCREMENT. SQLite keeps
+    # UUID-like string keys for isolated route tests via the dialect variant.
+    id: Mapped[int | str] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"),
+        primary_key=True, autoincrement=True,
+    )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -106,7 +111,10 @@ class Account(TimestampMixin, Base):
 
 class Role(Base):
     __tablename__ = "roles"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    id: Mapped[int | str] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"),
+        primary_key=True, autoincrement=True,
+    )
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     code: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
     description: Mapped[str | None] = mapped_column(String(255))
@@ -115,8 +123,14 @@ class Role(Base):
 
 class AccountRole(Base):
     __tablename__ = "account_roles"
-    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True)
-    role_id: Mapped[str] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True)
+    account_id: Mapped[int | str] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"),
+        ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True,
+    )
+    role_id: Mapped[int | str] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"),
+        ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True,
+    )
     institution_id: Mapped[str | None] = mapped_column(
         ForeignKey("institutions.id", ondelete="CASCADE"), nullable=True
     )
