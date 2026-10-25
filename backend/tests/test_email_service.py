@@ -122,3 +122,33 @@ async def test_verification_email_has_plain_text_and_expiry_guidance(monkeypatch
     assert "30 minutes" in payload["html"]
     assert "30 minutes" in payload["text"]
     assert "https://kairos.example.test/verify-email?token=opaque-token" in payload["text"]
+
+@pytest.mark.asyncio
+async def test_progress_log_email_escapes_user_content_and_uses_idempotency(monkeypatch):
+    configure(monkeypatch)
+    fake = FakeClient([response(200, {"id": "progress-log-email-id"})])
+    monkeypatch.setattr(email_service.httpx, "AsyncClient", lambda **_kwargs: fake)
+
+    message_id = await email_service.send_work_log_notification(
+        to="mentor@example.test",
+        subject="[Kairos] Student Progress Update — Example Student — ERN-123",
+        heading="Student Progress Update",
+        fields={
+            "Student": "Example Student",
+            "Progress update": '<script>alert("x")</script>',
+            "ERN / Enrollment Number": "ERN-123",
+        },
+        message="Completed a task & fixed a bug.",
+        view_url="https://kairos.example.test/internships/during?log=log-123",
+        idempotency_key="progress-log:log-123:faculty:account-123",
+    )
+
+    assert message_id == "progress-log-email-id"
+    call = fake.calls[0]
+    assert call["json"]["to"] == ["mentor@example.test"]
+    assert "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;" in call["json"]["html"]
+    assert "<script>" not in call["json"]["html"]
+    assert "Completed a task &amp; fixed a bug." in call["json"]["html"]
+    assert "Completed a task & fixed a bug." in call["json"]["text"]
+    assert "View Progress Log" in call["json"]["html"]
+    assert call["headers"]["Idempotency-Key"] == "progress-log:log-123:faculty:account-123"
