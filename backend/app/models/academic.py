@@ -88,6 +88,9 @@ class Account(TimestampMixin, Base):
         String(255), nullable=False,
         default=lambda context: context.get_current_parameters().get("full_name", ""),
     )
+    account_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active", server_default="active"
+    )
     phone_number: Mapped[str | None] = mapped_column(String(32))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
