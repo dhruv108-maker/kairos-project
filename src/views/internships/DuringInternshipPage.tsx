@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 type Placement = { id: string; application_id: string; student_id: number; faculty_supervisor_id: string | null; start_date: string; end_date: string; status: string };
@@ -209,7 +210,7 @@ export default function DuringInternshipPage() {
         {isStudent && <>
           {placements.error && <StateNotice title="Placements unavailable" message={placements.error} onRetry={() => setReloadKey((n) => n + 1)} />}
           {placements.value?.length ? <Card><CardHeader><CardTitle>Work log entry</CardTitle><CardDescription>Record your work against an ongoing persisted placement. Submitted logs are locked until reviewed.</CardDescription></CardHeader><CardContent><form className="grid gap-4" onSubmit={saveLog}>
-            <div className="grid gap-2"><Label htmlFor="log-placement">Internship placement</Label><select id="log-placement" required className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={logPlacementId} onChange={(e) => setLogPlacementId(e.target.value)}><option value="">Choose ongoing placement</option>{placements.value.filter((p) => p.status === "ONGOING").map((p) => <option key={p.id} value={p.id}>Placement {p.id} · {formatDate(p.start_date)} – {formatDate(p.end_date)}</option>)}</select></div>
+            <div className="grid gap-2"><Label htmlFor="log-placement">Internship placement</Label><Select value={logPlacementId} onValueChange={setLogPlacementId}><SelectTrigger id="log-placement" className="w-full"><SelectValue placeholder="Choose ongoing placement" /></SelectTrigger><SelectContent>{placements.value.filter((p) => p.status === "ONGOING").map((p) => <SelectItem key={p.id} value={p.id}>Placement {p.id} · {formatDate(p.start_date)} – {formatDate(p.end_date)}</SelectItem>)}</SelectContent></Select></div>
             <div className="grid gap-2"><Label htmlFor="log-date">Work date</Label><Input id="log-date" type="date" required max={new Date().toISOString().slice(0, 10)} value={logDate} onChange={(e) => setLogDate(e.target.value)} /></div>
             <div className="grid gap-2"><Label htmlFor="log-summary">Summary</Label><Input id="log-summary" required minLength={3} maxLength={255} value={logSummary} onChange={(e) => setLogSummary(e.target.value)} placeholder="What did you work on?" /></div>
             <div className="grid gap-2"><Label htmlFor="log-tasks">Tasks completed</Label><Textarea id="log-tasks" required minLength={3} maxLength={10000} value={logTasks} onChange={(e) => setLogTasks(e.target.value)} placeholder="Describe work completed and results." /></div>
