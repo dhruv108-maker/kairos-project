@@ -85,6 +85,7 @@ const Router = [
     children: [
       { path: '/jobs', element: <JobsHub /> },
       { path: '/jobs/applications', element: <JobsHub /> },
+      { path: '/jobs/saved', element: <JobsHub /> },
       { path: '/jobs/campus', element: <JobsHub /> },
       { path: '/jobs/:jobId', element: <JobDetail /> },
       { path: '/jobs/recruiter', element: <RecruiterJobs /> },
