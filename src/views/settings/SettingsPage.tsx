@@ -83,6 +83,13 @@ function applyInitialThemeFromCache() {
 function hydrateLocalAppearance() {
   try {
     const root = document.documentElement;
+    const saved = localStorage.getItem("kairos.preferences.cache");
+    if (saved) {
+      const parsed = JSON.parse(saved) as Partial<Preferences>;
+      if (parsed.accent_color && ["teal", "blue", "green", "amber", "rose", "neutral"].includes(parsed.accent_color)) applyAccent(parsed.accent_color);
+      if (parsed.font_size && ["small", "default", "large", "xlarge"].includes(parsed.font_size)) root.dataset.kairosFontSize = parsed.font_size;
+      if (parsed.interface_density && ["compact", "comfortable", "spacious"].includes(parsed.interface_density)) root.dataset.kairosDensity = parsed.interface_density;
+    }
     const stored = localStorage.getItem(accentStorageKey);
     const known = ["teal", "blue", "green", "amber", "rose", "neutral"];
     if (stored && known.includes(stored)) applyAccent(stored as Accent);
@@ -110,7 +117,7 @@ function applyAccent(value: Accent) {
     teal: { primary: "oklch(0.48 0.09 190)", foreground: "oklch(0.99 0.01 190)", ring: "oklch(0.56 0.11 190)", sidebar: "oklch(0.48 0.09 190)" },
     blue: { primary: "oklch(0.49 0.19 258)", foreground: "oklch(0.99 0 0)", ring: "oklch(0.58 0.18 258)", sidebar: "oklch(0.49 0.19 258)" },
     green: { primary: "oklch(0.48 0.13 150)", foreground: "oklch(0.99 0 0)", ring: "oklch(0.58 0.14 150)", sidebar: "oklch(0.48 0.13 150)" },
-    amber: { primary: "oklch(0.57 0.14 65)", foreground: "oklch(0.99 0 0)", ring: "oklch(0.65 0.14 65)", sidebar: "oklch(0.57 0.14 65)" },
+    amber: { primary: "oklch(0.46 0.13 65)", foreground: "oklch(0.99 0 0)", ring: "oklch(0.55 0.14 65)", sidebar: "oklch(0.46 0.13 65)" },
     rose: { primary: "oklch(0.5 0.18 15)", foreground: "oklch(0.99 0 0)", ring: "oklch(0.6 0.18 15)", sidebar: "oklch(0.5 0.18 15)" },
     neutral: { primary: "oklch(0.32 0 0)", foreground: "oklch(0.99 0 0)", ring: "oklch(0.48 0 0)", sidebar: "oklch(0.32 0 0)" },
   };
