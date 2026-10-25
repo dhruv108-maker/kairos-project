@@ -402,12 +402,13 @@ class PostInternshipService:
         ))
         if existing:
             raise PostInternshipError(409, "This faculty evaluator is already assigned to the report version")
-        if await self.db.scalar(select(BlindAssessmentAssignment.id).where(
+        existing_assignments = (await self.db.scalars(select(BlindAssessmentAssignment).where(
             BlindAssessmentAssignment.report_version_id == version.id,
-            BlindAssessmentAssignment.status == "SUBMITTED",
-            BlindAssessmentAssignment.policy_id != policy.id,
-        )):
+        ))).all()
+        if any(item.policy_id != policy.id for item in existing_assignments):
             raise PostInternshipError(409, "All independent assessments for a report version must use the same policy version")
+        if len(existing_assignments) >= policy.required_evaluator_count:
+            raise PostInternshipError(409, "The policy's required independent evaluator count has already been assigned")
         assignment = BlindAssessmentAssignment(
             id=str(uuid4()), packet_code=secrets.token_hex(5).upper(), report_version_id=version.id,
             institution_id=institution_id, evaluator_faculty_id=evaluator.id, policy_id=policy.id,
