@@ -173,6 +173,12 @@ async def get_my_published_results(account: CurrentAccount, db: DbSession):
     return {"items": items}
 
 
+@router.get("/supervised-submissions")
+async def list_supervised_submissions(account: CurrentAccount, db: DbSession):
+    items = await _call(PostInternshipService(db).supervised_submissions(account.id), db)
+    return {"items": items}
+
+
 @router.get("/supervised-students")
 async def list_authorized_supervised_students(account: CurrentAccount, db: DbSession):
     items = await _call(PostInternshipService(db).supervised_students(account.id), db)
