@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { AlertCircle, BookOpenCheck, Plus, RefreshCw, Save, ShieldCheck, Trash2 } from "lucide-react";
+import { AlertCircle, Plus, RefreshCw, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { apiRequest, ApiError } from "@/api/kairos-client";
 import { useAuth } from "@/context/auth/AuthContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

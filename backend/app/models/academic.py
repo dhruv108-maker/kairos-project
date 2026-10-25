@@ -1,9 +1,26 @@
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Integer, Numeric, String, Text, event, func, select
 from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
 from app.models.base import Base
+
+
+class StudentProfileIdType(TypeDecorator):
+    """Keep production IDs numeric and support both fixture styles in SQLite."""
+    impl = BigInteger
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "sqlite":
+            return dialect.type_descriptor(String(36))
+        return dialect.type_descriptor(BigInteger())
+
+    def process_result_value(self, value, dialect):
+        if dialect.name == "sqlite" and isinstance(value, str) and value.isdigit():
+            return int(value)
+        return value
 
 
 class TimestampMixin:
@@ -180,11 +197,10 @@ class StudentEnrollment(Base):
 
 class StudentProfile(Base):
     __tablename__ = "student_profiles"
-    # The deployed MySQL profile identity is numeric. SQLite tests use stable
-    # string profile IDs (for example, "student-1"), so retain a SQLite-only
-    # text variant without changing production MySQL column types.
+    # A SQLite-only adapter supports named IDs in workflow fixtures and numeric
+    # IDs in authentication fixtures; production MySQL remains BIGINT.
     id: Mapped[int | str] = mapped_column(
-        BigInteger().with_variant(String(36), "sqlite"),
+        StudentProfileIdType(),
         primary_key=True,
         autoincrement=True,
     )
@@ -213,6 +229,21 @@ class StudentProfile(Base):
     account: Mapped[Account] = relationship(back_populates="student_profile")
     cohort: Mapped["Cohort | None"] = relationship(back_populates="students")
     department: Mapped["Department | None"] = relationship()
+
+
+@event.listens_for(StudentProfile, "before_insert")
+def _assign_sqlite_student_profile_id(mapper, connection, target):
+    """Provide text-key autoincrement behavior for isolated SQLite tests."""
+    if connection.dialect.name != "sqlite" or target.id is not None:
+        return
+    values = connection.execute(select(StudentProfile.__table__.c.id)).scalars().all()
+    numeric_values = []
+    for value in values:
+        if isinstance(value, int):
+            numeric_values.append(value)
+        elif isinstance(value, str) and value.isdigit():
+            numeric_values.append(int(value))
+    target.id = max(numeric_values, default=0) + 1
 
 
 class FacultyProfile(Base):
