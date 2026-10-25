@@ -5,6 +5,7 @@ Revises: 20261025_27_industry_mentor
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from sqlalchemy import inspect
 
 revision = "20261025_28_user_preferences"
@@ -21,7 +22,7 @@ def upgrade() -> None:
         "user_preferences",
         sa.Column(
             "account_id",
-            sa.dialects.mysql.BIGINT(unsigned=True),
+            MYSQL_BIGINT(unsigned=True),
             sa.ForeignKey("accounts.id", ondelete="CASCADE"),
             primary_key=True,
             nullable=False,
