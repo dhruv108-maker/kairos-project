@@ -108,18 +108,22 @@ const Notelist = () => {
                       <div>
                         <TooltipProvider>
                           <Tooltip>
-                            <TooltipTrigger>
-                              <Button
-                                variant={"ghost"}
-                                className={
-                                  "hover:text-destructive hover:bg-destructive/12 text-black dark:text-white dark:hover:text-destructive dark:hover:bg-destructive/12"
-                                }
-                                size="icon"
-                                onClick={() => deleteNote(note.id)}
-                                aria-label="Delete note"
-                              >
-                                <Trash2 size={18} />
-                              </Button>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="text-foreground hover:bg-destructive/10 hover:text-destructive"
+                                  size="icon"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    deleteNote(note.id);
+                                  }}
+                                  aria-label="Delete note"
+                                />
+                              }
+                            >
+                              <Trash2 size={18} />
                             </TooltipTrigger>
                             <TooltipContent>Delete</TooltipContent>
                           </Tooltip>
