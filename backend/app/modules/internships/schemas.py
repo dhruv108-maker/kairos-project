@@ -52,3 +52,46 @@ class PlacementCreate(BaseModel):
     def validate_range(self):
         if self.end_date < self.start_date: raise ValueError("end_date must be on or after start_date")
         return self
+
+class WorkLogCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    placement_id: str = Field(min_length=1, max_length=36)
+    work_date: date
+    summary: str = Field(min_length=3, max_length=255)
+    tasks_completed: str = Field(min_length=3, max_length=10000)
+    skills_used: str | None = Field(default=None, max_length=5000)
+    challenges: str | None = Field(default=None, max_length=5000)
+    learning_outcomes: str | None = Field(default=None, max_length=5000)
+    next_steps: str | None = Field(default=None, max_length=5000)
+    status: str = "DRAFT"
+
+    @field_validator("summary", "tasks_completed", "skills_used", "challenges", "learning_outcomes", "next_steps")
+    @classmethod
+    def clean_work_log_text(cls, value):
+        if value is None:
+            return value
+        cleaned = value.strip()
+        if not cleaned and value is not None and cls.__name__ in {"WorkLogCreate"}:
+            return None
+        return cleaned
+
+    @field_validator("status")
+    @classmethod
+    def validate_work_log_status(cls, value: str) -> str:
+        value = value.strip().upper()
+        if value not in {"DRAFT", "SUBMITTED"}:
+            raise ValueError("status must be DRAFT or SUBMITTED")
+        return value
+
+class WorkLogReviewCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    decision: str
+    feedback: str = Field(min_length=2, max_length=5000)
+
+    @field_validator("decision")
+    @classmethod
+    def validate_decision(cls, value: str) -> str:
+        value = value.strip().upper()
+        if value not in {"ACKNOWLEDGED", "REVISION_REQUIRED"}:
+            raise ValueError("decision must be ACKNOWLEDGED or REVISION_REQUIRED")
+        return value
