@@ -171,7 +171,10 @@ async def test_persisted_student_faculty_industry_mentor_workflow_is_isolated(pe
         submitted = await client.post(f"/api/v1/modules/internships/work-logs/{log_id}/submit")
         assert submitted.status_code == 200, submitted.text
         assert submitted.json()["status"] == "SUBMITTED"
-        assert submitted.json()["notification_status"] == "ACCEPTED_BY_PROVIDER"
+        notification_status = submitted.json()["notification_status"]
+        assert notification_status["status"] == "ACCEPTED_BY_PROVIDER"
+        assert notification_status["accepted_by_provider"] == 2
+        assert notification_status["failed"] == 0
         return log_id
 
     log1 = await create_and_submit("student1", "placement1", "Built student analytics")
