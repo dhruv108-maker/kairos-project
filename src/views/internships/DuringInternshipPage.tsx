@@ -85,15 +85,20 @@ export default function DuringInternshipPage() {
   const submitReport = async (reportId: string) => { setReportBusy(true); try { const r = await apiRequest<Report>(`/reports/${encodeURIComponent(reportId)}/submit`, { method: "POST" }); toast.success(`Report status: ${prettyStatus(r.status)}`); setReloadKey((n) => n + 1); } catch (e) { toast.error(errorMessage(e)); } finally { setReportBusy(false); } };
   const uploadRevision = async (reportId: string, file: File) => { setReportBusy(true); try { const body = new FormData(); body.append("file", file); const stored = await apiRequest<UploadResult>("/storage/upload", { method: "POST", body }); await apiRequest(`/reports/${encodeURIComponent(reportId)}/versions`, { method: "POST", body: JSON.stringify({ file_id: stored.id, submission_notes: "Resubmitted revision" }) }); toast.success("New report version saved."); setReloadKey((n) => n + 1); await openVersions(reportId); } catch (e) { toast.error(errorMessage(e)); } finally { setReportBusy(false); } };
   const createReport = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); if (!selectedFile || !draftTitle.trim()) return; setReportBusy(true);
+    event.preventDefault();
+    if (!selectedFile || !draftTitle.trim()) return;
+    setReportBusy(true);
     try {
-      const body = new FormData(); body.append("file", selectedFile); const stored = await apiRequest<UploadResult>("/storage/upload", { method: "POST", body });
-      const placementResponse = await apiRequest<{ items: Array<{ id: string; title: string; organization: string; start_date: string; end_date: string; status: string }> }>("/students/me/internships");
+      const placementResponse = await apiRequest<{ items: Array<{ id: string; status: string }> }>("/students/me/internships");
       const placement = (placementResponse.items || []).find((p) => p.status === "ONGOING");
       if (!placement) { toast.error("No ongoing persisted placement is linked to your account."); return; }
+      const body = new FormData(); body.append("file", selectedFile);
+      const stored = await apiRequest<UploadResult>("/storage/upload", { method: "POST", body });
       const report = await apiRequest<Report>("/reports", { method: "POST", body: JSON.stringify({ placement_id: placement.id, title: draftTitle.trim(), file_id: stored.id, submission_notes: draftNotes.trim() || null }) });
-      toast.success("Draft report created in Kairos."); setDraftTitle(""); setDraftNotes(""); setSelectedFile(null); setSelectedReport(report.id); setView("reports"); setReloadKey((n) => n + 1); await openVersions(report.id);
-    } catch (e) { toast.error(errorMessage(e)); } finally { setReportBusy(false); }
+      toast.success("Draft report created in Kairos.");
+      setDraftTitle(""); setDraftNotes(""); setSelectedFile(null); setSelectedReport(report.id); setView("reports"); setReloadKey((n) => n + 1); await openVersions(report.id);
+    } catch (e) { toast.error(errorMessage(e)); }
+    finally { setReportBusy(false); }
   };
   const reviewReport = async (reportId: string, status: string) => {
     if (status === "REVISION_REQUIRED" && !reviewNotes[reportId]?.trim()) { toast.error("Feedback is required when requesting a revision."); return; }
