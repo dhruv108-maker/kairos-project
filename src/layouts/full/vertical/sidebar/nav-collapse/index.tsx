@@ -1,126 +1,112 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router";
-import NavItem from "../nav-items/index";
-import { cn } from "@/lib/utils";
-import { useSidebar } from "@/components/ui/sidebar";
-import { MenuItem, ChildItem } from "../sidebaritems";
+import { ChevronDown, type LucideIcon } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, useSidebar,
+} from "@/components/ui/sidebar";
+import type { ChildItem, MenuItem } from "../sidebaritems";
 
 interface NavCollapseProps {
   menu: MenuItem[];
   className?: string;
 }
 
-export default function NavCollapse({ menu, className }: NavCollapseProps) {
-  const { pathname } = useLocation();
-  const { state } = useSidebar();
-  const isCollapse = state === "collapsed";
+function routeMatches(pathname: string, url?: string) {
+  if (!url) return false;
+  if (pathname === url) return true;
+  if (url === "/jobs") {
+    const rest = pathname.slice("/jobs".length);
+    return rest.length > 0 && !rest.slice(1).includes("/") && !["/applications", "/campus", "/recruiter"].includes(rest);
+  }
+  return pathname.startsWith(url.endsWith("/") ? url : `${url}/`);
+}
 
-  const isActiveRoute = (item: ChildItem): boolean => {
-    if (item.url && pathname === item.url) return true;
-    if (item.items) return item.items.some(isActiveRoute);
-    return false;
-  };
+function hasActiveDescendant(item: ChildItem, pathname: string): boolean {
+  return routeMatches(pathname, item.url) || Boolean(item.items?.some((child) => hasActiveDescendant(child, pathname)));
+}
+
+function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: string; depth?: number }) {
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  const hasChildren = Boolean(item.items?.length);
+  const active = hasActiveDescendant(item, pathname);
+  const [manuallyOpen, setManuallyOpen] = useState(false);
+  const open = active || manuallyOpen;
+  const Icon = item.icon as LucideIcon | undefined;
+  const onNavigate = () => { if (isMobile) setOpenMobile(false); };
+
+  if (hasChildren) {
+    return (
+      <SidebarMenuItem>
+        <Collapsible open={open} onOpenChange={setManuallyOpen} className="group/collapsible">
+          <CollapsibleTrigger
+            render={
+              <SidebarMenuButton isActive={active} tooltip={item.name} aria-expanded={open}>
+                {Icon ? <Icon /> : null}
+                <span>{item.name}</span>
+                <ChevronDown className="ml-auto transition-transform group-data-[open]/collapsible:rotate-180" />
+              </SidebarMenuButton>
+            }
+          />
+          <CollapsibleContent>
+            <SidebarMenuSub>
+              {item.items!.map((child) => (
+                <NavEntry key={child.id} item={child} pathname={pathname} depth={depth + 1} />
+              ))}
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarMenuItem>
+    );
+  }
+
+  if (!item.url) return null;
+  if (depth > 0) {
+    return (
+      <SidebarMenuSubItem>
+        <SidebarMenuSubButton
+          render={<Link to={item.url} onClick={onNavigate} />}
+          isActive={pathname === item.url || (item.url !== "/" && pathname.startsWith(`${item.url}/`))}
+        >
+          {Icon ? <Icon /> : null}
+          <span>{item.name}</span>
+        </SidebarMenuSubButton>
+      </SidebarMenuSubItem>
+    );
+  }
 
   return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        render={<Link to={item.url} onClick={onNavigate} />}
+        isActive={routeMatches(pathname, item.url)}
+        tooltip={item.name}
+      >
+        {Icon ? <Icon /> : null}
+        <span>{item.name}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+export default function NavCollapse({ menu }: NavCollapseProps) {
+  const { pathname } = useLocation();
+  return (
     <>
-
-      {menu.map((section, index) => (
-        <div key={index}>
-          {/* Heading */}
-
-
-          <span className={cn(
-            "text-xs uppercase block font-semibold text-muted-foreground mb-2 transition-all duration-200",
-            isCollapse ? "text-center group-hover:text-start group-data-[state=expanded]:text-start" : ""
-          )}>
-            {isCollapse ? (
-              <>
-                <span className="group-hover:hidden group-data-[state=expanded]:hidden">...</span>
-                <span className="hidden group-hover:inline group-data-[state=expanded]:inline">{section.heading ?? ""}</span>
-              </>
-            ) : (
-              section.heading ?? ""
-            )}
-          </span>
-
-          {section.items?.map((item: ChildItem, index) => {
-            const hasChildren =
-              Array.isArray(item.items) && item.items.length > 0;
-            const active = isActiveRoute(item);
-
-            // 👉 No children → direct link
-            if (!hasChildren)
-              return (
-                <Link
-                  key={index}
-                  to={item.url || "#"}
-                  target={item.external ? "_blank" : undefined}
-                  className={cn(
-                    "flex items-center gap-3  rounded-md transition-all duration-200 ease-in-out ",
-
-                    className,
-                  )}
-
-                >
-
-                  <NavItem item={item} hasChildren={false} isActive={active} />
-                </Link>
-
-
-
-
-              );
-
-            // 👉 With children → collapsible
-            return (
-              <details
-                key={index}
-                className="group/nav"
-                open={active || item.isActive}
-              >
-                <summary
-                  className={cn(
-                    "cursor-pointer rounded-md flex items-center transition-all duration-200 ease-in-out",
-
-                  )}
-                >
-                  <NavItem
-                    item={item}
-                    hasChildren={true}
-                    className={className}
-                    isActive={active}
-                  />
-                </summary>
-
-                <div className="pl-3  ml-5  border-l border-border">
-                  {item.items?.map((sub: ChildItem, index) =>
-                    sub.items ? (
-                      <NavCollapse
-                        key={index}
-                        menu={[{ items: [sub] }]}
-                        className={className}
-                      />
-                    ) : (
-                      <Link
-                        key={index}
-                        to={sub.url || "#"}
-                        target={sub.external ? "_blank" : undefined}
-                        className={cn(
-                          "block rounded-md transition-all duration-200 ease-in-out",
-
-                          className,
-                        )}
-                      >
-                        <NavItem item={sub} hasChildren={false} className={cn("px-2! py-1! my-1!", pathname === sub.url && "bg-primary/5 text-primary")} isActive={pathname === sub.url} />
-                      </Link>
-                    )
-                  )}
-                </div>
-              </details>
-            );
-          })}
-        </div >
-      ))
-      }
+      {menu.map((section) => {
+        if (!section.items.length) return null;
+        return (
+          <section key={section.heading} className="mb-3">
+            <SidebarGroupLabel>{section.heading}</SidebarGroupLabel>
+            <SidebarMenu>
+              {section.items.map((item) => (
+                <NavEntry key={item.id} item={item} pathname={pathname} />
+              ))}
+            </SidebarMenu>
+          </section>
+        );
+      })}
     </>
   );
 }
