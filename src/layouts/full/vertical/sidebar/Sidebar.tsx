@@ -1,63 +1,56 @@
-import React from 'react';
-import NavCollapse from './nav-collapse';
-import SimpleBar from 'simplebar-react';
-import FullLogo from '../../shared/logo/FullLogo';
-
+import React from "react";
+import SimpleBar from "simplebar-react";
+import FullLogo from "../../shared/logo/FullLogo";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarHeader,
-} from 'src/components/ui/sidebar';
-import { NavSecondary } from './NavSecondary';
-import { NavUser } from './NavUser';
-import { Badge } from 'src/components/ui/badge';
-import { useAuth } from '@/context/auth/AuthContext';
-import { BriefcaseBusiness, FileText, Plus } from 'lucide-react';
-import sidebaritems from './sidebaritems';
+  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarSeparator,
+} from "@/components/ui/sidebar";
+import { useAuth } from "@/context/auth/AuthContext";
+import NavCollapse from "./nav-collapse";
+import { NavUser } from "./NavUser";
+import sidebarItems, { type ChildItem, type KairosRole, type MenuItem } from "./sidebaritems";
+
+function filterItem(item: ChildItem, roles: Set<string>): ChildItem | null {
+  if (item.roles && !item.roles.some((role) => roles.has(role))) return null;
+  if (!item.items) return item;
+  const children = item.items.map((child) => filterItem(child, roles)).filter((child): child is ChildItem => child !== null);
+  return children.length ? { ...item, items: children } : null;
+}
+
+function filterMenu(menu: MenuItem[], roleNames: string[]): MenuItem[] {
+  const roles = new Set(roleNames.map((role) => role.toUpperCase()));
+  return menu.map((section) => ({
+    ...section,
+    items: section.items.map((item) => filterItem(item, roles)).filter((item): item is ChildItem => item !== null),
+  })).filter((section) => section.items.length > 0);
+}
 
 const SidebarLayout = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
   const { account } = useAuth();
-  const recruiterAccess = account?.roles.some((role) => ["EMPLOYER", "RECRUITER", "EMPLOYER_ADMIN", "ADMIN"].includes(role.toUpperCase())) ?? false;
-  const menu = recruiterAccess ? [...sidebaritems, { heading: "Recruitment", items: [
-    { id: "recruiter-listings", name: "My Listings", icon: BriefcaseBusiness, url: "/jobs/recruiter" },
-    { id: "recruiter-create", name: "Create Job", icon: Plus, url: "/jobs/recruiter/create" },
-    { id: "recruiter-applications", name: "Applications", icon: FileText, url: "/jobs/recruiter/applications" },
-  ] }] : sidebaritems;
+  const menu = filterMenu(sidebarItems, (account?.roles ?? []) as KairosRole[]);
 
   return (
-     <Sidebar
-            variant="inset"
-            collapsible="icon"
-            {...props}
-            className="sidebar-box **:data-[slot=sidebar-inner]:bg-background **:data-[slot=sidebar-inner]:border **:data-[slot=sidebar-inner]:border-border group-data-[state=collapsed]:hover:shadow-xl"
-            side="left"
-        >
-            <SidebarHeader className="p-3 group-data-[state=collapsed]:px-2.5 flex flex-row items-center justify-between border-b border-border">
-                <FullLogo />
-                <Badge className="group-data-[state=collapsed]:hidden" variant={"secondary"}>V.1.0</Badge>
-            </SidebarHeader>
-
-            <SidebarContent>
-                <SimpleBar style={{ height: "100%" }} >
-                    <SidebarGroup className="flex items-center justify-center group-data-[state=collapsed]:px-2 px-3 py-4">
-                        <div className="px-0 group-data-[state=collapsed]:px-0 w-full flex flex-col gap-4">
-                            <NavCollapse menu={menu} className="text-sm" />
-                        </div>
-                    </SidebarGroup>
-                </SimpleBar>
-            </SidebarContent>
-
-            <SidebarFooter className="p-4">
-                <div className="hide-menu flex flex-col gap-2">
-                    <NavSecondary />
-                    <NavUser />
-                </div>
-            </SidebarFooter>
-
-        </Sidebar >
-
+    <Sidebar
+      variant="inset"
+      collapsible="icon"
+      {...props}
+      className="sidebar-box **:data-[slot=sidebar-inner]:bg-sidebar **:data-[slot=sidebar-inner]:border **:data-[slot=sidebar-inner]:border-sidebar-border"
+      side="left"
+    >
+      <SidebarHeader className="flex flex-row items-center justify-between border-b border-sidebar-border p-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+        <FullLogo />
+      </SidebarHeader>
+      <SidebarContent className="px-2 py-3">
+        <SimpleBar style={{ height: "100%" }}>
+          <SidebarGroup className="p-0">
+            <NavCollapse menu={menu} />
+          </SidebarGroup>
+        </SimpleBar>
+      </SidebarContent>
+      <SidebarSeparator />
+      <SidebarFooter className="p-2">
+        <NavUser />
+      </SidebarFooter>
+    </Sidebar>
   );
 };
 
