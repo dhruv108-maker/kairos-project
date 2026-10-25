@@ -1,6 +1,6 @@
 import {
   Activity, BookOpen, BriefcaseBusiness, ClipboardList, FileText, House,
-  LayoutDashboard, NotebookTabs, Settings2, Ticket, UserRound, Users,
+  LayoutDashboard, NotebookTabs, Settings, Settings2, Ticket, UserRound, Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -63,6 +63,7 @@ const sidebarItems: MenuItem[] = [
     heading: "Account",
     items: [
       { id: "account-profile", name: "My Profile", icon: UserRound, url: "/pages/user-profile" },
+      { id: "settings", name: "Settings", icon: Settings, url: "/settings" },
       { id: "student-profile", name: "Student Profile", icon: NotebookTabs, url: "/student/profile", roles: studentRoles },
     ],
   },
