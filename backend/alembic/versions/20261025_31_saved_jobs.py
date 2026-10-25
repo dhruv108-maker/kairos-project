@@ -1,13 +1,13 @@
 """Add per-account saved native job opportunities.
 
 Revision ID: 20261025_31
-Revises: 20261025_merge_heads
+Revises: 20261025_30_preferences_account_key
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "20261025_31"
-down_revision = "20261025_merge_heads"
+down_revision = "20261025_30_preferences_account_key"
 branch_labels = None
 depends_on = None
 
