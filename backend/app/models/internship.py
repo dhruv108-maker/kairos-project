@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Numeric, String, Text, Enum, func, UniqueConstraint, JSON
+from sqlalchemy import Index, BigInteger, Boolean, Date, TIMESTAMP, ForeignKey, Numeric, String, Text, Enum, func, UniqueConstraint, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -94,4 +94,38 @@ class RecruitmentNote(Base):
     application_id: Mapped[str] = mapped_column(ForeignKey("internship_applications.id", ondelete="CASCADE"), nullable=False, index=True)
     author_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
+
+
+class InternshipWorkLog(Base):
+    """Student-authored work log for an existing persisted internship placement."""
+    __tablename__ = "internship_work_logs"
+    __table_args__ = (
+        Index("ix_internship_work_logs_placement_date", "placement_id", "work_date"),
+        Index("ix_internship_work_logs_student_status", "student_id", "status"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    placement_id: Mapped[str] = mapped_column(ForeignKey("internship_placements.id", ondelete="CASCADE"), nullable=False)
+    student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="RESTRICT"), nullable=False)
+    work_date: Mapped[date] = mapped_column(Date, nullable=False)
+    summary: Mapped[str] = mapped_column(String(255), nullable=False)
+    tasks_completed: Mapped[str] = mapped_column(Text, nullable=False)
+    skills_used: Mapped[str | None] = mapped_column(Text)
+    challenges: Mapped[str | None] = mapped_column(Text)
+    learning_outcomes: Mapped[str | None] = mapped_column(Text)
+    next_steps: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Enum("DRAFT", "SUBMITTED", "REVIEWED", name="internship_work_log_status"), nullable=False, server_default="DRAFT")
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class InternshipWorkLogReview(Base):
+    """Append-only review history authored by the placement's assigned faculty mentor."""
+    __tablename__ = "internship_work_log_reviews"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    work_log_id: Mapped[str] = mapped_column(ForeignKey("internship_work_logs.id", ondelete="CASCADE"), nullable=False, index=True)
+    reviewer_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    reviewer_role: Mapped[str] = mapped_column(Enum("FACULTY", name="internship_work_log_reviewer_role"), nullable=False)
+    decision: Mapped[str] = mapped_column(Enum("ACKNOWLEDGED", "REVISION_REQUIRED", name="internship_work_log_review_decision"), nullable=False)
+    feedback: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
