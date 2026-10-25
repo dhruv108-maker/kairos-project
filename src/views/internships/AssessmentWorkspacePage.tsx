@@ -54,7 +54,16 @@ type AcademicResult = {
   semester: number;
   academic_year_id?: string | null;
   revision_number: number;
-  component_breakdown: { components?: Record<string, number | null>; weights?: Record<string, number>; policy_version?: number; outcome?: string };
+  component_breakdown: {
+    components?: Record<string, number | null>;
+    weights?: Record<string, number>;
+    policy_version?: number;
+    outcome?: string;
+    independent_assessments?: Array<{
+      label: string; overall_feedback?: string | null;
+      criterion_scores: Array<{ key: string; label: string; score: number | null; max_score: number; comment?: string | null }>;
+    }>;
+  };
   total_score: number;
   grade: string;
   status: string;
@@ -843,6 +852,19 @@ export default function AssessmentWorkspacePage() {
                   <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Assessment</th><th className="px-4 py-3 font-medium">Semester</th><th className="px-4 py-3 font-medium">Score</th><th className="px-4 py-3 font-medium">Grade</th><th className="px-4 py-3 font-medium">Published</th></tr></thead><tbody>{results.map((result) => <tr className="border-t border-border" key={result.id}><td className="px-4 py-3 font-medium">{result.title || "Internship assessment"}</td><td className="px-4 py-3">Semester {result.semester}</td><td className="px-4 py-3 tabular-nums">{result.total_score.toFixed(2)} / 100</td><td className="px-4 py-3"><Badge variant="outline">{result.grade}</Badge></td><td className="px-4 py-3 text-muted-foreground">{dateLabel(result.published_at)}</td></tr>)}</tbody></table></div>
                 </div>
               </>}
+            {results.length > 0 && <div className="space-y-3">
+              {results.filter((result) => result.component_breakdown.components || result.component_breakdown.independent_assessments?.length).map((result) => <Card className="rounded-xl border-border/80 shadow-none" key={`breakdown-${result.id}`}>
+                <CardHeader><CardTitle className="text-base">Published breakdown · {result.title || "Internship assessment"}</CardTitle><CardDescription>Semester {result.semester} · grading policy version {result.component_breakdown.policy_version ?? "not recorded"}</CardDescription></CardHeader>
+                <CardContent className="space-y-4">
+                  {result.component_breakdown.components && <div><h3 className="mb-2 text-sm font-medium">Component contributions</h3><div className="grid gap-2 sm:grid-cols-3">{(["griffin", "curriculum", "faculty"] as const).map((key) => <div key={key} className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">{key[0].toUpperCase() + key.slice(1)}</p><p className="mt-1 font-semibold tabular-nums">{result.component_breakdown.components?.[key] == null ? "Not recorded" : `${Number(result.component_breakdown.components[key]).toFixed(2)} / 100`}</p><p className="mt-1 text-xs text-muted-foreground">{result.component_breakdown.weights?.[key] == null ? "Weight unavailable" : `Weight ${result.component_breakdown.weights[key]}%`}</p></div>)}</div></div>}
+                  {result.component_breakdown.independent_assessments?.map((assessment, index) => <div key={`${result.id}-review-${index}`} className="space-y-3 border-t border-border pt-4">
+                    <h3 className="font-medium">{assessment.label}</h3>
+                    <div className="space-y-2">{assessment.criterion_scores.map((criterion) => <div key={criterion.key} className="rounded-lg bg-muted/20 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><p className="text-sm font-medium">{criterion.label}</p><p className="text-sm font-semibold tabular-nums">{criterion.score == null ? "—" : criterion.score} / {criterion.max_score}</p></div>{criterion.comment && <p className="mt-2 text-sm leading-5 text-muted-foreground">{criterion.comment}</p>}</div>)}</div>
+                    {assessment.overall_feedback && <div><p className="text-sm font-medium">Overall feedback</p><p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-muted-foreground">{assessment.overall_feedback}</p></div>}
+                  </div>)}
+                </CardContent>
+              </Card>)}
+            </div>}
           </section>
         </div>
       )}

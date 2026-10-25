@@ -654,15 +654,32 @@ class PostInternshipService:
         if len(submitted) != required:
             blockers.append(f"Exactly {required} submitted blind assessment(s) are required; {len(submitted)} are available.")
         faculty_percent = None
+        faculty_feedback: list[dict] = []
         if len(submitted) == required:
             maximum = sum(Decimal(str(item["max_score"])) for item in policy.criteria_json)
             if maximum <= 0:
                 blockers.append("The configured rubric has no positive maximum score.")
             else:
                 percentages = []
-                for item in submitted:
+                for index, item in enumerate(submitted, start=1):
                     score_total = sum((Decimal(str(v["score"])) for v in (item.scores_json or {}).values()), Decimal("0"))
                     percentages.append(float((score_total / maximum) * Decimal("100")))
+                    scores = item.scores_json or {}
+                    criterion_feedback = []
+                    for criterion in policy.criteria_json:
+                        entry = scores.get(criterion["key"], {})
+                        criterion_feedback.append({
+                            "key": criterion["key"],
+                            "label": criterion["label"],
+                            "score": float(entry["score"]) if "score" in entry else None,
+                            "max_score": float(criterion["max_score"]),
+                            "comment": entry.get("comment"),
+                        })
+                    faculty_feedback.append({
+                        "label": f"Independent assessment {index}",
+                        "criterion_scores": criterion_feedback,
+                        "overall_feedback": item.evaluator_comments,
+                    })
                 faculty_percent = sum(percentages) / len(percentages)
 
         outcomes = list((await self.db.scalars(select(CurriculumOutcome).where(
@@ -730,6 +747,7 @@ class PostInternshipService:
             "ready": not blockers, "blockers": blockers, "submission_id": submission.id,
             "report_version_id": version.id, "policy_id": policy.id, "policy_version": policy.version,
             "components": components, "component_weights": policy.component_weights_json,
+            "faculty_feedback": faculty_feedback,
             "griffin_score_max": float(policy.griffin_score_max),
             "curriculum_status_scores": policy.curriculum_status_scores_json,
             "weighted_total": weighted_total, "grade": grade,
@@ -774,6 +792,7 @@ class PostInternshipService:
             revision_number=revision, previous_result_id=latest.id if latest else None, policy_id=policy.id,
             component_breakdown_json={
                 "components": preview["components"], "weights": preview["component_weights"],
+                "independent_assessments": preview["faculty_feedback"],
                 "griffin_score_max": preview["griffin_score_max"],
                 "curriculum_status_scores": preview["curriculum_status_scores"],
                 "policy_version": preview["policy_version"], "passing_score": preview["passing_score"],
