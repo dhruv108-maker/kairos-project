@@ -982,8 +982,7 @@ class PostInternshipService:
         griffin_details = {
             "status": latest_eval.current_status if latest_eval else "NOT_STARTED",
             "evaluation_created_at": latest_eval.created_at if latest_eval else None,
-            "evaluation_updated_at": latest_eval.updated_at if latest_eval else None,
-            "has_validated_job": bool(latest_eval and latest_eval.griffin_job_id),
+            "has_validated_job": bool(latest_eval and latest_eval.current_status in {"PROCESSING", "COMPLETED"}),
             "attempt_count": len(griffin_attempts),
             "attempts": [
                 {
