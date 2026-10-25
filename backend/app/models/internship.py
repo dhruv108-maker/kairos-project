@@ -121,12 +121,23 @@ class InternshipWorkLog(Base):
 
 
 class InternshipWorkLogReview(Base):
-    """Append-only review history authored by the placement's assigned faculty mentor."""
-    __tablename__ = "internship_work_log_reviews"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    work_log_id: Mapped[str] = mapped_column(ForeignKey("internship_work_logs.id", ondelete="CASCADE"), nullable=False, index=True)
-    reviewer_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
-    reviewer_role: Mapped[str] = mapped_column(Enum("FACULTY", "INDUSTRY_MENTOR", name="internship_work_log_reviewer_role"), nullable=False)
-    decision: Mapped[str] = mapped_column(Enum("ACKNOWLEDGED", "REVISION_REQUIRED", name="internship_work_log_review_decision"), nullable=False)
-    feedback: Mapped[str] = mapped_column(Text, nullable=False)
+    """ORM adapter for the existing legacy internship_work_feedback table."""
+    __tablename__ = "internship_work_feedback"
+
+    # Physical schema uses an auto-incrementing BIGINT and legacy column names.
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    work_log_id: Mapped[int] = mapped_column("daily_log_id", BigInteger, nullable=False)
+    reviewer_account_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reviewer_role: Mapped[str] = mapped_column(
+        "reviewer_type",
+        Enum("faculty_mentor", "industry_mentor", name="internship_work_feedback_reviewer_type"),
+        nullable=False,
+    )
+    decision: Mapped[str] = mapped_column(
+        Enum("acknowledged", "revision_required", name="internship_work_feedback_decision"),
+        nullable=False,
+    )
+    feedback: Mapped[str] = mapped_column("feedback_text", Text, nullable=False)
+    faculty_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    industry_mentor_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
