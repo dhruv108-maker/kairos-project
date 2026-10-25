@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Activity, AlertCircle, ArrowUpRight, BookOpen, BriefcaseBusiness, CheckCircle2, Clock3, FileText, MessageSquareText, RefreshCw, Send, Upload } from "lucide-react";
 import { apiRequest, ApiError, downloadApiFile } from "@/api/kairos-client";
 import { useAuth } from "@/context/auth/AuthContext";
