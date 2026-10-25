@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.academic import Cohort, Department, Programme, School, StudentProfile
+from app.models.academic import Cohort, Department, FacultyProfile, Programme, School, StudentProfile
 from app.models.evaluation import ReportSubmission, ReportVersion
 from app.models.internship import InternshipPlacement
 from app.models.portfolio import StudentResume
