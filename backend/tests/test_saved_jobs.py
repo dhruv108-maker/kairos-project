@@ -6,7 +6,7 @@ from app.modules.employers.saved_jobs_router import _require_student
 
 
 def test_saved_job_routes_are_registered():
-    paths = set(app.openapi()["paths"])
+    paths = app.openapi()["paths"]
     assert "/api/v1/students/saved-jobs" in paths
     assert "/api/v1/students/saved-jobs/{opportunity_id}" in paths
     search_parameters = {item["name"] for item in paths["/api/v1/jobs"]["get"]["parameters"]}
