@@ -3,7 +3,7 @@ from app.models.identity_verification import IdentityVerification
 from app.models.academic import School, Department, Programme, AcademicYear, Cohort, Account, Role, AccountRole, Student, StudentProfile, FacultyProfile
 from app.models.storage import StorageFile
 from app.models.internship import InternshipProvider, InternshipOpportunity, InternshipApplication, InternshipPlacement, InternshipWorkLog, InternshipWorkLogReview, RecruitmentStageEvent, RecruitmentNote
-from app.models.evaluation import ReportRequirement, ReportSubmission, ReportVersion, GriffinEvaluation, GriffinEvaluationAttempt, GriffinResultSnapshot, EvaluationWorkflow, EvaluationStageResult, FinalEvaluationOutcome
+from app.models.evaluation import ReportRequirement, ReportSubmission, ReportVersion, GriffinEvaluation, GriffinEvaluationAttempt, GriffinResultSnapshot, EvaluationWorkflow, EvaluationStageResult, FinalEvaluationOutcome, InternshipAssessmentPolicy, CurriculumOutcome, InternshipCurriculumMapping, BlindAssessmentAssignment, InternshipAcademicResult
 from app.models.organizations import Team, TeamMembership, AssessmentCampaign, FacultyAssessmentAssignment
 from app.models.portfolio import StudentAcademicRecord, StudentPortfolioEntry, StudentResume
 from app.models.institutions import Institution, InstitutionMembership, InstitutionInvitation
@@ -22,7 +22,8 @@ __all__ = [
     "InternshipApplication", "InternshipPlacement", "InternshipWorkLog", "InternshipWorkLogReview", "RecruitmentStageEvent", "RecruitmentNote", "ReportRequirement", "ReportSubmission",
     "ReportVersion", "GriffinEvaluation", "GriffinEvaluationAttempt",
     "GriffinResultSnapshot", "EvaluationWorkflow", "EvaluationStageResult",
-    "FinalEvaluationOutcome", "Team", "TeamMembership", "AssessmentCampaign",
+    "FinalEvaluationOutcome", "InternshipAssessmentPolicy", "CurriculumOutcome", "InternshipCurriculumMapping",
+    "BlindAssessmentAssignment", "InternshipAcademicResult", "Team", "TeamMembership", "AssessmentCampaign",
     "FacultyAssessmentAssignment", "StudentAcademicRecord", "StudentPortfolioEntry",
     "StudentResume", "Institution", "InstitutionMembership", "InstitutionInvitation", "InstitutionDomain", "FacultyStudentMentorship", "AuditEvent",
     "EmployerOrganization", "EmployerMembership", "EmployerInvitation", "RecruitmentInterview", "RecruitmentOffer",
