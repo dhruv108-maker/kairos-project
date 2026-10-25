@@ -1,5 +1,5 @@
 import {
-  Activity, BookOpen, Bookmark, BriefcaseBusiness, ClipboardList, FileText, House,
+  Activity, BookOpen, Bookmark, BriefcaseBusiness, ClipboardCheck, ClipboardList, FileText, House,
   LayoutDashboard, NotebookTabs, Settings, Settings2, Ticket, UserRound, Users, GraduationCap,
   type LucideIcon,
 } from "lucide-react";
@@ -46,6 +46,7 @@ const sidebarItems: MenuItem[] = [
     heading: "Institution",
     items: [
       { id: "institution-dashboard", name: "Institution Dashboard", icon: GraduationCap, roles: ["INSTITUTION_ADMIN"], url: "/institution/dashboard" },
+      { id: "internship-assessment-policy", name: "Assessment Policy", icon: ClipboardCheck, roles: ["INSTITUTION_ADMIN"], url: "/institution/assessment-policy" },
     ],
   },
   {
