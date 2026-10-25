@@ -1,4 +1,3 @@
-
 import { Trash2 } from "lucide-react";
 import { useState, useContext, useEffect } from "react";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -55,8 +54,6 @@ const Notelist = () => {
     | "chart-2"
     | "secondary";
 
-
-
   const colorClasses: Record<NoteColor, string> = {
     primary: "bg-primary/5  text-primary border border-primary/20",
     destructive: "bg-destructive/5  text-primary border border-destructive/20",
@@ -70,7 +67,6 @@ const Notelist = () => {
     <>
       <div className="overflow-hidden">
         <div className="relative w-full">
-
           <SearchIcon size={16} className="absolute left-2 top-1/2 -translate-y-1/2  text-muted-foreground" />
 
           <PlaceholdersInput
@@ -108,19 +104,22 @@ const Notelist = () => {
                       <div>
                         <TooltipProvider>
                           <Tooltip>
-                            <TooltipTrigger>
-                              <Button
-                                variant={"ghost"}
-                                className={
-                                  "hover:text-destructive hover:bg-destructive/12 text-black dark:text-white dark:hover:text-destructive dark:hover:bg-destructive/12"
-                                }
-                                size="icon"
-                                onClick={() => deleteNote(note.id)}
-                                aria-label="Delete note"
-                              >
-                                <Trash2 size={18} />
-                              </Button>
-                            </TooltipTrigger>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  className="hover:text-destructive hover:bg-destructive/12 text-black dark:text-white dark:hover:text-destructive dark:hover:bg-destructive/12"
+                                  size="icon"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    deleteNote(note.id);
+                                  }}
+                                  aria-label="Delete note"
+                                >
+                                  <Trash2 size={18} />
+                                </Button>
+                              }
+                            />
                             <TooltipContent>Delete</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
