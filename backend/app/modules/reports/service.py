@@ -99,6 +99,18 @@ class ReportService:
         await self.db.refresh(submission)
         return submission
 
+    async def list_for_faculty(self, account_id: str) -> list[ReportSubmission]:
+        faculty = await self.db.scalar(select(FacultyProfile).where(FacultyProfile.account_id == account_id))
+        if faculty is None:
+            raise ReportWorkflowError(403, "Faculty account required")
+        result = await self.db.execute(
+            select(ReportSubmission)
+            .join(InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id)
+            .where(InternshipPlacement.faculty_supervisor_id == faculty.id)
+            .order_by(ReportSubmission.updated_at.desc())
+        )
+        return list(result.scalars().all())
+
     async def list_mine(self, account_id: str) -> list[ReportSubmission]:
         student = await self._student_for_account(account_id)
         result = await self.db.execute(
