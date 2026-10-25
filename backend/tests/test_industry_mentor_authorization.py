@@ -8,12 +8,12 @@ import os
 
 # The application builds its SQLAlchemy engine at import time. These harmless
 # test-only values prevent loading any developer/prod database credentials.
-os.environ["DB_HOST"] = "127.0.0.1"
-os.environ["DB_PORT"] = "3306"
-os.environ["DB_USER"] = "kairos_test"
-os.environ["DB_PASSWORD"] = "not-a-real-password"
-os.environ["DB_NAME"] = "kairos_test"
-os.environ["JWT_SECRET_KEY"] = "unit-test-secret-key-not-for-authentication"
+os.environ.setdefault("DB_HOST", "127.0.0.1")
+os.environ.setdefault("DB_PORT", "3306")
+os.environ.setdefault("DB_USER", "kairos_test")
+os.environ.setdefault("DB_PASSWORD", "not-a-real-password")
+os.environ.setdefault("DB_NAME", "kairos_test")
+os.environ.setdefault("JWT_SECRET_KEY", "unit-test-secret-key-not-for-authentication")
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
