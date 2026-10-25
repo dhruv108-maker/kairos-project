@@ -81,15 +81,19 @@ const NoteContent = () => {
 
             <div className="flex gap-2 items-center">
               {colorvariation.map((color1) => (
-                <div
-                  className={`h-7 w-7 flex justify-center items-center rounded-full cursor-pointer  bg-${color1?.disp}`}
+                <button
+                  type="button"
+                  aria-label={`Use ${color1.disp} note color`}
+                  aria-pressed={noteDetails.color === color1.disp}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border/70 shadow-sm transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  style={{ backgroundColor: color1.disp === "primary" ? "var(--primary)" : color1.disp === "destructive" ? "var(--destructive)" : `var(--${color1.disp})` }}
                   key={color1.id}
                   onClick={() => handleColorChange(color1.disp)}
                 >
                   {noteDetails.color === color1.disp ? (
                     <Check width="18" className="text-white" />
                   ) : null}
-                </div>
+                </button>
               ))}
             </div>
           </div>
