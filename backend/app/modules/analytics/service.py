@@ -71,8 +71,20 @@ class AnalyticsService:
         pending_reports = await self._count(select(func.count(ReportSubmission.id)).join(
             InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id
         ).where(InternshipPlacement.faculty_supervisor_id == faculty.id, ReportSubmission.status.in_(("SUBMITTED", "UNDER_EVALUATION"))))
-        mentorships = await self._count(select(func.count(FacultyStudentMentorship.id)).where(
-            FacultyStudentMentorship.faculty_profile_id == faculty.id, FacultyStudentMentorship.status == "ACTIVE"))
+        # The deployed MySQL schema uses faculty_mentorships.faculty_id and
+        # lowercase lifecycle values; it does not have faculty_profile_id.
+        from sqlalchemy import text
+
+        mentorships = int((await self.db.scalar(
+            text("""
+                SELECT COUNT(*)
+                FROM faculty_mentorships
+                WHERE faculty_id = :faculty_id
+                  AND status = 'active'
+                  AND (ends_on IS NULL OR ends_on >= CURRENT_DATE())
+            """),
+            {"faculty_id": faculty.id},
+        )) or 0)
         pending_assessments = await self._count(select(func.count(FacultyAssessmentAssignment.id)).where(
             FacultyAssessmentAssignment.faculty_id == faculty.id, FacultyAssessmentAssignment.status.in_(("PENDING", "IN_PROGRESS"))))
         return {"faculty_id": faculty.id, "placements_supervised": placements, "reports_pending_review": pending_reports,
