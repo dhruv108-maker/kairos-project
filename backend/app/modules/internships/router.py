@@ -2,9 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import CurrentAccount, DbSession, account_roles, require_role
-from app.models.internship import InternshipOpportunity, InternshipProvider
+from app.models.internship import InternshipOpportunity, InternshipProvider, InternshipWorkLog, InternshipWorkLogReview, InternshipPlacement
 from app.modules.shared.exceptions import KairosDomainError
-from app.modules.internships.schemas import ApplicationStatusUpdate, OpportunityCreate, PlacementCreate, ProviderCreate
+from app.modules.internships.schemas import ApplicationStatusUpdate, OpportunityCreate, PlacementCreate, ProviderCreate, WorkLogCreate, WorkLogReviewCreate
 from app.modules.internships.repository import InternshipRepository
 from app.modules.internships.service import InternshipService
 
@@ -80,3 +80,131 @@ async def create_placement(application_id: str, payload: PlacementCreate, accoun
     try: item = await InternshipService(db).create_placement(application_id, payload.model_dump())
     except KairosDomainError as exc: raise _error(exc) from None
     return _placement(item)
+
+
+def _work_log(item: InternshipWorkLog) -> dict:
+    return {"id": item.id, "placement_id": item.placement_id, "work_date": item.work_date.isoformat(),
+            "summary": item.summary, "tasks_completed": item.tasks_completed, "skills_used": item.skills_used,
+            "challenges": item.challenges, "learning_outcomes": item.learning_outcomes, "next_steps": item.next_steps,
+            "status": item.status, "created_at": item.created_at.isoformat() if item.created_at else None,
+            "updated_at": item.updated_at.isoformat() if item.updated_at else None}
+
+
+@router.get("/placements/me")
+async def my_placements(account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "STUDENT")
+    repo = InternshipRepository(db)
+    student = await repo.get_student_by_account(account.id)
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    rows = await repo.list_placements_for_student(student.id)
+    return {"items": [{"id": p.id, "application_id": p.application_id, "student_id": p.student_id,
+        "faculty_supervisor_id": p.faculty_supervisor_id, "start_date": p.start_date.isoformat(),
+        "end_date": p.end_date.isoformat(), "status": p.status} for p in rows]}
+
+
+@router.get("/work-logs/me")
+async def my_work_logs(account: CurrentAccount, db: DbSession, placement_id: str | None = None) -> dict:
+    await require_role(db, account, "STUDENT")
+    repo = InternshipRepository(db)
+    student = await repo.get_student_by_account(account.id)
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    if placement_id:
+        placement = await db.get(InternshipPlacement, placement_id)
+        if placement is None or placement.student_id != student.id:
+            raise HTTPException(status_code=404, detail="Placement not found")
+    logs = await repo.list_work_logs_for_student(student.id, placement_id)
+    review_rows = await db.execute(select(InternshipWorkLogReview).where(
+        InternshipWorkLogReview.work_log_id.in_([item.id for item in logs] or ["__none__"])
+    ).order_by(InternshipWorkLogReview.created_at.desc()))
+    reviews = list(review_rows.scalars().all())
+    latest_by_log = {}
+    for review in reviews:
+        latest_by_log.setdefault(review.work_log_id, review)
+    return {"items": [{**_work_log(item), "latest_review": ({
+        "decision": latest_by_log[item.id].decision, "feedback": latest_by_log[item.id].feedback,
+        "reviewer_role": latest_by_log[item.id].reviewer_role,
+        "created_at": latest_by_log[item.id].created_at.isoformat() if latest_by_log[item.id].created_at else None
+    } if item.id in latest_by_log else None)} for item in logs]}
+
+
+@router.post("/work-logs", status_code=201)
+async def create_work_log(payload: WorkLogCreate, account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "STUDENT")
+    repo = InternshipRepository(db)
+    student = await repo.get_student_by_account(account.id)
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    placement = await db.get(InternshipPlacement, payload.placement_id)
+    if placement is None or placement.student_id != student.id:
+        raise HTTPException(status_code=404, detail="Placement not found")
+    if placement.status != "ONGOING":
+        raise HTTPException(status_code=409, detail="Work logs require an ongoing placement")
+    from datetime import date as date_type
+    from uuid import uuid4
+    if payload.work_date > date_type.today():
+        raise HTTPException(status_code=422, detail="work_date cannot be in the future")
+    row = InternshipWorkLog(id=str(uuid4()), placement_id=placement.id, student_id=student.id,
+        work_date=payload.work_date, summary=payload.summary, tasks_completed=payload.tasks_completed,
+        skills_used=payload.skills_used, challenges=payload.challenges, learning_outcomes=payload.learning_outcomes,
+        next_steps=payload.next_steps, status=payload.status)
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return _work_log(row)
+
+
+@router.patch("/work-logs/{work_log_id}")
+async def update_work_log(work_log_id: str, payload: WorkLogCreate, account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "STUDENT")
+    repo = InternshipRepository(db)
+    student = await repo.get_student_by_account(account.id)
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    row = await db.get(InternshipWorkLog, work_log_id)
+    if row is None or row.student_id != student.id:
+        raise HTTPException(status_code=404, detail="Work log not found")
+    if row.status != "DRAFT":
+        raise HTTPException(status_code=409, detail="Only draft work logs can be edited")
+    placement = await db.get(InternshipPlacement, row.placement_id)
+    if placement is None or placement.status != "ONGOING" or payload.placement_id != row.placement_id:
+        raise HTTPException(status_code=409, detail="Work log placement cannot be changed")
+    if payload.work_date > __import__("datetime").date.today():
+        raise HTTPException(status_code=422, detail="work_date cannot be in the future")
+    for field in ("work_date", "summary", "tasks_completed", "skills_used", "challenges", "learning_outcomes", "next_steps", "status"):
+        setattr(row, field, getattr(payload, field))
+    await db.commit()
+    await db.refresh(row)
+    return _work_log(row)
+
+
+@router.post("/work-logs/{work_log_id}/submit")
+async def submit_work_log(work_log_id: str, account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "STUDENT")
+    repo = InternshipRepository(db)
+    student = await repo.get_student_by_account(account.id)
+    row = await db.get(InternshipWorkLog, work_log_id)
+    if student is None or row is None or row.student_id != student.id:
+        raise HTTPException(status_code=404, detail="Work log not found")
+    if row.status != "DRAFT":
+        raise HTTPException(status_code=409, detail="Only a draft work log can be submitted")
+    row.status = "SUBMITTED"
+    await db.commit()
+    await db.refresh(row)
+    return _work_log(row)
+
+
+@router.get("/work-logs/{work_log_id}/reviews")
+async def list_work_log_reviews(work_log_id: str, account: CurrentAccount, db: DbSession) -> dict:
+    await require_role(db, account, "STUDENT")
+    repo = InternshipRepository(db)
+    student = await repo.get_student_by_account(account.id)
+    row = await db.get(InternshipWorkLog, work_log_id)
+    if student is None or row is None or row.student_id != student.id:
+        raise HTTPException(status_code=404, detail="Work log not found")
+    reviews = (await db.execute(select(InternshipWorkLogReview).where(
+        InternshipWorkLogReview.work_log_id == row.id
+    ).order_by(InternshipWorkLogReview.created_at.desc()))).scalars().all()
+    return {"items": [{"id": r.id, "decision": r.decision, "feedback": r.feedback,
+        "reviewer_role": r.reviewer_role, "created_at": r.created_at.isoformat() if r.created_at else None} for r in reviews]}
