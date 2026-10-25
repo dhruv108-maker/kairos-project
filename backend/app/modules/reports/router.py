@@ -26,13 +26,16 @@ async def _call(operation, db):
 def _submission(item):
     return {"id": item.id, "placement_id": item.placement_id, "requirement_id": item.requirement_id,
             "title": item.title, "latest_version_number": item.latest_version_number, "status": item.status,
+            "institution_id": item.institution_id, "programme_id": item.programme_id, "cohort_id": item.cohort_id,
+            "academic_year_id": item.academic_year_id, "academic_semester": item.academic_semester,
             "review_feedback": item.review_feedback, "reviewed_by_account_id": item.reviewed_by_account_id, "reviewed_at": item.reviewed_at,
             "created_at": item.created_at, "updated_at": item.updated_at}
 
 
 def _version(item):
     return {"id": item.id, "submission_id": item.submission_id, "version_number": item.version_number,
-            "file_id": item.file_id, "submission_notes": item.submission_notes, "submitted_at": item.submitted_at}
+            "file_id": item.file_id, "presentation_file_id": item.presentation_file_id,
+            "submission_notes": item.submission_notes, "submitted_at": item.submitted_at}
 
 
 def _requirement(item):
@@ -44,8 +47,10 @@ def _requirement(item):
 
 @router.post("", status_code=201)
 async def create_report(payload: ReportCreate, account: CurrentAccount, db: DbSession):
-    item = await _call(ReportService(db).create(account.id, payload.placement_id, payload.title, payload.file_id,
-        payload.submission_notes, payload.requirement_id), db)
+    item = await _call(ReportService(db).create(
+        account.id, payload.placement_id, payload.title, payload.file_id,
+        payload.submission_notes, payload.requirement_id, payload.presentation_file_id
+    ), db)
     return _submission(item)
 
 
@@ -81,7 +86,9 @@ async def rename_report(submission_id: str, payload: ReportTitleUpdate, account:
 
 @router.post("/{submission_id}/versions", status_code=201)
 async def add_report_version(submission_id: str, payload: ReportVersionCreate, account: CurrentAccount, db: DbSession):
-    item = await _call(ReportService(db).add_version(submission_id, account.id, payload.file_id, payload.submission_notes), db)
+    item = await _call(ReportService(db).add_version(
+        submission_id, account.id, payload.file_id, payload.submission_notes, payload.presentation_file_id
+    ), db)
     return _version(item)
 
 
