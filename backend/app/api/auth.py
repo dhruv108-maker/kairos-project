@@ -3,7 +3,6 @@ from __future__ import annotations
 import hmac
 import logging
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import func, select, text
