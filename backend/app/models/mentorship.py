@@ -29,8 +29,9 @@ class FacultyStudentMentorship(Base):
         ForeignKey("students.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    academic_year_id: Mapped[int | None] = mapped_column(
-        MYSQL_BIGINT(unsigned=True),
+    # academic_years.id is VARCHAR(36) in the canonical academic model.
+    academic_year_id: Mapped[str | None] = mapped_column(
+        String(36),
         ForeignKey("academic_years.id", ondelete="RESTRICT"),
         nullable=True,
     )
