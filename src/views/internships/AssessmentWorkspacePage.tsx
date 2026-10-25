@@ -64,6 +64,7 @@ type AcademicResult = {
 type Stage = { key: string; label: string; status: string; detail: string };
 type ProgressPayload = { submission_id: string; version_number: number; stages: Stage[] };
 type Assignment = { id: string; packet_code: string; report_version_id: string; status: string; assigned_at: string; submitted_at?: string | null; total_score?: number | null };
+type SupervisedStudent = { student_profile_id: number; full_name: string; enrollment_number: string; current_semester: number; programme_id?: string | null };
 type RubricCriterion = { key: string; label: string; description: string; max_score: number; require_comment?: boolean };
 type Score = { score: number; comment?: string | null };
 type Packet = {
@@ -190,6 +191,11 @@ export default function AssessmentWorkspacePage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [results, setResults] = useState<AcademicResult[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [supervisedStudents, setSupervisedStudents] = useState<SupervisedStudent[]>([]);
+  const [selectedSupervisedStudentId, setSelectedSupervisedStudentId] = useState("");
+  const [supervisedResults, setSupervisedResults] = useState<AcademicResult[]>([]);
+  const [supervisedResultLoading, setSupervisedResultLoading] = useState(false);
+  const [supervisedResultError, setSupervisedResultError] = useState("");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [versions, setVersions] = useState<ReportVersion[]>([]);
   const [progress, setProgress] = useState<ProgressPayload | null>(null);
@@ -218,8 +224,12 @@ export default function AssessmentWorkspacePage() {
         const resultData = await apiRequest<{ items: AcademicResult[] }>("/internship-assessments/results/me");
         setResults(resultData.items ?? []);
       } else if (facultyMode) {
-        const result = await apiRequest<{ items: Assignment[] }>("/internship-assessments/assignments/me");
+        const [result, studentData] = await Promise.all([
+          apiRequest<{ items: Assignment[] }>("/internship-assessments/assignments/me"),
+          apiRequest<{ items: SupervisedStudent[] }>("/internship-assessments/supervised-students"),
+        ]);
         setAssignments(result.items ?? []);
+        setSupervisedStudents(studentData.items ?? []);
       } else {
         setLoadError("This workspace is available to student and faculty accounts. Your account has no supported assessment role.");
       }
@@ -252,6 +262,26 @@ export default function AssessmentWorkspacePage() {
       setActionError(readableError(error));
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const loadSupervisedResults = async () => {
+    if (!selectedSupervisedStudentId) {
+      setSupervisedResultError("Select one of your supervised students first.");
+      return;
+    }
+    setSupervisedResultLoading(true);
+    setSupervisedResultError("");
+    try {
+      const data = await apiRequest<{ items: AcademicResult[] }>(
+        `/internship-assessments/results/students/${encodeURIComponent(selectedSupervisedStudentId)}`
+      );
+      setSupervisedResults(data.items ?? []);
+    } catch (error) {
+      setSupervisedResultError(readableError(error));
+      setSupervisedResults([]);
+    } finally {
+      setSupervisedResultLoading(false);
     }
   };
 
@@ -405,7 +435,7 @@ export default function AssessmentWorkspacePage() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="assessment-placement">Internship placement</Label>
-                      <Select value={placementId} onValueChange={setPlacementId}>
+                      <Select value={placementId} onValueChange={(value) => setPlacementId(value ?? "")}>
                         <SelectTrigger id="assessment-placement" className="w-full"><SelectValue placeholder="Select an ongoing placement" /></SelectTrigger>
                         <SelectContent>
                           {placements.filter((item) => item.status === "ONGOING").map((item) => (
@@ -531,6 +561,7 @@ export default function AssessmentWorkspacePage() {
       )}
 
       {facultyMode && (
+        <div className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.4fr)]">
           <section className="space-y-3">
             <div><h2 className="text-lg font-semibold tracking-tight">My assigned assessments</h2><p className="mt-1 text-sm text-muted-foreground">Only assignments belonging to your authenticated faculty profile are returned.</p></div>
@@ -540,7 +571,7 @@ export default function AssessmentWorkspacePage() {
                   <Card key={assignment.id} className="rounded-xl border-border/80 shadow-none">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">Packet {assignment.packet_code}</p><p className="mt-1 text-xs text-muted-foreground">Assigned {dateTimeLabel(assignment.assigned_at)}</p></div><Badge variant={badgeVariant(assignment.status)}>{prettyStatus(assignment.status)}</Badge></div>
-                      <div className="mt-4 flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">{assignment.total_score == null ? "No submitted score" : `Submitted score: ${assignment.total_score}`}</p><Button size="sm" variant="outline" disabled={assignment.status === "SUBMITTED" || packetLoading} onClick={() => void openPacket(assignment)}>{assignment.status === "SUBMITTED" ? "Submitted" : "Open packet"}</Button></div>
+                      <div className="mt-4 flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">{assignment.total_score == null ? "No submitted score" : `Submitted score: ${assignment.total_score}`}</p><Button size="sm" variant="outline" disabled={packetLoading} onClick={() => void openPacket(assignment)}>{assignment.status === "SUBMITTED" ? "View submission" : "Open packet"}</Button></div>
                     </CardContent>
                   </Card>
                 ))}</div>}
@@ -578,6 +609,37 @@ export default function AssessmentWorkspacePage() {
                 </CardContent>
               </Card>}
           </section>
+        </div>
+
+        <section className="space-y-3">
+          <div><h2 className="text-lg font-semibold tracking-tight">Supervised student performance</h2><p className="mt-1 text-sm text-muted-foreground">Student identity and published results are available here only for placements you supervise. Blind evaluator assignments remain separate.</p></div>
+          <Card className="rounded-xl border-border/80 shadow-none">
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Label htmlFor="supervised-student">Supervised student</Label>
+                <Select value={selectedSupervisedStudentId} onValueChange={(value) => { setSelectedSupervisedStudentId(value ?? ""); setSupervisedResults([]); setSupervisedResultError(""); }}>
+                  <SelectTrigger id="supervised-student" className="w-full"><SelectValue placeholder="Select a supervised student" /></SelectTrigger>
+                  <SelectContent>
+                    {supervisedStudents.map((student) => <SelectItem key={student.student_profile_id} value={String(student.student_profile_id)}>{student.full_name} · {student.enrollment_number}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {supervisedStudents.length === 0 && <p className="text-xs text-muted-foreground">No supervised student placements were returned for your faculty profile.</p>}
+              </div>
+              <Button variant="outline" disabled={!selectedSupervisedStudentId || supervisedResultLoading} onClick={() => void loadSupervisedResults()}>{supervisedResultLoading ? "Loading…" : "View published results"}</Button>
+            </CardContent>
+          </Card>
+          {supervisedResultError && <StateAlert title="Student results unavailable" message={supervisedResultError} />}
+          {selectedSupervisedStudentId && !supervisedResultLoading && supervisedResults.length === 0 && !supervisedResultError && <Card className="border-dashed shadow-none"><CardContent className="py-7 text-center"><Activity className="mx-auto size-7 text-muted-foreground" /><p className="mt-2 font-medium">No published outcomes</p><p className="mt-1 text-sm text-muted-foreground">Only published results from placements you supervise appear here.</p></CardContent></Card>}
+          {supervisedResults.length > 0 && (
+            <Card className="rounded-xl border-border/80 shadow-none">
+              <CardHeader><CardTitle className="text-base">Published internship results</CardTitle><CardDescription>Persisted academic records only. Scores are shown on a 0–100 scale.</CardDescription></CardHeader>
+              <CardContent>
+                {supervisedResults.length >= 2 ? <div className="h-60 w-full" role="img" aria-label="Line chart of published internship assessment scores for the selected supervised student"><ResponsiveContainer width="100%" height="100%"><LineChart data={supervisedResults.map((item, index) => ({ period: `Sem ${item.semester} · ${index + 1}`, score: item.total_score }))} margin={{ top: 8, right: 12, left: -16, bottom: 6 }}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="period" tickLine={false} axisLine={false} /><YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={38} /><Tooltip formatter={(value) => [`${value} / 100`, "Score"]} /><Line type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 5 }} /></LineChart></ResponsiveContainer></div> : <p className="mb-4 rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">One published result is available; a trend chart appears after a second result is recorded.</p>}
+                <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full min-w-[480px] text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Assessment</th><th className="px-4 py-3 font-medium">Semester</th><th className="px-4 py-3 font-medium">Score</th><th className="px-4 py-3 font-medium">Grade</th></tr></thead><tbody>{supervisedResults.map((result) => <tr key={result.id} className="border-t border-border"><td className="px-4 py-3 font-medium">{result.title || "Internship assessment"}</td><td className="px-4 py-3">Semester {result.semester}</td><td className="px-4 py-3 tabular-nums">{result.total_score.toFixed(2)} / 100</td><td className="px-4 py-3"><Badge variant="outline">{result.grade}</Badge></td></tr>)}</tbody></table></div>
+              </CardContent>
+            </Card>
+          )}
+        </section>
         </div>
       )}
     </main>
