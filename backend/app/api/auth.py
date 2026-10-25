@@ -256,7 +256,6 @@ async def _register_student_sqlite(payload: StudentRegistration, db) -> Registra
             db.add(student)
             await db.flush()
             db.add(StudentProfile(
-                id=student.id,
                 student_id=student.id,
                 account_id=account.id,
                 enrollment_number=payload.enrollment_number,
@@ -350,9 +349,7 @@ async def _register_faculty_sqlite(payload: FacultyRegistration, db) -> Registra
             token = await _new_verification_token(account)
             db.add(account)
             await db.flush()
-            next_faculty_id = int((await db.scalar(select(func.coalesce(func.max(FacultyProfile.id), 0) + 1))) or 1)
             db.add(FacultyProfile(
-                id=next_faculty_id,
                 account_id=account.id,
                 employee_number=payload.employee_code,
                 employee_code=payload.employee_code,
