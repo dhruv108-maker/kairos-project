@@ -118,7 +118,8 @@ class OrganizationService:
         item = AssessmentCampaign(institution_id=institution_id, title=title.strip(),
                                   description=description, start_date=start_date, end_date=end_date, is_active=True)
         self.db.add(item)
-        AuditService(self.db).record(actor_id, institution_id, "assessment.campaign_created", "assessment_campaign", item.id, {"title": item.title})
+        await self.db.flush()  # Populate the database-generated campaign ID before auditing.
+        AuditService(self.db).record(actor_id, institution_id, "assessment.campaign_created", "assessment_campaign", str(item.id), {"title": item.title})
         await self.db.commit()
         await self.db.refresh(item)
         return item
@@ -159,7 +160,8 @@ class OrganizationService:
             raise OrganizationWorkflowError(409, "Faculty member is already assigned to this campaign")
         item = FacultyAssessmentAssignment(campaign_id=campaign.id, faculty_id=faculty.id, selection_key=selection_key.strip() if selection_key else None)
         self.db.add(item)
-        AuditService(self.db).record(actor_id, institution_id, "assessment.faculty_assigned", "faculty_assessment_assignment", item.id, {"campaign_id": campaign_id, "faculty_id": faculty.id})
+        await self.db.flush()  # Populate the auto-increment assignment ID before auditing.
+        AuditService(self.db).record(actor_id, institution_id, "assessment.faculty_assigned", "assessment_assignment", str(item.id), {"campaign_id": campaign.id, "faculty_id": faculty.id})
         await self.db.commit()
         await self.db.refresh(item)
         faculty_account = await self.db.get(Account, faculty.account_id)
