@@ -22,12 +22,12 @@ const FullLayout: FC<FullLayoutProps> = ({ allowAnonymous = false }) => {
   return (
     <SidebarProvider defaultOpen={true} style={{ "--sidebar-width-icon": "52px" } as React.CSSProperties}>
       <Sidebar />
-      <SidebarInset className="min-h-svh min-w-0 overflow-x-clip bg-background">
+      <SidebarInset className="outline outline-border m-2 rounded-none! overflow-hidden">
         <Header />
-        <div className="flex flex-1 flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+        <div className="flex flex-1 flex-col gap-4 p-4">
           <div className={cn("w-full mx-auto", "container")}>
-            <div className="min-h-[calc(100svh-9rem)]"><Outlet /></div>
-            <div className="mt-8 border-t border-border/70 pt-5"><Footer /></div>
+            <div className="min-h-[calc(100vh-140px)]"><Outlet /></div>
+            <div className="pt-6"><Footer /></div>
           </div>
         </div>
       </SidebarInset>

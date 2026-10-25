@@ -43,8 +43,8 @@ const Header = () => {
   );
 
   return (
-    <header className={cn("sticky top-0 z-20 border-b border-border/75 bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80")}>
-      <nav aria-label="Workspace header" className="mx-auto flex min-h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+    <header className={cn("sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-sm")}>
+      <nav aria-label="Workspace header" className="mx-auto flex min-h-14 items-center justify-between gap-3 px-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="block lg:hidden"><FullLogo /></div>
           <Button variant="ghost" size="icon" className="shrink-0 rounded-lg" onClick={toggleSidebar} aria-label="Toggle navigation sidebar">
@@ -56,7 +56,7 @@ const Header = () => {
             <p className="truncate text-sm font-semibold">{title}</p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1">
           <Notifications />
           <LightDark />
           <Profile />

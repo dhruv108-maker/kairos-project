@@ -29,21 +29,21 @@ const SidebarLayout = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
 
   return (
     <Sidebar
-      variant="sidebar"
+      variant="inset"
       collapsible="icon"
       {...props}
-      className="sidebar-box"
+      className="sidebar-box **:data-[slot=sidebar-inner]:bg-sidebar **:data-[slot=sidebar-inner]:border **:data-[slot=sidebar-inner]:border-sidebar-border"
       side="left"
     >
-      <SidebarHeader className="flex h-14 shrink-0 flex-row items-center justify-between overflow-hidden border-b border-sidebar-border/70 px-4 py-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1">
+      <SidebarHeader className="flex min-h-14 flex-row items-center justify-between overflow-hidden border-b border-sidebar-border p-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1">
         <div className="min-w-0 overflow-hidden"><FullLogo /></div>
       </SidebarHeader>
-      <SidebarContent className="min-h-0 px-2 py-3">
+      <SidebarContent className="px-2 py-3">
         <SidebarGroup className="min-w-0 p-0 group-data-[collapsible=icon]:px-0">
           <NavCollapse menu={menu} />
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border/70 p-2">
+      <SidebarFooter className="p-2">
         <NavUser />
       </SidebarFooter>
     </Sidebar>

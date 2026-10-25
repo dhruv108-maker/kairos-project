@@ -50,11 +50,10 @@ function NavEntry({ item, pathname, depth = 0 }: { item: ChildItem; pathname: st
                 isActive={active && !item.items?.some((child) => hasActiveDescendant(child, pathname))}
                 tooltip={item.name}
                 aria-expanded={open}
-                className="pr-2"
               >
                 {Icon ? <Icon aria-hidden="true" /> : null}
                 <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">{item.name}</span>
-                <ChevronDown aria-hidden="true" className="ml-auto size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[open]/collapsible:rotate-180 group-data-[collapsible=icon]:hidden" />
+                <ChevronDown aria-hidden="true" className="ml-auto size-4 shrink-0 transition-transform group-data-[open]/collapsible:rotate-180 group-data-[collapsible=icon]:hidden" />
               </SidebarMenuButton>
             }
           />
@@ -114,11 +113,11 @@ export default function NavCollapse({ menu }: NavCollapseProps) {
       {menu.map((section) => {
         if (!section.items.length) return null;
         return (
-          <section key={section.heading} className="mb-4 last:mb-0">
-            <SidebarGroupLabel className="h-7 px-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-muted-foreground/80 group-data-[collapsible=icon]:hidden">
+          <section key={section.heading} className="mb-3">
+            <SidebarGroupLabel>
               {section.heading}
             </SidebarGroupLabel>
-            <SidebarMenu className="gap-0.5">
+            <SidebarMenu>
               {section.items.map((item) => (
                 <NavEntry key={item.id} item={item} pathname={pathname} />
               ))}
