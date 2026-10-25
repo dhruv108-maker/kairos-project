@@ -28,10 +28,10 @@ External links open in a new tab with `rel="noopener noreferrer"`. Native applic
 
 ## Migration and deployment
 
-A new additive Alembic revision, `20261025_31`, creates the `saved_jobs` table and its unique/index constraints. It follows `20261025_30_preferences_account_key`. No production database was accessed or modified during this repository change.
+A new additive Alembic revision, `20261025_31`, creates the `saved_jobs` table and its unique/index constraints. It follows `20261025_30_preferences_account_key`. The older `20261022_13_institution_registration.py` revision had been fully commented out, which prevented Alembic from identifying the revision; its existing idempotent institution-field migration body has been restored so the revision graph can be traversed. No production database was accessed or modified during this repository change.
 
 Apply the repository's normal migration process in a reviewed deployment window before enabling saved-job actions in a deployed environment. No new provider credentials or environment variables are required for the link-out fallback.
 
 ## Verification status
 
-Repository-level source changes and API contract tests were added. The connected GitHub integration did not provide an execution environment for running the frontend build, TypeScript, ESLint, backend pytest, or a database-backed migration test. Those checks must be run in CI or the project deployment environment before release.
+Repository-level source changes and API contract tests were added. GitHub Actions runs the repository's frontend build, registration-selector test, backend pytest suite, and isolated MySQL schema compatibility check on pushes to `release-v1`. ESLint is skipped by the existing workflow because the repository has no flat ESLint configuration. The final CI results are linked in the implementation report; the backend suite currently includes unrelated pre-existing schema/fixture failures, so a green backend suite is not claimed.
