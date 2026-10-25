@@ -179,7 +179,7 @@ async def register_student(payload: StudentRegistration, db: DbSession) -> Regis
                         JOIN departments AS d ON d.id = p.department_id
                         JOIN schools AS s ON s.id = d.school_id
                         WHERE c.id = :cohort_id
-                          AND LOWER(c.status) = 'active'
+                          AND c.is_active = 1
                           AND d.id = :department_id
                           AND (:programme_id IS NULL OR p.id = :programme_id)
                           AND s.id = :school_id
