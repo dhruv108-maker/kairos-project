@@ -8,10 +8,10 @@ interface FullLogoProps {
 
 const LogoMark = () => (
   <>
-    <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+    <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
       <GraduationCap className="h-5 w-5" />
     </span>
-    <span className="text-lg font-semibold tracking-tight text-foreground">Kairos</span>
+    <span className="text-lg font-semibold tracking-tight text-foreground group-data-[collapsible=icon]:hidden">Kairos</span>
   </>
 );
 
