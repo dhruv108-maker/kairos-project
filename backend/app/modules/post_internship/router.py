@@ -98,6 +98,11 @@ async def save_curriculum_mappings(
     )
 
 
+@router.get("/submissions/{submission_id}/assignment-options")
+async def get_assessment_assignment_options(submission_id: str, account: CurrentAccount, db: DbSession):
+    return await _call(PostInternshipService(db).assignment_options(submission_id, account.id), db)
+
+
 @router.post("/assignments", status_code=201)
 async def assign_blind_assessment(
     payload: AssessmentAssignmentCreate, account: CurrentAccount, db: DbSession
