@@ -212,6 +212,8 @@ def _valid_policy_payload():
             {"key": "communication", "label": "Communication", "description": "Assess clarity and communication.", "max_score": 10, "require_comment": False},
         ],
         "component_weights": {"griffin": 30, "curriculum": 20, "faculty": 50},
+        "griffin_score_max": 100,
+        "curriculum_status_scores": {"MAPPED": 100, "PARTIALLY_MAPPED": 50, "NOT_EVIDENCED": 0},
         "grade_bands": [
             {"grade": "F", "min_score": 0, "max_score": 49.99},
             {"grade": "P", "min_score": 50, "max_score": 100},
