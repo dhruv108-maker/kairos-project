@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from fastapi import APIRouter
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 from app.api.dependencies import CurrentAccount, DbSession
@@ -26,6 +25,17 @@ class UserPreferencesPatch(BaseModel):
     theme_mode: ThemeMode | None = None
     email_notifications_enabled: bool | None = None
     notification_preferences: dict[str, bool] | None = Field(default=None, max_length=32)
+
+    @field_validator("notification_preferences")
+    @classmethod
+    def supported_notification_keys(cls, value: dict[str, bool] | None) -> dict[str, bool] | None:
+        if value is None:
+            return value
+        allowed = {"internship_updates", "work_log_reviews", "report_updates", "recruitment_updates", "account_security"}
+        unknown = set(value) - allowed
+        if unknown:
+            raise ValueError("Unsupported notification preference key")
+        return value
 
 
 class UserPreferencesResponse(BaseModel):
@@ -82,18 +92,7 @@ async def patch_my_preferences(
     record = await _get_or_create(db, str(account.id))
 
     if "notification_preferences" in changes:
-        # Until a server-side notification event registry exists, accept only known schema keys
-        # and do not enable delivery behavior that does not exist yet.
-        allowed_keys = {
-            "internship_updates", "work_log_reviews", "report_updates",
-            "recruitment_updates", "account_security",
-        }
-        preferences = changes["notification_preferences"]
-        unknown = set(preferences) - allowed_keys
-        if unknown:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=422, detail="Unknown notification preference key")
-        record.notification_preferences = {**(record.notification_preferences or {}), **preferences}
+        record.notification_preferences = {**(record.notification_preferences or {}), **changes["notification_preferences"]}
 
     for key, value in changes.items():
         if key != "notification_preferences":
