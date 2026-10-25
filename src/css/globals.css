@@ -207,6 +207,16 @@ html[data-kairos-density="compact"] { --kairos-density: 0.75; }
 html[data-kairos-density="comfortable"] { --kairos-density: 1; }
 html[data-kairos-density="spacious"] { --kairos-density: 1.25; }
 
+/* Shared spacing adjustments applied across semantic shadcn primitives. */
+html[data-kairos-density="compact"] [data-slot="card"] { gap: calc(var(--spacing) * 2.5); }
+html[data-kairos-density="compact"] [data-slot="card-header"],
+html[data-kairos-density="compact"] [data-slot="card-content"] { padding-inline: calc(var(--spacing) * 3); }
+html[data-kairos-density="spacious"] [data-slot="card"] { gap: calc(var(--spacing) * 5); }
+html[data-kairos-density="spacious"] [data-slot="card-header"],
+html[data-kairos-density="spacious"] [data-slot="card-content"] { padding-inline: calc(var(--spacing) * 6); }
+html[data-kairos-density="compact"] [data-slot="sidebar-menu-button"] { min-height: 2rem; }
+html[data-kairos-density="spacious"] [data-slot="sidebar-menu-button"] { min-height: 2.75rem; }
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
