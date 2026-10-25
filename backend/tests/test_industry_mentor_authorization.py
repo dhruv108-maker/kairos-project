@@ -20,8 +20,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
+from httpx import ASGITransport, AsyncClient
 
 from app.api import dependencies
+from app.api.dependencies import get_current_account, get_db_session
+from app.main import app
 from app.modules.internships import router as internships_router
 from app.modules.internships.schemas import WorkLogReviewCreate
 
@@ -104,3 +107,55 @@ async def test_unassigned_account_cannot_pass_industry_mentor_assignment_check()
     assert allowed is False
     db.get.assert_not_awaited()
     db.scalar.assert_not_awaited()
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        ("GET", "/api/v1/modules/internships/placements/mentor/me", None),
+        ("GET", "/api/v1/modules/internships/work-logs/mentor/me", None),
+        (
+            "POST",
+            "/api/v1/modules/internships/work-logs/protected-work-log/mentor-review",
+            {"decision": "ACKNOWLEDGED", "feedback": "Looks good"},
+        ),
+    ],
+)
+async def test_http_routes_return_403_for_non_mentor_without_touching_resources(
+    monkeypatch, method, path, payload
+):
+    """Exercise the mounted API surface, not just direct Python handler calls."""
+    db = AsyncMock()
+    account = SimpleNamespace(id="ordinary-student")
+    monkeypatch.setattr(
+        dependencies, "account_roles", AsyncMock(return_value=["STUDENT"])
+    )
+
+    async def override_account():
+        return account
+
+    async def override_db():
+        yield db
+
+    app.dependency_overrides[get_current_account] = override_account
+    app.dependency_overrides[get_db_session] = override_db
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            if method == "GET":
+                response = await client.get(path)
+            else:
+                response = await client.post(path, json=payload)
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Insufficient role"
+        db.execute.assert_not_awaited()
+        db.get.assert_not_awaited()
+        db.commit.assert_not_awaited()
+        db.add.assert_not_called()
+    finally:
+        app.dependency_overrides.pop(get_current_account, None)
+        app.dependency_overrides.pop(get_db_session, None)
