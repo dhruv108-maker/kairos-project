@@ -40,6 +40,8 @@ class UserPreferencesPatch(BaseModel):
 
 
 class UserPreferencesResponse(BaseModel):
+    # Existing deployments may use integer account IDs while newer schemas use UUID strings.
+    # The API exposes a stable string representation for either schema.
     account_id: str
     accent_color: Accent
     font_size: FontSize
@@ -52,7 +54,7 @@ class UserPreferencesResponse(BaseModel):
 
 def _serialize(record: UserPreferences) -> UserPreferencesResponse:
     return UserPreferencesResponse(
-        account_id=record.account_id,
+        account_id=str(record.account_id),
         accent_color=record.accent_color,
         font_size=record.font_size,
         interface_density=record.interface_density,
