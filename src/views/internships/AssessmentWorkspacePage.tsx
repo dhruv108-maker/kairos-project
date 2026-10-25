@@ -65,6 +65,23 @@ type Stage = { key: string; label: string; status: string; detail: string };
 type ProgressPayload = { submission_id: string; version_number: number; stages: Stage[] };
 type Assignment = { id: string; packet_code: string; report_version_id: string; status: string; assigned_at: string; submitted_at?: string | null; total_score?: number | null };
 type SupervisedStudent = { student_profile_id: number; full_name: string; enrollment_number: string; current_semester: number; programme_id?: string | null };
+type SupervisedSubmission = {
+  id: string; placement_id: string; title: string; status: string; latest_version_number: number;
+  report_version_id?: string | null; has_presentation: boolean; institution_id?: string | null;
+  programme_id?: string | null; academic_semester?: number | null; updated_at?: string | null;
+  student_profile_id: number; student_name: string; enrollment_number: string;
+};
+type CurriculumOutcome = { id: string; outcome_code: string; title: string; expected_competency: string; source_reference: string };
+type MappingEntry = { id: string; status: string; evidence_reference?: string | null; confidence?: number | null; reviewer_notes?: string | null };
+type CurriculumMappingRow = { outcome: CurriculumOutcome; mapping?: MappingEntry | null };
+type CurriculumMappingPayload = { items: CurriculumMappingRow[]; catalogue_available: boolean; message?: string | null; report_version_id?: string };
+type MappingDraft = { status: string; evidence_reference: string; reviewer_notes: string };
+type ResultPreviewPayload = {
+  ready: boolean; blockers: string[]; submission_id: string; report_version_id: string;
+  policy_id?: string; policy_version?: number; components?: Record<string, number | null>;
+  component_weights?: Record<string, number>; weighted_total?: number | null; grade?: string | null;
+  passing_score?: number; proposed_outcome?: string | null;
+};
 type RubricCriterion = { key: string; label: string; description: string; max_score: number; require_comment?: boolean };
 type Score = { score: number; comment?: string | null };
 type Packet = {
@@ -192,6 +209,17 @@ export default function AssessmentWorkspacePage() {
   const [results, setResults] = useState<AcademicResult[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [supervisedStudents, setSupervisedStudents] = useState<SupervisedStudent[]>([]);
+  const [supervisedSubmissions, setSupervisedSubmissions] = useState<SupervisedSubmission[]>([]);
+  const [selectedSupervisedSubmission, setSelectedSupervisedSubmission] = useState<SupervisedSubmission | null>(null);
+  const [curriculumMappings, setCurriculumMappings] = useState<CurriculumMappingRow[]>([]);
+  const [curriculumCatalogueAvailable, setCurriculumCatalogueAvailable] = useState(false);
+  const [curriculumMappingMessage, setCurriculumMappingMessage] = useState("");
+  const [mappingDrafts, setMappingDrafts] = useState<Record<string, MappingDraft>>({});
+  const [mappingLoading, setMappingLoading] = useState(false);
+  const [mappingSaving, setMappingSaving] = useState(false);
+  const [resultPreview, setResultPreview] = useState<ResultPreviewPayload | null>(null);
+  const [finalizedResult, setFinalizedResult] = useState<AcademicResult | null>(null);
+  const [resultActionBusy, setResultActionBusy] = useState(false);
   const [selectedSupervisedStudentId, setSelectedSupervisedStudentId] = useState("");
   const [supervisedResults, setSupervisedResults] = useState<AcademicResult[]>([]);
   const [supervisedResultLoading, setSupervisedResultLoading] = useState(false);
@@ -224,12 +252,14 @@ export default function AssessmentWorkspacePage() {
         const resultData = await apiRequest<{ items: AcademicResult[] }>("/internship-assessments/results/me");
         setResults(resultData.items ?? []);
       } else if (facultyMode) {
-        const [result, studentData] = await Promise.all([
+        const [result, studentData, submissionData] = await Promise.all([
           apiRequest<{ items: Assignment[] }>("/internship-assessments/assignments/me"),
           apiRequest<{ items: SupervisedStudent[] }>("/internship-assessments/supervised-students"),
+          apiRequest<{ items: SupervisedSubmission[] }>("/internship-assessments/supervised-submissions"),
         ]);
         setAssignments(result.items ?? []);
         setSupervisedStudents(studentData.items ?? []);
+        setSupervisedSubmissions(submissionData.items ?? []);
       } else {
         setLoadError("This workspace is available to student and faculty accounts. Your account has no supported assessment role.");
       }
@@ -262,6 +292,141 @@ export default function AssessmentWorkspacePage() {
       setActionError(readableError(error));
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const openSupervisedSubmission = async (submission: SupervisedSubmission) => {
+    setSelectedSupervisedSubmission(submission);
+    setCurriculumMappings([]);
+    setMappingDrafts({});
+    setResultPreview(null);
+    setFinalizedResult(null);
+    setCurriculumMappingMessage("");
+    setMappingLoading(true);
+    setActionError("");
+    try {
+      const [mappingResponse, previewResponse] = await Promise.all([
+        apiRequest<CurriculumMappingPayload>(`/internship-assessments/submissions/${encodeURIComponent(submission.id)}/mappings`),
+        apiRequest<ResultPreviewPayload>(`/internship-assessments/submissions/${encodeURIComponent(submission.id)}/result-preview`),
+      ]);
+      setCurriculumMappings(mappingResponse.items ?? []);
+      setCurriculumCatalogueAvailable(Boolean(mappingResponse.catalogue_available));
+      setCurriculumMappingMessage(mappingResponse.message || "");
+      const drafts: Record<string, MappingDraft> = {};
+      for (const row of mappingResponse.items ?? []) {
+        drafts[row.outcome.id] = {
+          status: row.mapping?.status ?? "REVIEW_REQUIRED",
+          evidence_reference: row.mapping?.evidence_reference ?? "",
+          reviewer_notes: row.mapping?.reviewer_notes ?? "",
+        };
+      }
+      setMappingDrafts(drafts);
+      setResultPreview(previewResponse);
+    } catch (error) {
+      setActionError(readableError(error));
+    } finally {
+      setMappingLoading(false);
+    }
+  };
+
+  const saveCurriculumMappings = async () => {
+    if (!selectedSupervisedSubmission) return;
+    if (curriculumMappings.length === 0) {
+      setActionError("There are no configured curriculum outcomes to map. An institution administrator must load the approved curriculum first.");
+      return;
+    }
+    setMappingSaving(true);
+    setActionError("");
+    setNotice("");
+    try {
+      const items = curriculumMappings.map((row) => {
+        const draft = mappingDrafts[row.outcome.id] ?? { status: "REVIEW_REQUIRED", evidence_reference: "", reviewer_notes: "" };
+        return {
+          outcome_id: row.outcome.id,
+          status: draft.status,
+          evidence_reference: draft.evidence_reference.trim() || null,
+          reviewer_notes: draft.reviewer_notes.trim() || null,
+        };
+      });
+      await apiRequest(
+        `/internship-assessments/submissions/${encodeURIComponent(selectedSupervisedSubmission.id)}/mappings`,
+        { method: "PUT", body: JSON.stringify({ items }) },
+      );
+      const [mappingResponse, previewResponse] = await Promise.all([
+        apiRequest<CurriculumMappingPayload>(`/internship-assessments/submissions/${encodeURIComponent(selectedSupervisedSubmission.id)}/mappings`),
+        apiRequest<ResultPreviewPayload>(`/internship-assessments/submissions/${encodeURIComponent(selectedSupervisedSubmission.id)}/result-preview`),
+      ]);
+      setCurriculumMappings(mappingResponse.items ?? []);
+      setCurriculumMappingMessage(mappingResponse.message || "");
+      const drafts: Record<string, MappingDraft> = {};
+      for (const row of mappingResponse.items ?? []) {
+        drafts[row.outcome.id] = {
+          status: row.mapping?.status ?? "REVIEW_REQUIRED",
+          evidence_reference: row.mapping?.evidence_reference ?? "",
+          reviewer_notes: row.mapping?.reviewer_notes ?? "",
+        };
+      }
+      setMappingDrafts(drafts);
+      setResultPreview(previewResponse);
+      setNotice("Curriculum mapping review was saved with its previous values retained in audit history.");
+    } catch (error) {
+      setActionError(readableError(error));
+    } finally {
+      setMappingSaving(false);
+    }
+  };
+
+  const refreshResultPreview = async () => {
+    if (!selectedSupervisedSubmission) return;
+    try {
+      const preview = await apiRequest<ResultPreviewPayload>(
+        `/internship-assessments/submissions/${encodeURIComponent(selectedSupervisedSubmission.id)}/result-preview`
+      );
+      setResultPreview(preview);
+      setActionError("");
+    } catch (error) {
+      setActionError(readableError(error));
+    }
+  };
+
+  const finalizeAcademicResult = async () => {
+    if (!selectedSupervisedSubmission || !resultPreview?.ready) return;
+    setResultActionBusy(true);
+    setActionError("");
+    setNotice("");
+    try {
+      const result = await apiRequest<AcademicResult>(
+        `/internship-assessments/submissions/${encodeURIComponent(selectedSupervisedSubmission.id)}/finalize`,
+        { method: "POST" },
+      );
+      setFinalizedResult(result);
+      setNotice("The academic result was finalized. Publication is a separate authorized step.");
+      await reload();
+    } catch (error) {
+      setActionError(readableError(error));
+    } finally {
+      setResultActionBusy(false);
+    }
+  };
+
+  const publishAcademicResult = async () => {
+    if (!finalizedResult) return;
+    setResultActionBusy(true);
+    setActionError("");
+    setNotice("");
+    try {
+      const result = await apiRequest<AcademicResult>(
+        `/internship-assessments/results/${encodeURIComponent(finalizedResult.id)}/publish`,
+        { method: "POST" },
+      );
+      setFinalizedResult(result);
+      setNotice("The academic result is published and available through the student's authorized academic-history API.");
+      await reload();
+      await refreshResultPreview();
+    } catch (error) {
+      setActionError(readableError(error));
+    } finally {
+      setResultActionBusy(false);
     }
   };
 
@@ -636,6 +801,47 @@ export default function AssessmentWorkspacePage() {
               <CardContent>
                 {supervisedResults.length >= 2 ? <div className="h-60 w-full" role="img" aria-label="Line chart of published internship assessment scores for the selected supervised student"><ResponsiveContainer width="100%" height="100%"><LineChart data={supervisedResults.map((item, index) => ({ period: `Sem ${item.semester} · ${index + 1}`, score: item.total_score }))} margin={{ top: 8, right: 12, left: -16, bottom: 6 }}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="period" tickLine={false} axisLine={false} /><YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={38} /><Tooltip formatter={(value) => [`${value} / 100`, "Score"]} /><Line type="monotone" dataKey="score" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 5 }} /></LineChart></ResponsiveContainer></div> : <p className="mb-4 rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">One published result is available; a trend chart appears after a second result is recorded.</p>}
                 <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full min-w-[480px] text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Assessment</th><th className="px-4 py-3 font-medium">Semester</th><th className="px-4 py-3 font-medium">Score</th><th className="px-4 py-3 font-medium">Grade</th></tr></thead><tbody>{supervisedResults.map((result) => <tr key={result.id} className="border-t border-border"><td className="px-4 py-3 font-medium">{result.title || "Internship assessment"}</td><td className="px-4 py-3">Semester {result.semester}</td><td className="px-4 py-3 tabular-nums">{result.total_score.toFixed(2)} / 100</td><td className="px-4 py-3"><Badge variant="outline">{result.grade}</Badge></td></tr>)}</tbody></table></div>
+              </CardContent>
+            </Card>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <div><h2 className="text-lg font-semibold tracking-tight">Supervised internship submissions</h2><p className="mt-1 text-sm text-muted-foreground">Open a permitted submission to review real curriculum outcomes and inspect why an official result is—or is not—ready. This supervisor view is separate from blind scoring.</p></div>
+          {supervisedSubmissions.length === 0 ? <Card className="border-dashed shadow-none"><CardContent className="py-8 text-center"><FileText className="mx-auto size-7 text-muted-foreground" /><p className="mt-2 font-medium">No supervised submissions</p><p className="mt-1 text-sm text-muted-foreground">Only reports attached to your supervised placements are listed.</p></CardContent></Card> : <div className="grid gap-3 md:grid-cols-2">{supervisedSubmissions.map((submission) => <Card key={submission.id} className={`rounded-xl border-border/80 shadow-none ${selectedSupervisedSubmission?.id === submission.id ? "border-teal-700/50 bg-teal-700/[0.025]" : ""}`}><CardContent className="p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="font-semibold">{submission.title}</p><p className="mt-1 text-xs text-muted-foreground">{submission.student_name} · {submission.enrollment_number}</p><p className="mt-1 text-xs text-muted-foreground">Version {submission.latest_version_number} · {submission.has_presentation ? "Report + presentation attached" : "Presentation missing"}</p></div><Badge variant={badgeVariant(submission.status)}>{prettyStatus(submission.status)}</Badge></div><div className="mt-3 flex justify-end"><Button size="sm" variant="outline" onClick={() => void openSupervisedSubmission(submission)} disabled={mappingLoading}><ClipboardCheck className="mr-2 size-4" />Review mapping & result</Button></div></CardContent></Card>)}</div>}
+
+          {selectedSupervisedSubmission && (
+            <Card className="rounded-xl border-border/80 shadow-none">
+              <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle className="text-base">Curriculum mapping · {selectedSupervisedSubmission.title}</CardTitle><CardDescription className="mt-1">Student: {selectedSupervisedSubmission.student_name} · version {selectedSupervisedSubmission.latest_version_number}</CardDescription></div><Button variant="ghost" size="sm" onClick={() => { setSelectedSupervisedSubmission(null); setCurriculumMappings([]); setResultPreview(null); setFinalizedResult(null); }}>Close review</Button></div></CardHeader>
+              <CardContent className="space-y-5">
+                {mappingLoading ? <div className="space-y-3"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-20 w-full" /></div> : <>
+                  {curriculumMappingMessage && <Alert><AlertCircle className="size-4" /><AlertTitle>Curriculum catalogue status</AlertTitle><AlertDescription>{curriculumMappingMessage}</AlertDescription></Alert>}
+                  {!curriculumCatalogueAvailable || curriculumMappings.length === 0 ? <div className="rounded-lg border border-dashed border-border p-5 text-sm text-muted-foreground">No persisted curriculum outcomes exist for this submission's programme and semester. Mapping scores are not fabricated; an institution administrator needs to configure the authoritative curriculum first.</div> : <>
+                    <div><h3 className="font-medium">Evidence-to-outcome mapping</h3><p className="mt-1 text-sm text-muted-foreground">Mark each actual curriculum outcome, add traceable evidence, and explain any gap. Mapped states require an evidence reference.</p></div>
+                    {curriculumMappings.map((row) => {
+                      const draft = mappingDrafts[row.outcome.id] ?? { status: "REVIEW_REQUIRED", evidence_reference: "", reviewer_notes: "" };
+                      return <div key={row.outcome.id} className="space-y-3 rounded-lg border border-border p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-medium">{row.outcome.outcome_code} · {row.outcome.title}</p><p className="mt-1 text-sm leading-5 text-muted-foreground">{row.outcome.expected_competency}</p><p className="mt-1 text-xs text-muted-foreground">Source: {row.outcome.source_reference}</p></div><Badge variant={badgeVariant(draft.status)}>{prettyStatus(draft.status)}</Badge></div>
+                        <div className="grid gap-3 md:grid-cols-[220px_1fr]">
+                          <div className="space-y-2"><Label htmlFor={`mapping-status-${row.outcome.id}`}>Mapping status</Label><Select value={draft.status} onValueChange={(value) => setMappingDrafts((current) => ({ ...current, [row.outcome.id]: { ...draft, status: value ?? "REVIEW_REQUIRED" } }))}><SelectTrigger id={`mapping-status-${row.outcome.id}`} className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="MAPPED">Mapped</SelectItem><SelectItem value="PARTIALLY_MAPPED">Partially mapped</SelectItem><SelectItem value="NOT_EVIDENCED">Not evidenced</SelectItem><SelectItem value="REVIEW_REQUIRED">Review required</SelectItem></SelectContent></Select></div>
+                          <div className="space-y-2"><Label htmlFor={`mapping-evidence-${row.outcome.id}`}>Evidence reference {["MAPPED", "PARTIALLY_MAPPED"].includes(draft.status) ? "(required)" : "(optional)"}</Label><Textarea id={`mapping-evidence-${row.outcome.id}`} rows={2} value={draft.evidence_reference} onChange={(event) => setMappingDrafts((current) => ({ ...current, [row.outcome.id]: { ...draft, evidence_reference: event.target.value } }))} placeholder="Section, page, figure, or presentation slide reference" /></div>
+                        </div>
+                        <div className="space-y-2"><Label htmlFor={`mapping-notes-${row.outcome.id}`}>Reviewer notes</Label><Textarea id={`mapping-notes-${row.outcome.id}`} rows={2} value={draft.reviewer_notes} onChange={(event) => setMappingDrafts((current) => ({ ...current, [row.outcome.id]: { ...draft, reviewer_notes: event.target.value } }))} placeholder="Missing evidence, strengths, or rationale" /></div>
+                      </div>;
+                    })}
+                    <div className="flex justify-end"><Button variant="outline" onClick={() => void saveCurriculumMappings()} disabled={mappingSaving || mappingLoading}>{mappingSaving ? "Saving mapping…" : "Save curriculum mapping"}</Button></div>
+                  </>}
+                </>}
+                <Separator />
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-medium">Final result assembly</h3><p className="mt-1 text-sm text-muted-foreground">Policy weights and grade bands are configured by an authorized institution administrator. Kairos never substitutes guessed values.</p></div><Button variant="outline" size="sm" disabled={mappingLoading} onClick={() => void refreshResultPreview()}><RefreshCw className="mr-2 size-3.5" />Refresh preview</Button></div>
+                {!resultPreview ? <p className="text-sm text-muted-foreground">No result preview returned yet.</p> : <>
+                  {resultPreview.components && <div className="grid gap-3 sm:grid-cols-3">{(["griffin", "curriculum", "faculty"] as const).map((key) => <div key={key} className="rounded-lg border border-border p-3"><p className="text-xs uppercase tracking-wide text-muted-foreground">{key}</p><p className="mt-1 text-xl font-semibold tabular-nums">{resultPreview.components?.[key] == null ? "—" : `${Number(resultPreview.components[key]).toFixed(2)} / 100`}</p><p className="mt-1 text-xs text-muted-foreground">{resultPreview.component_weights?.[key] == null ? "Weight not configured" : `Weight: ${resultPreview.component_weights[key]}%`}</p></div>)}</div>}
+                  {resultPreview.weighted_total != null && <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4"><div><p className="text-sm text-muted-foreground">Weighted result · policy v{resultPreview.policy_version ?? "—"}</p><p className="text-2xl font-semibold tabular-nums">{resultPreview.weighted_total.toFixed(2)} / 100 <span className="text-base font-normal text-muted-foreground">· {resultPreview.grade ?? "No grade band"}</span></p></div><Badge variant={resultPreview.ready ? "default" : "secondary"}>{resultPreview.proposed_outcome ?? "Awaiting prerequisites"}</Badge></div>}
+                  {!resultPreview.ready && resultPreview.blockers.length > 0 && <Alert><AlertCircle className="size-4" /><AlertTitle>Result is blocked</AlertTitle><AlertDescription><ul className="list-disc space-y-1 pl-5">{resultPreview.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></AlertDescription></Alert>}
+                  {resultPreview.ready && <Alert className="border-teal-700/25 bg-teal-700/5"><CheckCircle2 className="size-4 text-teal-700" /><AlertTitle>All configured prerequisites are present</AlertTitle><AlertDescription>The result preview is policy-driven. Finalization still requires the exact approver role recorded in the policy.</AlertDescription></Alert>}
+                </>}
+                {finalizedResult && <div className="rounded-lg border border-border p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium">Result revision {finalizedResult.revision_number}</p><p className="mt-1 text-sm text-muted-foreground">Score {finalizedResult.total_score.toFixed(2)} / 100 · {finalizedResult.grade} · {prettyStatus(finalizedResult.status)}</p></div>{finalizedResult.status === "PUBLISHED" ? <Badge>Published</Badge> : <Badge variant="secondary">Finalized, not published</Badge>}</div><div className="mt-3 flex justify-end"><Button onClick={() => void publishAcademicResult()} disabled={resultActionBusy || finalizedResult.status === "PUBLISHED"}>{resultActionBusy ? "Publishing…" : "Publish official result"}</Button></div></div>}
+                {!finalizedResult && resultPreview?.ready && <div className="flex justify-end"><Button onClick={() => void finalizeAcademicResult()} disabled={resultActionBusy}>{resultActionBusy ? "Finalizing…" : "Finalize academic result"}</Button></div>}
               </CardContent>
             </Card>
           )}
