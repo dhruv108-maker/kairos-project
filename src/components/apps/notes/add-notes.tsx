@@ -48,9 +48,7 @@ const AddNotes = ({ colors }: Props) => {
 
   return (
     <Dialog open={openNoteModal} onOpenChange={setOpenNoteModal}>
-      <DialogTrigger>
-        <Button>Add Note</Button>
-      </DialogTrigger>
+      <DialogTrigger render={<Button type="button" />}>Add Note</DialogTrigger>
       <DialogContent className="sm:max-w-lg rtl:[&_[data-slot=dialog-close]]:left-2 rtl:[&_[data-slot=dialog-close]]:right-auto">
         <DialogHeader>
           <DialogTitle>Add New Note</DialogTitle>
