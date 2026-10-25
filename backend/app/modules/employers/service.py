@@ -3,7 +3,7 @@ import hmac
 import secrets
 from uuid import uuid4
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -415,7 +415,12 @@ class EmployerService:
         await self.db.refresh(item)
         return item
 
-    async def public_jobs(self, q: str | None, location: str | None, opportunity_type: str | None, work_mode: str | None, limit: int, offset: int) -> list[tuple[InternshipOpportunity, InternshipProvider]]:
+    async def public_jobs(
+        self, q: str | None, location: str | None, opportunity_type: str | None,
+        work_mode: str | None, limit: int, offset: int, *,
+        employment_type: str | None = None, sort_by: str = "newest",
+        posted_within_days: int | None = None,
+    ) -> list[tuple[InternshipOpportunity, InternshipProvider]]:
         campus_link = select(RecruitmentDriveOpportunity.opportunity_id).join(RecruitmentDrive, RecruitmentDrive.id == RecruitmentDriveOpportunity.drive_id).where(
             RecruitmentDriveOpportunity.opportunity_id == InternshipOpportunity.id, RecruitmentDrive.status.in_({"PUBLISHED", "ACTIVE"})).exists()
         query = select(InternshipOpportunity, InternshipProvider).join(InternshipProvider, InternshipOpportunity.provider_id == InternshipProvider.id).join(EmployerOrganization, InternshipProvider.employer_organization_id == EmployerOrganization.id).where(
@@ -432,7 +437,27 @@ class EmployerService:
             query = query.where(InternshipOpportunity.opportunity_type == opportunity_type.upper())
         if work_mode:
             query = query.where(InternshipOpportunity.work_mode == work_mode.upper())
-        result = await self.db.execute(query.order_by(InternshipOpportunity.created_at.desc(), InternshipOpportunity.id).limit(limit).offset(offset))
+        if employment_type:
+            query = query.where(InternshipOpportunity.employment_type == employment_type.upper())
+        if posted_within_days is not None:
+            cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=posted_within_days)
+            query = query.where(InternshipOpportunity.created_at >= cutoff)
+        if sort_by == "relevance" and q and q.strip():
+            relevance_term = f"%{q.strip()}%"
+            query = query.order_by(
+                case(
+                    (InternshipOpportunity.title.ilike(f"{q.strip()}%"), 0),
+                    (EmployerOrganization.display_name.ilike(f"{q.strip()}%"), 1),
+                    (InternshipOpportunity.title.ilike(relevance_term), 2),
+                    (EmployerOrganization.display_name.ilike(relevance_term), 3),
+                    else_=4,
+                ),
+                InternshipOpportunity.created_at.desc(),
+                InternshipOpportunity.id,
+            )
+        else:
+            query = query.order_by(InternshipOpportunity.created_at.desc(), InternshipOpportunity.id)
+        result = await self.db.execute(query.limit(limit).offset(offset))
         return list(result.all())
 
 
