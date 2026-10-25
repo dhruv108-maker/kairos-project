@@ -40,3 +40,17 @@ class InternshipRepository:
     async def get_faculty(self, faculty_id: str) -> FacultyProfile | None: return await self.session.get(FacultyProfile, faculty_id)
     async def get_placement_for_application(self, application_id: str):
         return await self.session.scalar(select(InternshipPlacement).where(InternshipPlacement.application_id == application_id))
+
+    async def list_placements_for_student(self, student_id: int):
+        stmt = select(InternshipPlacement).where(
+            InternshipPlacement.student_id == student_id
+        ).order_by(InternshipPlacement.start_date.desc())
+        return list((await self.session.execute(stmt)).scalars().all())
+
+    async def list_work_logs_for_student(self, student_id: int, placement_id: str | None = None):
+        from app.models.internship import InternshipWorkLog
+        stmt = select(InternshipWorkLog).where(InternshipWorkLog.student_id == student_id)
+        if placement_id:
+            stmt = stmt.where(InternshipWorkLog.placement_id == placement_id)
+        stmt = stmt.order_by(InternshipWorkLog.work_date.desc(), InternshipWorkLog.created_at.desc())
+        return list((await self.session.execute(stmt)).scalars().all())
