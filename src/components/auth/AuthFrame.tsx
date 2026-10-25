@@ -56,7 +56,16 @@ export default function AuthFrame({
     <main className="min-h-svh w-full min-w-0 overflow-x-clip bg-background text-foreground lg:grid lg:min-h-screen lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
       <aside className="relative flex min-h-[230px] min-w-0 flex-col justify-between overflow-hidden bg-white px-5 py-5 text-zinc-950 sm:min-h-[260px] sm:px-8 sm:py-7 lg:min-h-screen lg:px-10 lg:py-9 xl:px-14 xl:py-11">
         <div ref={effectRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-0" />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/10 via-white/5 to-white/25" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-[1] opacity-[0.08] mix-blend-multiply"
+          style={{
+            backgroundImage:
+              "linear-gradient(116deg, transparent 8%, rgba(139, 92, 246, 0.9) 24%, transparent 37%), linear-gradient(72deg, transparent 42%, rgba(167, 139, 250, 0.8) 54%, transparent 68%), linear-gradient(132deg, transparent 61%, rgba(124, 58, 237, 0.75) 73%, transparent 84%), radial-gradient(ellipse at 26% 42%, rgba(196, 181, 253, 0.7), transparent 42%)",
+            filter: "blur(22px)",
+          }}
+        />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-b from-white/10 via-white/5 to-white/25" />
         <Link to={brandHref} aria-label={brandHref === "/" ? "Kairos home" : "Kairos onboarding"} className="relative z-10 inline-flex w-fit max-w-full items-center rounded-md bg-white px-3 py-2.5 text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
           <FullLogo linked={false} />
         </Link>
