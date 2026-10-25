@@ -58,6 +58,8 @@ async def _reviewer(db: AsyncSession, account_id: int, roles: list[str]) -> tupl
         profile = await db.scalar(text("SELECT id FROM faculty WHERE account_id=:account_id AND employment_status='active' LIMIT 1"), {"account_id": account_id})
         if profile is None: raise HTTPException(403, "No active faculty profile is linked to this account")
         return "faculty_mentor", int(profile)
+    if "INDUSTRY_MENTOR" not in normalized:
+        raise HTTPException(403, "This account does not have an internship feedback reviewer role")
     profile = await db.scalar(text("SELECT id FROM industry_mentors WHERE account_id=:account_id AND status='active' LIMIT 1"), {"account_id": account_id})
     if profile is None: raise HTTPException(403, "No active industry mentor profile is linked to this account")
     return "industry_mentor", int(profile)
@@ -101,12 +103,13 @@ async def _authorize(db: AsyncSession, account_id: int, kind: str, profile_id: i
     if not allowed: raise HTTPException(404, "Internship participation not found")
     return p
 
-async def _feedback_rows(db: AsyncSession, participation_id: int, week_start: date | None):
+async def _feedback_rows(db: AsyncSession, participation_id: int, week_start: date | None, account_id: int, reviewer_type: str, mentor_id: int | None):
     sql = """SELECT id, participation_id, week_start, reviewer_type, reviewer_account_id, industry_mentor_id,
       overall_rating, strengths, improvement_areas, attendance_rating, technical_rating, communication_rating,
       feedback_text, status, submitted_at, created_at, updated_at
       FROM internship_weekly_feedback WHERE participation_id=:id"""
-    params = {"id": participation_id}
+    sql += """ AND (status <> 'draft' OR (reviewer_type=:own_reviewer_type AND reviewer_account_id=:own_account_id AND ((industry_mentor_id IS NULL AND :own_mentor_id IS NULL) OR industry_mentor_id=:own_mentor_id)))"""
+    params = {"id": participation_id, "own_reviewer_type": reviewer_type, "own_account_id": account_id, "own_mentor_id": mentor_id}
     if week_start is not None:
         sql += " AND week_start=:week_start"
         params["week_start"] = week_start
@@ -127,13 +130,18 @@ async def list_feedback_participations(account: CurrentAccount, db: DbSession) -
           FROM internship_participations p LEFT JOIN faculty_mentorships fm ON fm.student_id=p.student_id AND fm.status='active'
           LEFT JOIN faculty f ON f.id=fm.faculty_id LEFT JOIN internship_placements pl ON pl.student_id=p.student_id
           LEFT JOIN faculty f2 ON f2.id=pl.faculty_supervisor_id LEFT JOIN internship_providers ip ON ip.id=p.provider_id
-          WHERE f.account_id=:account_id OR f2.account_id=:account_id ORDER BY p.starts_on DESC"""
+          WHERE (f.account_id=:account_id OR f2.account_id=:account_id)
+            AND (fm.id IS NULL OR (fm.starts_on<=CURRENT_DATE AND (fm.ends_on IS NULL OR fm.ends_on>=CURRENT_DATE)))
+            AND (pl.id IS NULL OR (pl.start_date<=CURRENT_DATE AND pl.end_date>=CURRENT_DATE))
+          ORDER BY p.starts_on DESC"""
         params = {"account_id": account_id}
     else:
         sql = """SELECT DISTINCT p.id,p.student_id,p.title,p.starts_on,p.ends_on,p.status,COALESCE(ip.company_name,'') company_name
           FROM internship_participations p JOIN industry_mentor_assignments a ON a.participation_id=p.id
           LEFT JOIN internship_providers ip ON ip.id=p.provider_id
-          WHERE a.industry_mentor_id=:mentor_id AND a.status='active' ORDER BY p.starts_on DESC"""
+          WHERE a.industry_mentor_id=:mentor_id AND a.status='active'
+            AND a.starts_on<=CURRENT_DATE AND (a.ends_on IS NULL OR a.ends_on>=CURRENT_DATE)
+          ORDER BY p.starts_on DESC"""
         params = {"mentor_id": profile_id}
     rows = (await db.execute(text(sql), params)).all()
     return {"items": [_json(row) for row in rows], "reviewer_type": kind}
@@ -146,7 +154,7 @@ async def get_weekly_feedback(participation_id: int, account: CurrentAccount, db
     if p is None: raise HTTPException(404, "Internship participation not found")
     anchor = week_start or (p.starts_on - timedelta(days=p.starts_on.weekday()))
     await _authorize(db, account_id, kind, profile_id, participation_id, anchor)
-    return {"participation": _json(p), "reviewer_type": kind, "items": await _feedback_rows(db, participation_id, week_start)}
+    return {"participation": _json(p), "reviewer_type": kind, "items": await _feedback_rows(db, participation_id, week_start, account_id, kind, profile_id if kind == "industry_mentor" else None)}
 
 @router.put("/participations/{participation_id}/weeks/{week_start}")
 async def save_weekly_feedback(participation_id: int, week_start: date, payload: WeeklyFeedbackInput, account: CurrentAccount, db: DbSession) -> dict:
@@ -199,6 +207,10 @@ async def submit_weekly_feedback(participation_id: int, week_start: date, accoun
       "account_id": account_id, "mentor_id": mentor_id})).first()
     if row is None: raise HTTPException(404, "Save a draft before submitting feedback")
     if row.status not in {"draft", "returned"}: raise HTTPException(409, "Only draft or returned feedback can be submitted")
+    content = (await db.execute(text("""SELECT overall_rating,attendance_rating,technical_rating,communication_rating,
+      strengths,improvement_areas,feedback_text FROM internship_weekly_feedback WHERE id=:id"""), {"id": row.id})).first()
+    if not any(value is not None and (not isinstance(value, str) or value.strip()) for value in content):
+        raise HTTPException(422, "Add a rating or written feedback before submitting")
     await db.execute(text("UPDATE internship_weekly_feedback SET status='submitted',submitted_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=:id"), {"id": row.id})
     await db.commit()
     saved = (await db.execute(text("SELECT * FROM internship_weekly_feedback WHERE id=:id"), {"id": row.id})).first()
