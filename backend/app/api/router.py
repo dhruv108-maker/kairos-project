@@ -25,6 +25,7 @@ from app.modules.employers.student_offer_router import router as student_offer_r
 from app.modules.identity_verification.router import router as identity_verification_router
 from app.modules.employers.campus_recruitment_router import router as campus_recruitment_router
 from app.modules.employers.saved_jobs_router import router as saved_jobs_router
+from app.modules.employers.hiringcafe_router import router as hiringcafe_router
 
 api_router = APIRouter()
 api_router.include_router(auth_router)
@@ -53,6 +54,7 @@ api_router.include_router(student_offer_router)
 api_router.include_router(identity_verification_router)
 api_router.include_router(campus_recruitment_router)
 api_router.include_router(saved_jobs_router)
+api_router.include_router(hiringcafe_router)
 api_router.include_router(public_jobs_router)
 
 # Opt-in modular endpoints live under /api/v1/modules/* while legacy routes remain unchanged.

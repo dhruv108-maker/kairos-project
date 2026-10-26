@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+type JobSource = "all" | "kairos" | "hiringcafe";
 type Company = { id?: string | null; name?: string | null; website?: string | null };
 type Opportunity = {
   id: string;
@@ -247,6 +248,7 @@ export default function JobsHubPage() {
   const initialJobId = useRef(params.get("job") || "");
   const [deepLinkedJob, setDeepLinkedJob] = useState<Opportunity | null>(null);
   const [deepLinkError, setDeepLinkError] = useState("");
+  const [source, setSource] = useState<JobSource>(params.get("source") === "hiringcafe" || params.get("source") === "kairos" ? params.get("source") as JobSource : "all");
   const [query, setQuery] = useState(params.get("q") || "");
   const [queryInput, setQueryInput] = useState(params.get("q") || "");
   const [location, setLocation] = useState(params.get("location") || "");
@@ -281,6 +283,12 @@ export default function JobsHubPage() {
   const loadJobs = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError("");
+    if (source === "hiringcafe") {
+      setResult({ items: [], limit: PAGE_SIZE, offset: 0, hasMore: false });
+      setSelectedId("");
+      setLoading(false);
+      return;
+    }
     const search = new URLSearchParams();
     if (query.trim()) search.set("q", query.trim());
     if (location.trim()) search.set("location", location.trim());
@@ -307,7 +315,7 @@ export default function JobsHubPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [query, location, kind, mode, employmentType, sortBy, postedWithinDays, offset]);
+  }, [query, location, kind, mode, employmentType, sortBy, postedWithinDays, offset, source]);
 
   useEffect(() => {
     if (isApplicationsPage || isCampusPage || isSavedPage) return;
@@ -318,6 +326,7 @@ export default function JobsHubPage() {
 
   useEffect(() => {
     const next = new URLSearchParams();
+    if (source !== "all") next.set("source", source);
     if (query.trim()) next.set("q", query.trim());
     if (location.trim()) next.set("location", location.trim());
     if (kind) next.set("opportunity_type", kind);
@@ -328,7 +337,7 @@ export default function JobsHubPage() {
     if (offset) next.set("offset", String(offset));
     if (selectedId) next.set("job", selectedId);
     if (next.toString() !== params.toString()) setParams(next, { replace: true });
-  }, [query, location, kind, mode, employmentType, sortBy, postedWithinDays, offset, selectedId, params, setParams]);
+  }, [source, query, location, kind, mode, employmentType, sortBy, postedWithinDays, offset, selectedId, params, setParams]);
 
   useEffect(() => {
     if (!isStudent) return;
@@ -578,10 +587,17 @@ export default function JobsHubPage() {
         </div>
       </form>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">Kairos listings are managed here. External discovery opens HiringCafe directly.</p>
+        <p className="text-xs text-muted-foreground">Native Kairos listings remain available. HiringCafe live import is pending an approved production API/feed.</p>
         <a href="https://hiringcafe.com/" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><ExternalLink className="size-4" /> Explore HiringCafe <span className="sr-only">(opens in a new tab)</span></a>
       </div>
     </section>
+
+    <nav aria-label="Opportunity source" className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+      <span className="mr-1 text-sm text-muted-foreground">Source</span>
+      <Button variant={source === "all" ? "secondary" : "ghost"} className="rounded-full" aria-pressed={source === "all"} onClick={() => { setSource("all"); setOffset(0); }}>All opportunities</Button>
+      <Button variant={source === "kairos" ? "secondary" : "ghost"} className="rounded-full" aria-pressed={source === "kairos"} onClick={() => { setSource("kairos"); setOffset(0); }}>Kairos</Button>
+      <Button variant={source === "hiringcafe" ? "secondary" : "ghost"} className="rounded-full" aria-pressed={source === "hiringcafe"} onClick={() => { setSource("hiringcafe"); setOffset(0); }}>HiringCafe <Badge variant="outline" className="ml-1">Unavailable</Badge></Button>
+    </nav>
 
     <nav aria-label="Jobs navigation" className="flex flex-wrap items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-3">
       <span aria-current="page" className="inline-flex min-h-9 items-center gap-2 rounded-full bg-secondary px-4 text-sm font-medium text-secondary-foreground"><Search className="size-4" /> Explore opportunities</span>
@@ -592,7 +608,13 @@ export default function JobsHubPage() {
       {isStudent && <Button variant="ghost" className="rounded-full" onClick={() => navigate("/jobs/campus")}><Users className="size-4" /> Campus recruitment</Button>}
     </nav>
 
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+    {source === "hiringcafe" ? <Card className="border-dashed"><CardContent className="flex flex-col items-start gap-3 p-6 sm:p-8">
+      <Badge variant="outline">Provider disabled</Badge>
+      <h2 className="text-xl font-semibold">HiringCafe live search isn’t connected yet</h2>
+      <p className="max-w-3xl text-sm leading-6 text-muted-foreground">HiringCafe’s official ChatGPT MCP integration is read-only and its documentation says heavy automated use is unsupported. Kairos will not call it as a multi-user job API without explicit permission and a production-supported API or feed. No sample or fabricated listings are shown.</p>
+      <div className="flex flex-wrap gap-2"><a className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90" href="https://hiringcafe.com/" target="_blank" rel="noopener noreferrer">Search HiringCafe directly <ExternalLink className="size-4" /></a><Button variant="outline" onClick={() => setSource("all")}>Return to all opportunities</Button><a className="inline-flex min-h-9 items-center rounded-md px-3 text-sm underline underline-offset-4" href="https://hiringcafe.com/documentation/hiringcafe-chatgpt-app" target="_blank" rel="noopener noreferrer">Integration documentation</a></div>
+      <p className="text-xs text-muted-foreground">Native Kairos jobs, saved jobs, and application tracking continue to work independently.</p>
+    </CardContent></Card> : <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
       <section className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-base font-semibold text-slate-950 dark:text-slate-100">Open opportunities</h2><p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{loading ? "Loading results…" : `${result.items.length ? `${result.offset + 1}–${result.offset + result.items.length}` : "0"} shown · ${result.hasMore ? "more available" : "end of results"}`}</p></div><Button variant="ghost" size="sm" onClick={() => void loadJobs()} disabled={loading}><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Refresh</Button></div>
 
@@ -627,7 +649,7 @@ export default function JobsHubPage() {
           <p className="px-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Public listings are sourced from Kairos. Campus-linked opportunities are kept in the eligible campus recruitment workflow.</p>
         </div>
       </aside>
-    </div>
+    </div>}
   </main>;
 }
 

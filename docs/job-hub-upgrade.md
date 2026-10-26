@@ -35,3 +35,12 @@ Apply the repository's normal migration process in a reviewed deployment window 
 ## Verification status
 
 Repository-level source changes and API contract tests were added. GitHub Actions runs the repository's frontend build, registration-selector test, backend pytest suite, and isolated MySQL schema compatibility check on pushes to `release-v1`. ESLint is skipped by the existing workflow because the repository has no flat ESLint configuration. The final CI results are linked in the implementation report; the backend suite currently includes unrelated pre-existing schema/fixture failures, so a green backend suite is not claimed.
+
+
+## HiringCafe provider boundary (October 2026)
+
+Kairos keeps HiringCafe external discovery disabled until a production-suitable API/feed and written permission for multi-user SaaS use are available. The official [HiringCafe ChatGPT integration documentation](https://hiringcafe.com/documentation/hiringcafe-chatgpt-app) documents the Streamable HTTP MCP endpoint at `https://hiringcafe.com/api/chatgpt/mcp`, with read-only search and detail tools and no authentication. It also explicitly says heavy automated use is unsupported. That conversational MCP endpoint is therefore not called by Kairos's backend and must not be enabled as a general SaaS search API.
+
+The provider boundary exposes status and validates the documented subset of search filters, but returns a stable `503 provider_unavailable` response for external search/detail requests while disabled. The Job Hub source selector distinguishes Kairos listings from HiringCafe and explains this disabled state; students may visit HiringCafe directly. No provider data is fabricated, cached, persisted, or mirrored. Native search, saved jobs, application records, and recruiter workflows remain independent.
+
+To enable live listings, obtain HiringCafe's explicit permission and an API/feed contract intended for commercial multi-user use, including documented request/response schemas, usage limits, attribution, caching/retention rules, and detail/application URL semantics. Then implement and test that approved adapter. Do not set the provider enabled merely because the ChatGPT MCP endpoint is reachable.
