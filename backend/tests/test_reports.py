@@ -225,3 +225,24 @@ async def test_report_and_presentation_are_linked_to_the_same_immutable_version(
         )
     assert error.value.status_code == 422
 
+@pytest.mark.asyncio
+async def test_presentation_attachment_is_downloadable_to_supervisor_and_not_deletable(report_session, tmp_path):
+    from app.modules.storage.service import StorageService, StorageWorkflowError
+
+    reports = ReportService(report_session)
+    report = await reports.create(
+        "student-account", "placement", "Assessment package", "file1", None,
+        presentation_file_id="file2",
+    )
+    file_path = tmp_path / "private" / "file2"
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(b"%PDF-1.7\npresentation")
+    storage = StorageService(report_session, root=tmp_path)
+    metadata, downloaded_path = await storage.get_download("file2", "faculty-account")
+    assert metadata.id == "file2"
+    assert downloaded_path == file_path
+
+    with pytest.raises(StorageWorkflowError) as error:
+        await storage.delete("file2", "student-account")
+    assert error.value.status_code == 409
+
