@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from app.api.dependencies import CurrentAccount, DbSession
@@ -122,7 +122,7 @@ async def save_identity_details(payload: SaveIdentityDetailsRequest, account: Cu
 async def extract_aadhaar_ocr(
     account: CurrentAccount,
     file: UploadFile = File(...),
-    consent: bool = False,
+    consent: bool = Form(False),
 ):
     # Consent is required on each upload. No file or OCR payload is persisted.
     if not consent:

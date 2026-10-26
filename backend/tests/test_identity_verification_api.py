@@ -68,6 +68,7 @@ async def test_identity_status_requires_authentication_and_uses_token_account(id
     assert response.json()["email_verified"] is True
     assert response.json()["identity_verification_status"] == "not_started"
     assert response.json()["available"] is False
+    assert response.json()["ocr_available"] is False
 
 
 @pytest.mark.asyncio
@@ -172,3 +173,28 @@ async def test_identity_status_cannot_be_switched_to_another_account_by_client_i
     assert response.json()["status"] == "not_started"
     assert response.json()["email_verified"] is True
     assert response.json()["identity_verified"] is False
+
+
+@pytest.mark.asyncio
+async def test_aadhaar_ocr_requires_explicit_consent(identity_client):
+    client, headers = identity_client
+    response = await client.post(
+        "/api/v1/identity-verification/ocr",
+        headers=headers,
+        files={"file": ("aadhaar.jpg", b"fake-image", "image/jpeg")},
+        data={"consent": "false"},
+    )
+    assert response.status_code == 422
+    assert "consent" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_aadhaar_ocr_rejects_unsupported_file_type(identity_client):
+    client, headers = identity_client
+    response = await client.post(
+        "/api/v1/identity-verification/ocr",
+        headers=headers,
+        files={"file": ("aadhaar.txt", b"not-a-document", "text/plain")},
+        data={"consent": "true"},
+    )
+    assert response.status_code == 422

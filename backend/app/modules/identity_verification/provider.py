@@ -4,11 +4,23 @@ OCR output is extraction only. It is never an authoritative identity-verificatio
 decision and must not set an account's identity_verified flag.
 """
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 
 from app.core.config import settings
+
+
+class IdentityVerificationProvider(Protocol):
+    @property
+    def is_available(self) -> bool: ...
+
+    @property
+    def name(self) -> str: ...
+
+    async def initiate(self, *, account_id: str, consent_notice_version: str, aadhaar_number: str): ...
+
+    async def validate_result(self, *, provider_reference: str, payload: dict) -> bool: ...
 
 
 class IdentityProviderUnavailable(RuntimeError):
