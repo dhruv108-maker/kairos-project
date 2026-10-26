@@ -120,7 +120,6 @@ export default function AadhaarVerificationCard() {
           consent_notice_version: "aadhaar-online-v1",
         }),
       });
-      setAadhaarNumber("");
       await refresh(true);
       setNotice(result.verified ? "Aadhaar verification succeeded. Kairos has saved the provider-confirmed result." : "The provider could not verify these details. No verified status was recorded.");
     } catch (cause) {
@@ -130,6 +129,7 @@ export default function AadhaarVerificationCard() {
         setError(cause instanceof Error ? cause.message : "We couldn't start verification.");
       }
     } finally {
+      setAadhaarNumber("");
       setStarting(false);
     }
   };
