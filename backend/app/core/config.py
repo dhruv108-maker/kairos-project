@@ -44,7 +44,6 @@ class Settings(BaseSettings):
 
     # Signzy Aadhaar verification. Keep credentials in deployment secrets/.env.local,
     # never in source control or frontend variables. Use preproduction until enabled.
-    IDENTITY_VERIFICATION_PROVIDER: str = "signzy"
     SIGNZY_BASE_URL: str = "https://api-preproduction.signzy.app"
     SIGNZY_USERNAME: SecretStr | None = None
     SIGNZY_PASSWORD: SecretStr | None = None
