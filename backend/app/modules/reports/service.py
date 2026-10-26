@@ -69,12 +69,14 @@ class ReportService:
             raise ReportWorkflowError(422, "File must exist and belong to the authenticated account")
         return file
 
-    async def create(self, account_id: str, placement_id: str, title: str, file_id: str, notes: str | None, requirement_id: str | None = None) -> ReportSubmission:
+    async def create(self, account_id: str, placement_id: str, title: str, file_id: str, notes: str | None, requirement_id: str | None = None, presentation_file_id: str | None = None) -> ReportSubmission:
         student = await self._student_for_account(account_id)
         placement = await self._placement(placement_id)
         if placement.student_id != student.id:
             raise ReportWorkflowError(404, "Placement not found")
         await self._owned_file(file_id, account_id)
+        if presentation_file_id is not None:
+            await self._owned_file(presentation_file_id, account_id)
         if placement.status != "ONGOING":
             raise ReportWorkflowError(409, "Reports can only be created for ongoing placements")
         if requirement_id is not None:
@@ -92,7 +94,7 @@ class ReportService:
         submission = ReportSubmission(id=str(uuid4()), placement_id=placement_id, requirement_id=requirement_id, title=title.strip(), latest_version_number=1, status="DRAFT")
         self.db.add(submission)
         await self.db.flush()
-        self.db.add(ReportVersion(id=str(uuid4()), submission_id=submission.id, version_number=1, file_id=file_id, submission_notes=notes))
+        self.db.add(ReportVersion(id=str(uuid4()), submission_id=submission.id, version_number=1, file_id=file_id, presentation_file_id=presentation_file_id, submission_notes=notes))
         institution_id = await self._institution_for_student(student.id)
         AuditService(self.db).record(account_id, institution_id, "report.created", "report_submission", submission.id, {"placement_id": placement_id, "requirement_id": requirement_id})
         await self.db.commit()
@@ -154,13 +156,15 @@ class ReportService:
         await self.db.refresh(submission)
         return submission
 
-    async def add_version(self, submission_id: str, account_id: str, file_id: str, notes: str | None) -> ReportVersion:
+    async def add_version(self, submission_id: str, account_id: str, file_id: str, notes: str | None, presentation_file_id: str | None = None) -> ReportVersion:
         submission, placement = await self._owned_submission(submission_id, account_id)
         if submission.status not in {"DRAFT", "REVISION_REQUIRED"}:
             raise ReportWorkflowError(409, "Submitted versions are immutable; revisions require a revision-required status")
         await self._owned_file(file_id, account_id)
+        if presentation_file_id is not None:
+            await self._owned_file(presentation_file_id, account_id)
         next_version = submission.latest_version_number + 1
-        version = ReportVersion(id=str(uuid4()), submission_id=submission.id, version_number=next_version, file_id=file_id, submission_notes=notes)
+        version = ReportVersion(id=str(uuid4()), submission_id=submission.id, version_number=next_version, file_id=file_id, presentation_file_id=presentation_file_id, submission_notes=notes)
         submission.latest_version_number = next_version
         self.db.add(version)
         institution_id = await self._institution_for_student(placement.student_id)
