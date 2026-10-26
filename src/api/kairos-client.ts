@@ -98,10 +98,27 @@ export function subscribeToSessionLogout(onLogout: () => void): () => void {
   return () => channel.close();
 }
 
+function accessTokenExpiresSoon(token: string | null): boolean {
+  if (!token) return false;
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return false;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(window.atob(normalized)) as { exp?: number };
+    return typeof claims.exp === "number" && claims.exp * 1000 - Date.now() <= 120_000;
+  } catch {
+    return false;
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
+  const isSessionEndpoint = /\/auth\/(login|refresh|logout)(?:$|\?)/.test(path);
+  if (!isSessionEndpoint && accessTokenExpiresSoon(getAccessToken())) {
+    await refreshSession();
+  }
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
