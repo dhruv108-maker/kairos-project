@@ -121,7 +121,7 @@ export default function AadhaarVerificationCard() {
         }),
       });
       await refresh(true);
-      setNotice(result.verified ? "Aadhaar verification succeeded. Kairos has saved the provider-confirmed result." : "The provider could not verify these details. No verified status was recorded.");
+      setNotice(result.verified ? "The provider validated the Aadhaar details. Kairos has saved the provider-confirmed result." : "The provider could not verify these details. No verified status was recorded.");
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 503) {
         setNotice("Online Aadhaar verification is not configured or the provider is temporarily unavailable. No verified status was recorded.");
@@ -143,7 +143,7 @@ export default function AadhaarVerificationCard() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle id="aadhaar-verification-title">Aadhaar identity verification</CardTitle>
+              <CardTitle id="aadhaar-verification-title">Online Aadhaar verification</CardTitle>
               {verified && <Badge>Verified</Badge>}
               {!loading && status && !verified && (
                 <Badge variant="outline">
@@ -232,12 +232,12 @@ export default function AadhaarVerificationCard() {
               aria-describedby="aadhaar-online-number-help"
             />
             <p id="aadhaar-online-number-help" className="text-xs leading-5 text-muted-foreground">
-              Used only for this provider request. Do not enter it unless you have reviewed and agree to the consent below.
+              Used only for this provider request and not saved by Kairos. This number-validation endpoint is not an OTP challenge proving control of the Aadhaar-linked mobile.
             </p>
           </div>
           <div className="flex items-start gap-2">
             <Checkbox id="identity-verification-consent" checked={verificationConsent} onCheckedChange={(checked) => setVerificationConsent(checked === true)} />
-            <Label htmlFor="identity-verification-consent" className="text-sm leading-5 font-normal">I explicitly consent to sending my Aadhaar number to Signzy for online verification, subject to applicable provider privacy and retention terms.</Label>
+            <Label htmlFor="identity-verification-consent" className="text-sm leading-5 font-normal">I explicitly consent to sending my Aadhaar number to Signzy for Aadhaar-number validation, subject to applicable provider privacy and retention terms.</Label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-xl text-xs leading-5 text-muted-foreground">
