@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     RESEND_FROM_EMAIL: str | None = None
     MAIL_FROM_NAME: str = "Kairos"
 
+    # Signzy Aadhaar verification. Keep credentials in deployment secrets/.env.local,
+    # never in source control or frontend variables. Use preproduction until enabled.
+    IDENTITY_VERIFICATION_PROVIDER: str = "signzy"
+    SIGNZY_BASE_URL: str = "https://api-preproduction.signzy.app"
+    SIGNZY_USERNAME: SecretStr | None = None
+    SIGNZY_PASSWORD: SecretStr | None = None
+    SIGNZY_AADHAAR_ENABLED: bool = False
+
     JWT_SECRET_KEY: SecretStr
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
