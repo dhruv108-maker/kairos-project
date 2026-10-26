@@ -246,3 +246,59 @@ async def test_presentation_attachment_is_downloadable_to_supervisor_and_not_del
         await storage.delete("file2", "student-account")
     assert error.value.status_code == 409
 
+
+
+from app.models.curriculum import LearningOutcome
+from app.modules.curriculum.service import CurriculumService, CurriculumWorkflowError
+
+
+@pytest.mark.asyncio
+async def test_curriculum_mapping_is_versioned_and_supervisor_review_is_auditable(report_session):
+    from app.models.institutions import Institution
+
+    school = await report_session.get(School, "school")
+    school.institution_id = "institution"
+    report_session.add(Institution(id="institution", name="Institute", slug="institute", status="ACTIVE", created_by_account_id="faculty-account"))
+    await report_session.commit()
+    report_session.add(LearningOutcome(id="outcome-1", institution_id="institution", programme_id=None,
+        code="LO-1", title="Demonstrate practical skills", description="Apply concepts in practice",
+        is_active=True, created_by_account_id="faculty-account"))
+    await report_session.commit()
+
+    reports = ReportService(report_session)
+    report = await reports.create("student-account", "placement", "Assessment report", "file1", None, presentation_file_id="file2")
+    await reports.submit(report.id, "student-account")
+    curriculum = CurriculumService(report_session)
+    submitted = await curriculum.create_mapping(report.id, "student-account", [
+        {"learning_outcome_id": "outcome-1", "evidence_type": "PRESENTATION"}
+    ])
+    first = submitted["items"][0]
+    assert first["status"] == "SUBMITTED"
+    reviewed = await curriculum.review_mapping(report.id, first["id"], "faculty-account", "Evidence supports the outcome", [
+        {"learning_outcome_id": "outcome-1", "evidence_status": "EVIDENCED", "reviewer_notes": "Clear demonstration"}
+    ])
+    assert [item["version_number"] for item in reviewed["items"]] == [2, 1]
+    assert reviewed["items"][0]["items"][0]["evidence_status"] == "EVIDENCED"
+    assert reviewed["items"][0]["reviewed_by_account_id"] == "faculty-account"
+
+
+@pytest.mark.asyncio
+async def test_curriculum_mapping_rejects_cross_institution_outcome(report_session):
+    from app.models.institutions import Institution
+
+    school = await report_session.get(School, "school")
+    school.institution_id = "institution-a"
+    report_session.add_all([
+        Institution(id="institution-a", name="Institute A", slug="institute-a", status="ACTIVE", created_by_account_id="faculty-account"),
+        Institution(id="institution-b", name="Institute B", slug="institute-b", status="ACTIVE", created_by_account_id="faculty-account"),
+        LearningOutcome(id="outcome-b", institution_id="institution-b", programme_id=None, code="LO-X", title="Other institution", is_active=True, created_by_account_id="faculty-account"),
+    ])
+    await report_session.commit()
+    reports = ReportService(report_session)
+    report = await reports.create("student-account", "placement", "Assessment report", "file1", None)
+    await reports.submit(report.id, "student-account")
+    with pytest.raises(CurriculumWorkflowError) as error:
+        await CurriculumService(report_session).create_mapping(report.id, "student-account", [
+            {"learning_outcome_id": "outcome-b", "evidence_type": "REPORT"}
+        ])
+    assert error.value.status_code == 422

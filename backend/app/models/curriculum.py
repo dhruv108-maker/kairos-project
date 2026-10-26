@@ -2,6 +2,7 @@
 from datetime import datetime
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, TIMESTAMP, UniqueConstraint, func
 from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
+from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -16,7 +17,7 @@ class LearningOutcome(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
-    created_by_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    created_by_account_id: Mapped[int | str] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
 
 
@@ -29,7 +30,7 @@ class CurriculumMappingVersion(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="SUBMITTED")
     reviewer_notes: Mapped[str | None] = mapped_column(Text)
     created_by_account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
-    reviewed_by_account_id: Mapped[str | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"))
+    reviewed_by_account_id: Mapped[int | str | None] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="SET NULL"))
     reviewed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
 

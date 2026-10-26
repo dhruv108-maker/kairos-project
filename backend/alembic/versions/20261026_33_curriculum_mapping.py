@@ -1,6 +1,7 @@
 """Add versioned curriculum outcomes and report evidence mappings."""
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 
 revision = "20261026_33"
 down_revision = "20261026_32"
@@ -21,7 +22,7 @@ def upgrade() -> None:
             sa.Column("title", sa.String(255), nullable=False),
             sa.Column("description", sa.Text(), nullable=True),
             sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
-            sa.Column("created_by_account_id", sa.BigInteger().with_variant(sa.String(36), "sqlite"), sa.ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False),
+            sa.Column("created_by_account_id", MYSQL_BIGINT(unsigned=True).with_variant(sa.String(36), "sqlite"), sa.ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False),
             sa.Column("created_at", sa.TIMESTAMP(), nullable=False, server_default=sa.func.now()),
             sa.UniqueConstraint("institution_id", "programme_id", "code", name="uq_learning_outcome_scope_code"),
         )
