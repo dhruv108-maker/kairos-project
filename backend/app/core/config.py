@@ -6,13 +6,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-ENV_FILE = REPOSITORY_ROOT / ".env.local"
+ENV_FILE = REPOSITORY_ROOT / ".env"
+LOCAL_ENV_FILE = REPOSITORY_ROOT / ".env.local"
 
 
 class Settings(BaseSettings):
-    # Actual process environment variables take precedence over .env.local.
+    # Load .env for normal local development and .env.local for private overrides.
+    # Real process environment variables take precedence over both files.
+    # Pydantic applies later files as overrides, so .env.local wins over .env.
     model_config = SettingsConfigDict(
-        env_file=ENV_FILE,
+        env_file=(ENV_FILE, LOCAL_ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -40,8 +43,9 @@ class Settings(BaseSettings):
     RESEND_FROM_EMAIL: str | None = None
     MAIL_FROM_NAME: str = "Kairos"
 
-    # Backend-only Verifico OCR credentials. Lowercase verifico_api maps to
-    # VERIFICO_API because settings are case-insensitive. Never use VITE_.
+    # Backend-only Verifico OCR credentials. Both lowercase and uppercase
+    # variable names are accepted because settings are case-insensitive.
+    # Never expose this value in frontend variables or logs.
     VERIFICO_BASE_URL: str = "https://api.theverifico.com"
     VERIFICO_API: SecretStr | None = None
 

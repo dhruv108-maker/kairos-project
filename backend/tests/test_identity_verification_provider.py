@@ -111,3 +111,38 @@ def test_aadhaar_ocr_result_projection_masks_full_number(monkeypatch):
     assert projection == {"name": "Example Person", "aadhaar_last4": "9012"}
     assert "aadhaar_number" not in projection
     assert "photo" not in projection
+
+
+def test_settings_load_lowercase_verifico_api_from_root_env_file(tmp_path):
+    from app.core.config import Settings
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "verifico_api=ocr_live_test_only\n"
+        "DB_HOST=localhost\n"
+        "DB_USER=test-user\n"
+        "DB_PASSWORD=test-password\n"
+        "JWT_SECRET_KEY=test-secret-that-is-long-enough\n",
+        encoding="utf-8",
+    )
+    loaded = Settings(_env_file=env_file)
+    assert loaded.VERIFICO_API is not None
+    assert loaded.VERIFICO_API.get_secret_value() == "ocr_live_test_only"
+
+
+def test_local_env_file_overrides_root_env_file(tmp_path):
+    from app.core.config import Settings
+
+    root_env = tmp_path / ".env"
+    local_env = tmp_path / ".env.local"
+    required = (
+        "DB_HOST=localhost\n"
+        "DB_USER=test-user\n"
+        "DB_PASSWORD=test-password\n"
+        "JWT_SECRET_KEY=test-secret-that-is-long-enough\n"
+    )
+    root_env.write_text(required + "verifico_api=ocr_live_from_root\n", encoding="utf-8")
+    local_env.write_text("verifico_api=ocr_live_local_override\n", encoding="utf-8")
+    loaded = Settings(_env_file=(root_env, local_env))
+    assert loaded.VERIFICO_API is not None
+    assert loaded.VERIFICO_API.get_secret_value() == "ocr_live_local_override"
