@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import String
+from sqlalchemy.dialects import mysql, sqlite
 
 from app.api.user_preferences import UserPreferencesPatch
 from app.models import Base
@@ -13,8 +14,12 @@ def test_user_preferences_model_is_keyed_by_account_and_cascades():
     account_fk = next(iter(table.c.account_id.foreign_keys))
     assert account_fk.target_fullname == "accounts.id"
     assert account_fk.ondelete == "CASCADE"
-    assert isinstance(table.c.account_id.type, String)
-    assert table.c.account_id.type.length == 36
+    # The canonical model contract is MySQL BIGINT UNSIGNED; SQLite uses a
+    # UUID-like string variant for isolated fixtures.
+    assert isinstance(table.c.account_id.type.dialect_impl(mysql.dialect()), mysql.BIGINT)
+    assert table.c.account_id.type.dialect_impl(mysql.dialect()).unsigned is True
+    assert isinstance(table.c.account_id.type.dialect_impl(sqlite.dialect()), String)
+    assert table.c.account_id.type.dialect_impl(sqlite.dialect()).length == 36
     assert table.c.accent_color.server_default is not None
     assert table.c.notification_preferences.nullable is False
     assert "user_preferences" in Base.metadata.tables

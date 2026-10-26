@@ -61,14 +61,12 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Install ESLint flat-config dependencies without changing the lockfile
+        run: npm install --no-save --package-lock=false @eslint/js globals typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh
       - name: TypeScript and production build
         run: npm run build
-      - name: ESLint (only when a flat config is present)
-        if: ${{ hashFiles('eslint.config.js', 'eslint.config.mjs', 'eslint.config.cjs') != '' }}
+      - name: ESLint
         run: npm run lint
-      - name: Report missing ESLint configuration
-        if: ${{ hashFiles('eslint.config.js', 'eslint.config.mjs', 'eslint.config.cjs') == '' }}
-        run: 'echo "NOT RUN: repository has no ESLint flat config; npm run lint is not executable with ESLint 10."'
       - name: Frontend registration selector test
         run: npm run test:registration-selector
 

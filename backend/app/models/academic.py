@@ -180,10 +180,11 @@ class StudentEnrollment(Base):
 
 class StudentProfile(Base):
     __tablename__ = "student_profiles"
-    # SQLite requires INTEGER (not BIGINT) for rowid-backed autoincrement.
-    # MySQL retains the deployed BIGINT profile identity, independent of student.id.
-    id: Mapped[int] = mapped_column(
-        BigInteger().with_variant(Integer, "sqlite"),
+    # The deployed MySQL schema uses a numeric profile identity. SQLite route and
+    # service tests use explicit UUID-like fixture IDs, so preserve that test contract
+    # with a dialect-specific string type instead of coercing those IDs to INTEGER.
+    id: Mapped[int | str] = mapped_column(
+        BigInteger().with_variant(String(36), "sqlite"),
         primary_key=True,
         autoincrement=True,
     )
