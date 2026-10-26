@@ -13,6 +13,7 @@ from app.modules.reports.router import router as reports_router, requirement_rou
 from app.modules.evaluations.router import router as evaluations_router
 from app.modules.curriculum.router import router as curriculum_router
 from app.modules.assessment.router import router as assessment_router
+from app.modules.assessment.results_router import router as results_router
 from app.modules.organizations.router import router as organizations_router
 from app.modules.storage.router import router as storage_router
 from app.modules.academics.admin_router import router as academic_admin_router
@@ -40,6 +41,7 @@ api_router.include_router(report_requirement_router)
 api_router.include_router(evaluations_router)
 api_router.include_router(curriculum_router)
 api_router.include_router(assessment_router)
+api_router.include_router(results_router)
 api_router.include_router(organizations_router)
 api_router.include_router(storage_router)
 api_router.include_router(academic_admin_router)
