@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.academic import Account
 from app.models.identity_verification import IdentityVerification
 from app.models.identity_details import IdentityDetails
-from app.modules.identity_verification.provider import IdentityProviderUnavailable, IdentityVerificationProvider, VerificoAadhaarProvider
+from app.modules.identity_verification.provider import IdentityProviderUnavailable, IdentityVerificationProvider, SignzyAadhaarProvider
 
 
 class IdentityVerificationService:
     def __init__(self, db: AsyncSession, provider: IdentityVerificationProvider | None = None):
         self.db = db
-        self.provider = provider or VerificoAadhaarProvider()
+        self.provider = provider or SignzyAadhaarProvider()
 
     async def status(self, account_id: str | int) -> dict:
         account = await self.db.scalar(select(Account).where(Account.id == account_id).with_for_update())
@@ -40,13 +40,16 @@ class IdentityVerificationService:
         result = {
             "status": state, "identity_verification_status": state,
             "verified": identity_verified, "identity_verified": identity_verified,
-            "email_verified": bool(account.is_verified), "available": False,
-            "provider": latest.provider if latest else "verifico",
+            "email_verified": bool(account.is_verified),
+            "available": bool(getattr(self.provider, "is_available", False)),
+            "provider": latest.provider if latest else getattr(self.provider, "name", "signzy"),
             "message": (
                 "The recorded identity result requires reconciliation before it can be trusted."
                 if latest is not None and latest.status == "verified" and not identity_verified
                 else "Optional Aadhaar verification is not currently available."
-                if not identity_verified else None
+                if not identity_verified and not bool(getattr(self.provider, "is_available", False))
+                else "The provider could not confirm the submitted details." if latest is not None and latest.status == "failed"
+                else None
             ),
             "declared_name": details.declared_name if details else None,
         }
@@ -56,46 +59,66 @@ class IdentityVerificationService:
                            "error_category": latest.error_category})
         return result
 
-    async def initiate(self, account_id: str | int, consent: bool, notice_version: str) -> dict:
+    async def initiate(
+        self, account_id: str | int, consent: bool, notice_version: str, aadhaar_number: str
+    ) -> dict:
         if not consent:
             raise ValueError("Explicit consent is required before initiating identity verification.")
         version = notice_version.strip()
         if not version or len(version) > 40:
             raise ValueError("A valid consent notice version is required.")
+        if len(aadhaar_number) != 12 or not aadhaar_number.isascii() or not aadhaar_number.isdigit():
+            raise ValueError("Enter a valid 12-digit Aadhaar number.")
+
         account = await self.db.scalar(select(Account).where(Account.id == account_id).with_for_update())
         if account is None:
             raise ValueError("Authenticated account no longer exists")
         if account.identity_verified:
             raise ValueError("Identity verification is already confirmed.")
+
         try:
-            started = await self.provider.initiate(account_id=str(account_id), consent_notice_version=version)
+            started = await self.provider.initiate(
+                account_id=str(account_id),
+                consent_notice_version=version,
+                aadhaar_number=aadhaar_number,
+            )
         except (IdentityProviderUnavailable, asyncio.TimeoutError):
-            raise IdentityProviderUnavailable("Identity verification is currently unavailable.") from None
-        if not isinstance(started.provider_reference, str):
-            raise IdentityProviderUnavailable("The provider returned an invalid transaction reference.")
-        reference = started.provider_reference.strip()
+            raise IdentityProviderUnavailable("Aadhaar verification is temporarily unavailable.") from None
+
+        if started.verified is not True and started.verified is not False:
+            raise IdentityProviderUnavailable("The provider returned no authoritative verification decision.")
+        reference = started.provider_reference.strip() if isinstance(started.provider_reference, str) else ""
         if not reference or len(reference) > 255:
             raise IdentityProviderUnavailable("The provider returned an invalid transaction reference.")
-        if started.redirect_url is not None:
-            if not isinstance(started.redirect_url, str):
-                raise IdentityProviderUnavailable("The provider returned an invalid verification redirect.")
-            try:
-                parsed = urlsplit(started.redirect_url)
-                valid = parsed.scheme == "https" and bool(parsed.hostname) and parsed.username is None and parsed.password is None
-            except ValueError:
-                valid = False
-            if not valid:
-                raise IdentityProviderUnavailable("The provider returned an invalid verification redirect.")
+
+        now = datetime.now(UTC).replace(tzinfo=None)
         record = IdentityVerification(
-            id=str(uuid4()), account_id=account_id, provider="verifico", provider_reference=reference,
-            status="pending", consented_at=datetime.now(UTC).replace(tzinfo=None),
-            consent_notice_version=version, expires_at=started.expires_at,
+            id=str(uuid4()),
+            account_id=account_id,
+            provider=getattr(self.provider, "name", "signzy")[:40],
+            provider_reference=reference,
+            status="verified" if started.verified else "failed",
+            consented_at=now,
+            consent_notice_version=version,
+            completed_at=now,
+            error_category=None if started.verified else "provider_not_verified",
         )
         self.db.add(record)
-        account.identity_verified = False
+        account.identity_verified = bool(started.verified)
         await self.db.commit()
         await self.db.refresh(record)
-        return {"id": record.id, "status": record.status, "redirect_url": started.redirect_url, "expires_at": record.expires_at}
+        await self.db.refresh(account)
+
+        return {
+            "id": record.id,
+            "status": record.status,
+            "verified": bool(started.verified),
+            "identity_verified": bool(started.verified),
+            "email_verified": bool(account.is_verified),
+            "provider": record.provider,
+            "message": started.message,
+            "completed_at": record.completed_at,
+        }
 
     async def apply_authoritative_result(self, *, account_id: str | int, provider_reference: str, payload: dict) -> dict:
         """Apply a result only after trusted provider validation; not exposed to clients."""
