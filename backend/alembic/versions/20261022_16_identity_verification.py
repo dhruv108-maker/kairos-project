@@ -5,6 +5,7 @@ Revises: 20261022_15
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import mysql
 
 revision = "20261022_16"
 down_revision = "20261022_15"
@@ -16,7 +17,7 @@ def upgrade() -> None:
     op.create_table(
         "identity_verifications",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("account_id", sa.String(36), sa.ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("account_id", mysql.BIGINT(unsigned=True), sa.ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False),
         sa.Column("provider", sa.String(40), nullable=False, server_default="verifico"),
         sa.Column("provider_reference", sa.String(255)),
         sa.Column("status", sa.String(24), nullable=False, server_default="pending"),
