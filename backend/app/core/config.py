@@ -5,18 +5,17 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# Repository root: kairos-project/
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 ENV_FILE = REPOSITORY_ROOT / ".env.local"
 
 
 class Settings(BaseSettings):
-    # Always load environment settings from the repository-root .env.local.
-    # Actual process environment variables take precedence over file values.
+    # Actual process environment variables take precedence over .env.local.
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
+        case_sensitive=False,
     )
 
     APP_NAME: str = "Kairos API"
@@ -24,7 +23,6 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
 
-    # Database connection settings are read independently from the environment.
     DB_HOST: str
     DB_PORT: int = 3306
     DB_USER: str
@@ -42,12 +40,10 @@ class Settings(BaseSettings):
     RESEND_FROM_EMAIL: str | None = None
     MAIL_FROM_NAME: str = "Kairos"
 
-    # Signzy Aadhaar verification. Keep credentials in deployment secrets/.env.local,
-    # never in source control or frontend variables. Use preproduction until enabled.
-    SIGNZY_BASE_URL: str = "https://api-preproduction.signzy.app"
-    SIGNZY_USERNAME: SecretStr | None = None
-    SIGNZY_PASSWORD: SecretStr | None = None
-    SIGNZY_AADHAAR_ENABLED: bool = False
+    # Backend-only Verifico OCR credentials. Lowercase verifico_api maps to
+    # VERIFICO_API because settings are case-insensitive. Never use VITE_.
+    VERIFICO_BASE_URL: str = "https://api.theverifico.com"
+    VERIFICO_API: SecretStr | None = None
 
     JWT_SECRET_KEY: SecretStr
     JWT_ALGORITHM: str = "HS256"
