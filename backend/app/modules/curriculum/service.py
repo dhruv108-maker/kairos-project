@@ -5,7 +5,7 @@ from uuid import uuid4
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.academic import StudentProfile, FacultyProfile, Programme, Department, School
+from app.models.academic import StudentProfile, FacultyProfile, Programme, Department, School, Cohort
 from app.models.curriculum import LearningOutcome, CurriculumMappingVersion, CurriculumMappingItem
 from app.models.evaluation import ReportSubmission, ReportVersion
 from app.models.internship import InternshipPlacement
@@ -68,9 +68,8 @@ class CurriculumService:
         if institution_id is None and student.cohort_id:
             institution_id = await self.db.scalar(select(School.institution_id).join(
                 Department, Department.school_id == School.id).join(Programme, Programme.department_id == Department.id)
-                .join(__import__("app.models.academic", fromlist=["Cohort"]).Cohort,
-                      __import__("app.models.academic", fromlist=["Cohort"]).Cohort.programme_id == Programme.id)
-                .where(__import__("app.models.academic", fromlist=["Cohort"]).Cohort.id == student.cohort_id))
+                .join(Cohort, Cohort.programme_id == Programme.id)
+                .where(Cohort.id == student.cohort_id))
         return submission, placement, student, institution_id, student_owner, supervisor
 
     async def create_mapping(self, submission_id: str, actor_id: str, items: list[dict]):
@@ -94,7 +93,10 @@ class CurriculumService:
             outcome = await self.db.get(LearningOutcome, entry["learning_outcome_id"])
             if outcome is None or not outcome.is_active or outcome.institution_id != institution_id:
                 raise CurriculumWorkflowError(422, "Each outcome must be active and belong to the student's institution")
-            if outcome.programme_id and outcome.programme_id != student.programme_id:
+            student_programme_id = student.programme_id
+            if student_programme_id is None and student.cohort_id:
+                student_programme_id = await self.db.scalar(select(Cohort.programme_id).where(Cohort.id == student.cohort_id))
+            if outcome.programme_id and outcome.programme_id != student_programme_id:
                 raise CurriculumWorkflowError(422, "Outcome is outside the student's programme")
             evidence_type = entry["evidence_type"]
             file_id = allowed_files.get(evidence_type)
