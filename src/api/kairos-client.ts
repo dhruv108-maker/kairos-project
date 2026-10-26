@@ -1,5 +1,6 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/+$/, "");
 const TOKEN_KEY = "kairos.access_token";
+let refreshInFlight: Promise<AuthResponse | null> | null = null;
 
 export interface KairosAccount {
   id: string;
@@ -51,6 +52,52 @@ export function clearAccessToken(): void {
   window.sessionStorage.removeItem(TOKEN_KEY);
 }
 
+export async function refreshSession(): Promise<AuthResponse | null> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        clearAccessToken();
+        return null;
+      }
+      const result = await response.json() as AuthResponse;
+      setAccessToken(result.access_token);
+      return result;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+const AUTH_BROADCAST = "kairos-auth-session";
+function announceLogout(): void {
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel(AUTH_BROADCAST);
+    channel.postMessage({ type: "logout" });
+    channel.close();
+  }
+}
+
+export function subscribeToSessionLogout(onLogout: () => void): () => void {
+  if (typeof BroadcastChannel === "undefined") return () => undefined;
+  const channel = new BroadcastChannel(AUTH_BROADCAST);
+  channel.onmessage = (event: MessageEvent) => {
+    if (event.data?.type === "logout") {
+      clearAccessToken();
+      onLogout();
+    }
+  };
+  return () => channel.close();
+}
+
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
@@ -65,13 +112,21 @@ export async function apiRequest<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`, {
-    ...init,
-    headers,
-  });
+  const requestUrl = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  let response = await fetch(requestUrl, { ...init, headers, credentials: "include" });
+  const isSessionEndpoint = /\/auth\/(login|refresh|logout)(?:$|\?)/.test(path);
+  if (response.status === 401 && !isSessionEndpoint) {
+    const renewed = await refreshSession();
+    if (renewed) {
+      headers.set("Authorization", `Bearer ${renewed.access_token}`);
+      response = await fetch(requestUrl, { ...init, headers, credentials: "include" });
+    } else {
+      clearAccessToken();
+    }
+  }
 
   if (!response.ok) {
-    if (response.status === 401) clearAccessToken();
+    if (response.status === 401 && !isSessionEndpoint) clearAccessToken();
     let message = `Request failed (${response.status})`;
     let validationErrors: ApiValidationError[] = [];
     try {
@@ -111,12 +166,14 @@ export function getCurrentAccount(): Promise<KairosAccount> {
 export function signOut(): void {
   const token = getAccessToken();
   clearAccessToken();
+  announceLogout();
 
   // Revoke the server-side token version when possible, but never keep the
   // browser session alive just because the API is temporarily unavailable.
   if (token) {
     void fetch(`${API_BASE_URL}/auth/logout`, {
       method: "POST",
+      credentials: "include",
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {
       // Local logout has already completed; network failure must not restore the session.
@@ -145,7 +202,7 @@ export async function downloadApiFile(path: string, filename: string): Promise<v
   const headers = new Headers();
   const token = getAccessToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`, { headers });
+  const response = await fetch(`${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`, { headers, credentials: "include" });
   if (!response.ok) {
     if (response.status === 401) clearAccessToken();
     throw new ApiError(`Download failed (${response.status})`, response.status);
