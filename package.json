@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test:registration-selector": "node scripts/check-registration-cohort-selector.mjs"
+    "test:registration-selector": "node scripts/check-registration-cohort-selector.mjs",
+    "test:aadhaar-banner": "node --test scripts/aadhaar-verification-banner.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

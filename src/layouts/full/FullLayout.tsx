@@ -5,6 +5,7 @@ import Header from "./vertical/header/Header";
 import { SidebarInset, SidebarProvider } from "src/components/ui/sidebar";
 import { cn } from "src/lib/utils";
 import Footer from "./shared/footer/Footer";
+import AadhaarVerificationBanner from "@/components/user-profile/AadhaarVerificationBanner";
 import { useAuth } from "@/context/auth/AuthContext";
 
 type FullLayoutProps = {
@@ -27,6 +28,11 @@ const FullLayout: FC<FullLayoutProps> = ({ allowAnonymous = false }) => {
         <div className="flex flex-1 flex-col gap-4 p-4">
           <div className={cn("w-full mx-auto", "container")}>
             <div className="min-h-[calc(100vh-140px)]"><Outlet /></div>
+            {account && !allowAnonymous && account.roles.some((role) => role.toUpperCase() === "STUDENT") && (
+              <div className="pt-6">
+                <AadhaarVerificationBanner />
+              </div>
+            )}
             <div className="pt-6"><Footer /></div>
           </div>
         </div>
