@@ -7,10 +7,12 @@ import uuid
 from pathlib import Path
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.config import settings
 from app.models.academic import Cohort, Department, FacultyProfile, Programme, School, StudentProfile
 from app.models.evaluation import ReportSubmission, ReportVersion
+from app.models.assessment import BlindAssessmentAssignment
 from app.models.internship import InternshipPlacement
 from app.models.portfolio import StudentResume
 from app.models.storage import StorageFile
@@ -148,8 +150,27 @@ class StorageService:
                     .join(InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id)
                     .where(or_(ReportVersion.file_id == file_id, ReportVersion.presentation_file_id == file_id), InternshipPlacement.faculty_supervisor_id == faculty_id)
                 ) is not None
+        blind_packet = False
+        if not allowed:
+            # Blind evaluators may download only the evidence files linked to their own
+            # assigned report version. Do not expose the original upload filename in the
+            # Content-Disposition header during protected assessment.
+            blind_assignment = await self.db.scalar(
+                select(BlindAssessmentAssignment.id)
+                .join(ReportVersion, ReportVersion.id == BlindAssessmentAssignment.report_version_id)
+                .where(
+                    BlindAssessmentAssignment.evaluator_account_id == account_id,
+                    BlindAssessmentAssignment.status.in_(("DRAFT", "SUBMITTED")),
+                    or_(ReportVersion.file_id == file_id, ReportVersion.presentation_file_id == file_id),
+                )
+            )
+            if blind_assignment is not None:
+                allowed = True
+                blind_packet = True
         if not allowed:
             raise StorageWorkflowError(404, "File not found")
+        if blind_packet:
+            set_committed_value(item, "original_name", "assessment-evidence.pdf")
         path = self._safe_path(item.file_path)
         if not path.is_file():
             raise StorageWorkflowError(404, "Stored file is unavailable")
