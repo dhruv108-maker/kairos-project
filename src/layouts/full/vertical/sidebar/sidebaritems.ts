@@ -1,6 +1,6 @@
 import {
   Activity, BookOpen, Bookmark, BriefcaseBusiness, ClipboardList, FileText, House,
-  LayoutDashboard, NotebookTabs, Settings, Settings2, Ticket, UserRound, Users, GraduationCap,
+  LayoutDashboard, NotebookTabs, Settings, Settings2, ShieldCheck, Ticket, UserRound, Users, GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -83,6 +83,7 @@ const sidebarItems: MenuItem[] = [
       { id: "account-profile", name: "My Profile", icon: UserRound, url: "/pages/user-profile" },
       { id: "settings", name: "Settings", icon: Settings, url: "/settings" },
       { id: "student-profile", name: "Student Profile", icon: NotebookTabs, url: "/student/profile", roles: studentRoles },
+      { id: "aadhaar-verification", name: "Aadhaar Verification", icon: ShieldCheck, url: "/student/profile", roles: studentRoles },
     ],
   },
   {
