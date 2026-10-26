@@ -302,3 +302,70 @@ async def test_curriculum_mapping_rejects_cross_institution_outcome(report_sessi
             {"learning_outcome_id": "outcome-b", "evidence_type": "REPORT"}
         ])
     assert error.value.status_code == 422
+
+
+from app.models.assessment import AssessmentRubric, AssessmentRubricCriterion, BlindAssessmentAssignment, BlindAssessmentScore
+from app.models.academic_result import InternshipGradingPolicy
+from app.modules.assessment.service import BlindAssessmentService, BlindAssessmentError
+from app.modules.assessment.results_service import OfficialResultService, OfficialResultError
+
+
+@pytest.mark.asyncio
+async def test_blind_scores_are_private_to_assignee_and_immutable_after_submission(report_session):
+    reports = ReportService(report_session)
+    report = await reports.create("student-account", "placement", "Blind assessment report", "file1", None)
+    await reports.submit(report.id, "student-account")
+    version = await report_session.scalar(select(ReportVersion).where(ReportVersion.submission_id == report.id))
+    rubric = AssessmentRubric(id="rubric-1", institution_id="institution", name="Rubric", version_number=1,
+        status="APPROVED", created_by_account_id="faculty-account", approved_by_account_id="faculty-account")
+    criterion = AssessmentRubricCriterion(id="criterion-1", rubric_id="rubric-1", code="C1", title="Evidence",
+        description="Evidence quality", minimum_score=0, maximum_score=10, weight=1, position=0)
+    assignment = BlindAssessmentAssignment(id="assignment-1", report_version_id=version.id, rubric_id="rubric-1",
+        evaluator_account_id="faculty-account", assigned_by_account_id="faculty-account", status="DRAFT")
+    report_session.add_all([rubric, criterion, assignment])
+    await report_session.commit()
+    service = BlindAssessmentService(report_session)
+
+    with pytest.raises(BlindAssessmentError) as error:
+        await service.save_scores("assignment-1", "student-account", [
+            {"criterion_id": "criterion-1", "score": 8, "feedback": "not the evaluator"}
+        ], True)
+    assert error.value.status_code == 404
+
+    result = await service.save_scores("assignment-1", "faculty-account", [
+        {"criterion_id": "criterion-1", "score": 8, "feedback": "Evidence is clear"}
+    ], True)
+    assert result["status"] == "SUBMITTED"
+    with pytest.raises(BlindAssessmentError) as error:
+        await service.save_scores("assignment-1", "faculty-account", [
+            {"criterion_id": "criterion-1", "score": 9, "feedback": "Changed after submission"}
+        ], False)
+    assert error.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_official_result_is_blocked_until_institution_policy_is_approved(report_session):
+    from app.models.institutions import Institution, InstitutionMembership
+
+    school = await report_session.get(School, "school")
+    school.institution_id = "institution"
+    report_session.add_all([
+        Institution(id="institution", name="Institute", slug="institute", status="ACTIVE", created_by_account_id="faculty-account"),
+        InstitutionMembership(institution_id="institution", account_id="faculty-account", role="INSTITUTION_ADMIN", status="ACTIVE"),
+    ])
+    await report_session.commit()
+    reports = ReportService(report_session)
+    report = await reports.create("student-account", "placement", "Result report", "file1", None)
+    report.status = "APPROVED"
+    await report_session.commit()
+    policy = InternshipGradingPolicy(id="policy-draft", institution_id="institution", version_number=1,
+        status="DRAFT", policy_json={"aggregation_method": "WEIGHTED_MEAN", "rounding_places": 2,
+        "minimum_evaluators": 1, "require_curriculum_review": False, "require_griffin": False, "grade_bands": []},
+        created_by_account_id="faculty-account")
+    report_session.add(policy)
+    await report_session.commit()
+
+    with pytest.raises(OfficialResultError) as error:
+        await OfficialResultService(report_session).preview(report.id, policy.id, "faculty-account")
+    assert error.value.status_code == 409
+    assert "policy is approved" in error.value.message.lower()
