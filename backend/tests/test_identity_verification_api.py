@@ -155,3 +155,19 @@ async def test_optional_identity_details_require_authentication(identity_client)
         json={"declared_name": "Example Student", "consent": True, "consent_notice_version": "notice-v1"},
     )
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_identity_status_cannot_be_switched_to_another_account_by_client_input(identity_client):
+    client, headers = identity_client
+    response = await client.get(
+        "/api/v1/identity-verification/status",
+        headers=headers,
+        params={"account_id": "another-account", "user_id": "another-account"},
+    )
+    assert response.status_code == 200
+    # The endpoint derives identity solely from CurrentAccount/token claims; client
+    # identifiers are not accepted as authority to read another account's record.
+    assert response.json()["status"] == "not_started"
+    assert response.json()["email_verified"] is True
+    assert response.json()["identity_verified"] is False
