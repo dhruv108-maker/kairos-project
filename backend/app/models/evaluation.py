@@ -42,6 +42,7 @@ class ReportVersion(Base):
     submission_id: Mapped[str] = mapped_column(ForeignKey("report_submissions.id", ondelete="CASCADE"), nullable=False)
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
     file_id: Mapped[str] = mapped_column(ForeignKey("storage_files.id", ondelete="RESTRICT"), nullable=False)
+    presentation_file_id: Mapped[str | None] = mapped_column(ForeignKey("storage_files.id", ondelete="RESTRICT"))
     submission_notes: Mapped[str | None] = mapped_column(Text)
     submitted_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
 
