@@ -45,8 +45,16 @@ class SaveIdentityDetailsResponse(BaseModel):
 
 class InitiateVerificationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    aadhaar_number: str = Field(min_length=12, max_length=12, repr=False)
     consent: bool
     consent_notice_version: str = Field(min_length=1, max_length=40)
+
+    @field_validator("aadhaar_number")
+    @classmethod
+    def validate_aadhaar_number(cls, value: str) -> str:
+        if not value.isascii() or not value.isdigit():
+            raise ValueError("Enter a valid 12-digit Aadhaar number.")
+        return value
 
     @field_validator("consent_notice_version")
     @classmethod
@@ -80,9 +88,13 @@ class VerificationStatusResponse(BaseModel):
 
 class InitiateVerificationResponse(BaseModel):
     id: str
-    status: Literal["pending"]
-    redirect_url: str | None = None
-    expires_at: datetime | None = None
+    status: Literal["verified", "failed"]
+    verified: bool
+    identity_verified: bool
+    email_verified: bool
+    provider: str
+    message: str | None = None
+    completed_at: datetime | None = None
 
 
 @router.get("/status", response_model=VerificationStatusResponse)
@@ -108,7 +120,6 @@ async def save_identity_details(
 
 @router.post(
     "/initiate",
-    status_code=202,
     response_model=InitiateVerificationResponse,
 )
 async def initiate_verification(
@@ -120,6 +131,7 @@ async def initiate_verification(
             account_id=account.id,
             consent=payload.consent,
             notice_version=payload.consent_notice_version,
+            aadhaar_number=payload.aadhaar_number,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
