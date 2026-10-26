@@ -1,6 +1,7 @@
 """Minimal, privacy-preserving identity-verification attempt metadata."""
 from datetime import datetime
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String, TIMESTAMP, Text, UniqueConstraint, func
+from sqlalchemy.dialects.mysql import BIGINT as MYSQL_BIGINT
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -18,7 +19,11 @@ class IdentityVerification(Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    account_id: Mapped[int | str] = mapped_column(
+        MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     provider: Mapped[str] = mapped_column(String(40), nullable=False, default="verifico")
     provider_reference: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
