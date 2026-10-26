@@ -4,6 +4,7 @@ import hmac
 import logging
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
+from urllib.parse import urlsplit
 import secrets
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -916,8 +917,20 @@ async def login(payload: LoginRequest, db: DbSession, response: Response) -> Aut
     )
 
 
+def _origin_is_allowed(request: Request) -> bool:
+    origin = request.headers.get("origin")
+    if not origin:
+        return True
+    expected = urlsplit(settings.FRONTEND_URL)
+    supplied = urlsplit(origin)
+    return bool(expected.scheme and expected.netloc and supplied.scheme == expected.scheme and supplied.netloc == expected.netloc)
+
+
 @router.post("/refresh", response_model=AuthResponse)
 async def refresh_session(request: Request, response: Response, db: DbSession) -> AuthResponse:
+    if not _origin_is_allowed(request):
+        _clear_refresh_cookie(response)
+        raise HTTPException(status_code=403, detail="Request origin is not allowed.")
     raw_token = request.cookies.get(REFRESH_COOKIE_NAME)
     if not raw_token or len(raw_token) > 200:
         _clear_refresh_cookie(response)
@@ -954,17 +967,41 @@ async def current_user(account: CurrentAccount, db: DbSession) -> AccountPublic:
 
 
 @router.post("/logout", response_model=MessageResponse)
-async def logout(account: CurrentAccount, db: DbSession, response: Response) -> MessageResponse:
+async def logout(request: Request, response: Response, db: DbSession) -> MessageResponse:
+    # Logout must still revoke the HttpOnly refresh session when the short-lived
+    # access token has expired; otherwise a reload could silently sign the user back in.
+    if not _origin_is_allowed(request):
+        _clear_refresh_cookie(response)
+        raise HTTPException(status_code=403, detail="Request origin is not allowed.")
     now = datetime.now(UTC).replace(tzinfo=None)
-    account.token_version += 1
-    sessions = await db.scalars(select(AuthSession).where(
-        AuthSession.account_id == account.id, AuthSession.revoked_at.is_(None)
-    ).with_for_update())
-    for session in sessions:
-        session.revoked_at = now
+    account = None
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        try:
+            claims = decode_token(authorization[7:].strip(), "access")
+            account = await db.scalar(select(Account).where(Account.id == claims["sub"]).with_for_update())
+            if account is not None and claims.get("ver", 0) != account.token_version:
+                account = None
+        except TokenError:
+            account = None
+
+    raw_token = request.cookies.get(REFRESH_COOKIE_NAME)
+    if account is not None:
+        account.token_version += 1
+        sessions = await db.scalars(select(AuthSession).where(
+            AuthSession.account_id == account.id, AuthSession.revoked_at.is_(None)
+        ).with_for_update())
+        for session in sessions:
+            session.revoked_at = now
+    elif raw_token:
+        session = await db.scalar(select(AuthSession).where(
+            AuthSession.refresh_token_hash == hash_token(raw_token)
+        ).with_for_update())
+        if session is not None and session.revoked_at is None:
+            session.revoked_at = now
     await db.commit()
     _clear_refresh_cookie(response)
-    return MessageResponse(message="Logged out. Active sessions for this account have been revoked.")
+    return MessageResponse(message="Logged out. This session has been revoked.")
 
 
 
