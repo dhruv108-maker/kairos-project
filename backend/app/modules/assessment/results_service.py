@@ -129,7 +129,8 @@ class OfficialResultService:
         total_weight = sum((criterion.weight for criterion in criteria), Decimal("0"))
         for criterion in criteria:
             average = sum(scores_by_criterion[criterion.id], Decimal("0")) / Decimal(len(assignments))
-            weighted += average * criterion.weight
+            normalized = ((average - criterion.minimum_score) / (criterion.maximum_score - criterion.minimum_score)) * Decimal("100")
+            weighted += normalized * criterion.weight
         raw = weighted / total_weight
         quantum = Decimal("1").scaleb(-int(config.get("rounding_places", 2)))
         score = raw.quantize(quantum, rounding=ROUND_HALF_UP)

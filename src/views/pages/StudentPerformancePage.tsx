@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Result = { id: string; report_submission_id: string; report_version_id: string; academic_year_id: string | null; semester_number: number | null; status: string; total_score: string; final_grade: string | null; published_at: string | null; grading_policy_id: string };
-const chartConfig = { score: { label: "Published score" } } satisfies ChartConfig;
+const chartConfig = { score: { label: "Published score", color: "var(--primary)" } } satisfies ChartConfig;
 
 export default function StudentPerformancePage() {
   const { account } = useAuth();
