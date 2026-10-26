@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: SecretStr
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    # Fixed absolute lifetime for a login session; refresh rotates credentials but never extends this deadline.
+    SESSION_LIFETIME_SECONDS: int = 604800
 
 
 @lru_cache(maxsize=1)
