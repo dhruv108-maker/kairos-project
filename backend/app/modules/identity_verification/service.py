@@ -1,7 +1,6 @@
 """Identity workflow: email verification remains separate in accounts.is_verified."""
 import asyncio
 from datetime import UTC, datetime
-from urllib.parse import urlsplit
 from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
