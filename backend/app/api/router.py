@@ -11,6 +11,7 @@ from app.modules.institutions.router import router as institutions_router
 from app.modules.institutions.invitation_router import admin_router as institution_invitation_router, accept_router as institution_invitation_accept_router
 from app.modules.reports.router import router as reports_router, requirement_router as report_requirement_router
 from app.modules.evaluations.router import router as evaluations_router
+from app.modules.curriculum.router import router as curriculum_router
 from app.modules.organizations.router import router as organizations_router
 from app.modules.storage.router import router as storage_router
 from app.modules.academics.admin_router import router as academic_admin_router
@@ -36,6 +37,7 @@ api_router.include_router(institution_invitation_accept_router)
 api_router.include_router(reports_router)
 api_router.include_router(report_requirement_router)
 api_router.include_router(evaluations_router)
+api_router.include_router(curriculum_router)
 api_router.include_router(organizations_router)
 api_router.include_router(storage_router)
 api_router.include_router(academic_admin_router)
