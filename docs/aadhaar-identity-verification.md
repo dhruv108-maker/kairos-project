@@ -1,52 +1,52 @@
-# Optional Aadhaar identity details and verification
+# Verifico Aadhaar OCR integration
 
-## Current behavior
+## What this integration does
 
-Aadhaar-related functionality is optional and does not alter registration, login, account eligibility, academic standing, role assignments, or the existing `accounts.is_verified` field. Authentication continues to use that existing field for its established account-verification purpose. Identity status is a separate claim derived from the latest canonical `identity_verifications` record; no record means `not_started` and `verified: false`.
+Kairos calls Verifico's Aadhaar document extraction endpoint from the backend. The authenticated student uploads a JPG, PNG, or PDF (maximum 10 MB) after explicit consent. Kairos forwards it to Verifico, returns a minimal allowlisted set of extracted fields to that same student, masks the Aadhaar number to its last four digits, and does not persist the upload or raw OCR response.
 
-The student profile allows the user to save an optional, user-declared name at `PUT /api/v1/identity-verification/details`. The current user's account ID is always taken from the authenticated token. The request requires explicit consent and a consent notice version; unknown fields are rejected. The declared name is not an authoritative identity claim and never changes verification status. The status endpoint returns only this name and the minimal verification metadata needed by the signed-in user.
+This is OCR only. It is not UIDAI Aadhaar authentication, OTP possession verification, or proof that the person presenting the document is its holder. OCR never sets accounts.identity_verified, creates a verified identity-verification attempt, or changes accounts.is_verified (email verification). Identity remains unverified until a separate authoritative verification workflow is implemented and completed.
 
-## Persisted data
+## Provider contract
 
-- `identity_details`: one row per account, with UUID-style row ID, account foreign key, optional `declared_name`, consent timestamp/version, and created/updated timestamps. The unique account constraint implements the one-details-record-per-account rule; account deletion cascades to this row.
-- Existing `identity_verifications`: existing attempt metadata, provider reference, state, consent metadata, and lifecycle timestamps remain the canonical verification history. Existing records are not rewritten by this migration.
-- No Aadhaar number, masked Aadhaar number, OTP, document image, OCR fields, raw provider payload, or plaintext/hash-based Aadhaar identifier is retained.
-- No account-level identity flag is added. The identity-verified state is derived from the canonical verification record, preventing drift between a duplicated account flag and attempt state.
+- Base URL: https://api.theverifico.com
+- Endpoint: POST /api/v1/documents/extract/aadhaar
+- Authentication: X-API-Key header
+- Upload: multipart/form-data field named file
+- Supported types in Kairos: image/jpeg, image/png, application/pdf
+- Maximum upload: 10 MB
+- API key remains server-side and is stored as a Pydantic SecretStr.
 
-For manual database administration, use [`backend/sql/manual_mysql_identity_details.sql`](../blob/release-v1/backend/sql/manual_mysql_identity_details.sql). It includes read-only pre-checks, an idempotent `CREATE TABLE IF NOT EXISTS` for the optional details table, validation queries, and a commented destructive rollback. It creates no account or verification backfill. No Alembic migration was created, edited, or applied as part of this manual-SQL finalisation. The repository still contains the earlier committed `20261026_37_optional_identity_details.py`; do not run both paths as a new schema change. The identity-verification migration has been aligned to the deployed `accounts.id BIGINT UNSIGNED` type; review the actual database schema before applying any migration to an existing installation.
+Reference: https://www.theverifico.com/blog/ocr-to-verification-workflow-for-indian-documents and https://www.theverifico.com/aadhaar-ocr-api. The provider's published docs distinguish Aadhaar OCR from identity verification and say Aadhaar identity verification is not offered as a product.
 
-## State and trust boundary
+## Environment
 
-Supported stored attempt statuses remain `pending`, `verified`, `failed`, `expired`, `cancelled`, and `review_required`; the API also returns `not_started` when no attempt exists. Only a trusted provider integration may write an authoritative result. User-entered details, client callbacks, OCR output, HTTP 200 responses, and client-supplied `verified` fields are not verification evidence. The API rejects unknown request fields and does not expose a client mutation for verification status.
+Set the key in the backend repository root .env.local or deployment secret manager, not in frontend environment variables:
 
-The configured server-side adapter targets Signzy's India Aadhaar verification endpoint (`POST /api/v3/aadhaar/verify`) using its customer login token. The request sends `aadhaarNumber` and explicit `consent: Y`; the Aadhaar number is not written to Kairos tables, result metadata, or UI notices. Only an explicit boolean decision in the provider's structured result is accepted; HTTP 200, generic API success, client callbacks, or OCR output alone cannot set the account identity flag. The adapter is disabled by default and uses the preproduction host unless a deployment owner configures otherwise. See the public API contract at https://apis.io/apis/signzy/signzy-identity-india-api/ and confirm the current contract directly with Signzy before production use.
+    verifico_api=YOUR_PRIVATE_VERIFICO_API_KEY
+    VERIFICO_BASE_URL=https://api.theverifico.com
 
-## Requirements before enabling live verification
+Kairos uses case-insensitive environment settings, so the existing lowercase verifico_api key is accepted as VERIFICO_API. Do not commit .env.local or paste the key into chat. If the key was ever committed or exposed, rotate it with Verifico.
 
-Before production, the institute must obtain Signzy's written confirmation that the subscribed Aadhaar product and intended use are legally permitted for Kairos, review data-processing/retention terms, and obtain production credentials. The basic `aadhaar/verify` API contract describes Aadhaar-number validation and masked demographic details; it does not document an Aadhaar OTP challenge. Do not describe this API as OTP-based proof that the account holder controls the Aadhaar. If Kairos requires UIDAI OTP authentication rather than number validation, obtain the provider's documented OTP product/API and implement its challenge/confirmation lifecycle instead of treating this endpoint as equivalent. UIDAI describes AUA/KUA eligibility and onboarding at https://uidai.gov.in/hi/authentication-requesting-agency; C-DAC lists an ASA/AUA/KUA service at https://www.cdac.in/index.aspx?id=service_details&serviceId=ASA-AUA(AadhaarServiceAgency-AuthenticationUserAgency). No live provider request has been made because private credentials and provider approval are not available in this repository.
+## API
 
+Authenticated request:
 
-## Regression coverage
+    POST /api/v1/identity-verification/ocr
+    Content-Type: multipart/form-data
+    file=<document>
+    consent=true
 
-The identity API tests cover authenticated status reads, consent-gated optional-name persistence, normalization, rejection of client-forged identity/verification fields, and unauthenticated mutation rejection. Provider-boundary tests cover the disabled-by-default Signzy adapter, consent gating, invalid Aadhaar input, provider success/failure decisions, and the invariant that a client-supplied success payload cannot be validated as an authoritative result.
+Response contains an allowlisted field projection, processing time, and identity_verified=false. Full Aadhaar numbers, raw provider payloads, base64 photos, and QR payloads are not returned or stored. Client-supplied identity result fields are not accepted as verification evidence.
 
-The repository's GitHub Actions regression workflow must pass on the final commit before this change should be considered verified. The migration has not been applied to a production database; upgrade/downgrade validation must run against the project's isolated database target.
+## Privacy and security
 
+- Explicit consent is required on each upload.
+- Only authenticated accounts can call the endpoint.
+- Provider calls use HTTPS and do not follow redirects.
+- Upload size and content type are validated; request memory is bounded.
+- The uploaded file and raw provider response are not written to Kairos storage or logs.
+- Extracted fields are returned to the requesting student only and are not persisted in the database.
+- Provider errors fail closed and never produce a verified state.
+- The frontend clears the selected file after each attempt and never sees the API key.
 
-## Separate email and identity verification states
-
-- `accounts.is_verified` remains the email-verification flag used by login/authentication.
-- `accounts.identity_verified` is a separate, non-null, default-false summary for authoritative identity verification.
-- `identity_verifications` remains the canonical lifecycle record. A summary flag is true only after the backend validates an authoritative provider result and atomically updates both records.
-- The status API returns explicit `email_verified`, `identity_verified`, and `identity_verification_status` fields. The legacy `verified` status field remains an identity-only compatibility alias; `accounts.is_verified` is not reinterpreted.
-- The Signzy adapter is disabled until an administrator configures credentials and explicitly enables it. Number validation is not OTP-based proof of holder possession; production use requires provider contract confirmation and a clear product/legal decision.
-- A legacy lifecycle row marked `verified` without the dedicated account summary is exposed as `review_required`; it is not automatically trusted or backfilled.
-
-### Manual rollout
-
-1. Review and manually execute `backend/sql/manual_mysql_identity_verification.sql` against the intended database after checking the engine/version and existing column definition.
-2. Verify the column is `BOOLEAN/TINYINT(1) NOT NULL DEFAULT 0`, and that existing `is_verified` values are unchanged.
-3. Deploy the backend model/API changes only after the SQL is complete. Deploy the frontend with the backend.
-4. Run the backend regression suite and frontend build/tests. Do not apply an Alembic migration for this column.
-
-The SQL file has not been executed against production. A future provider integration must authenticate its callback and validate an authoritative result before calling the backend service helper. No client-facing endpoint may accept a `verified=true` flag.
+Before production, review Verifico's data-processing terms, retention policy, contractual authorization and the institution's lawful basis for processing Aadhaar-related data. Do not call OCR output “verified”.

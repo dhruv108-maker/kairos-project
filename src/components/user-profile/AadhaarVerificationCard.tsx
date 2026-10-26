@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Clock3, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock3, RefreshCw, ShieldCheck, UploadCloud } from "lucide-react";
 
 import { apiRequest, ApiError } from "@/api/kairos-client";
 import { useAuth } from "@/context/auth/AuthContext";
@@ -13,12 +13,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 type VerificationStatus = {
   id?: string | null;
   status: "not_started" | "pending" | "verified" | "failed" | "expired" | "cancelled" | "review_required";
-  /** Legacy identity-only alias; use identity_verified for UI decisions. */
   verified?: boolean;
   email_verified: boolean;
   identity_verified: boolean;
   identity_verification_status: VerificationStatus["status"];
   available: boolean;
+  ocr_available: boolean;
   provider: string;
   created_at?: string | null;
   updated_at?: string | null;
@@ -27,6 +27,15 @@ type VerificationStatus = {
   error_category?: string | null;
   message?: string | null;
   declared_name?: string | null;
+};
+
+type AadhaarOcrResult = {
+  success: boolean;
+  document_type: string;
+  fields: Record<string, string | null>;
+  processing_time_ms?: number | null;
+  identity_verified: false;
+  message: string;
 };
 
 function displayDate(value?: string | null) {
@@ -42,11 +51,12 @@ export default function AadhaarVerificationCard() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [declaredName, setDeclaredName] = useState("");
-  const [aadhaarNumber, setAadhaarNumber] = useState("");
   const [detailsConsent, setDetailsConsent] = useState(false);
-  const [verificationConsent, setVerificationConsent] = useState(false);
+  const [ocrConsent, setOcrConsent] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
-  const [starting, setStarting] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [document, setDocument] = useState<File | null>(null);
+  const [ocrResult, setOcrResult] = useState<AadhaarOcrResult | null>(null);
   const [notice, setNotice] = useState("");
 
   const refresh = useCallback(async (manual = false) => {
@@ -63,8 +73,8 @@ export default function AadhaarVerificationCard() {
     } catch (cause) {
       setError(
         cause instanceof ApiError && cause.status === 401
-          ? "Your session has expired. Sign in again to check verification status."
-          : "We couldn't retrieve your verification status. Check your connection and try again.",
+          ? "Your session has expired. Sign in again to check status."
+          : "We couldn't retrieve your identity status. Check your connection and try again.",
       );
     } finally {
       setLoading(false);
@@ -73,11 +83,8 @@ export default function AadhaarVerificationCard() {
   }, []);
 
   useEffect(() => {
-    if (account?.roles.some((role) => role.toUpperCase() === "STUDENT")) {
-      void refresh();
-    } else {
-      setLoading(false);
-    }
+    if (account?.roles.some((role) => role.toUpperCase() === "STUDENT")) void refresh();
+    else setLoading(false);
   }, [account, refresh]);
 
   if (!account?.roles.some((role) => role.toUpperCase() === "STUDENT")) return null;
@@ -107,30 +114,29 @@ export default function AadhaarVerificationCard() {
     }
   };
 
-  const startVerification = async () => {
-    setStarting(true);
+  const extractDocument = async () => {
+    if (!document) return;
+    setExtracting(true);
     setError("");
     setNotice("");
+    setOcrResult(null);
     try {
-      const result = await apiRequest<{ status: "verified" | "failed"; verified: boolean; message?: string | null }>("/identity-verification/initiate", {
+      const body = new FormData();
+      body.append("file", document);
+      body.append("consent", "true");
+      const result = await apiRequest<AadhaarOcrResult>("/identity-verification/ocr", {
         method: "POST",
-        body: JSON.stringify({
-          aadhaar_number: aadhaarNumber,
-          consent: verificationConsent,
-          consent_notice_version: "aadhaar-online-v1",
-        }),
+        body,
       });
-      await refresh(true);
-      setNotice(result.verified ? "The provider validated the Aadhaar details. Kairos has saved the provider-confirmed result." : "The provider could not verify these details. No verified status was recorded.");
+      setOcrResult(result);
+      setNotice("OCR extraction completed. Your Kairos identity status remains unverified.");
     } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 503) {
-        setNotice("Online Aadhaar verification is not configured or the provider is temporarily unavailable. No verified status was recorded.");
-      } else {
-        setError(cause instanceof Error ? cause.message : "We couldn't start verification.");
-      }
+      setError(cause instanceof Error ? cause.message : "We couldn't extract document details.");
     } finally {
-      setAadhaarNumber("");
-      setStarting(false);
+      setDocument(null);
+      const picker = window.document.getElementById("aadhaar-ocr-file") as HTMLInputElement | null;
+      if (picker) picker.value = "";
+      setExtracting(false);
     }
   };
 
@@ -143,16 +149,12 @@ export default function AadhaarVerificationCard() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle id="aadhaar-verification-title">Online Aadhaar verification</CardTitle>
+              <CardTitle id="aadhaar-verification-title">Aadhaar document OCR</CardTitle>
               {verified && <Badge>Verified</Badge>}
-              {!loading && status && !verified && (
-                <Badge variant="outline">
-                  {status.status === "not_started" ? "Not started" : status.status.replace(/_/g, " ")}
-                </Badge>
-              )}
+              {!loading && status && !verified && <Badge variant="outline">{status.status === "not_started" ? "Unverified" : status.status.replace(/_/g, " ")}</Badge>}
             </div>
             <CardDescription className="mt-1">
-              Optional identity step. You can skip it and continue using Kairos normally.
+              Extract document details with Verifico. This optional step does not verify your identity.
             </CardDescription>
           </div>
         </div>
@@ -162,7 +164,7 @@ export default function AadhaarVerificationCard() {
           <div className="space-y-1">
             <Label htmlFor="identity-declared-name">Name for identity workflow (optional)</Label>
             <Input id="identity-declared-name" value={declaredName} maxLength={200} autoComplete="name" onChange={(event) => setDeclaredName(event.target.value)} placeholder="Enter a name only if you want to" />
-            <p className="text-xs text-muted-foreground">This is user-provided, not a verified claim. No Aadhaar number, OTP, or document is collected here.</p>
+            <p className="text-xs text-muted-foreground">This name is user-provided, not a verified claim.</p>
           </div>
           <div className="flex items-start gap-2">
             <Checkbox id="identity-details-consent" checked={detailsConsent} onCheckedChange={(checked) => setDetailsConsent(checked === true)} />
@@ -170,88 +172,67 @@ export default function AadhaarVerificationCard() {
           </div>
           <Button type="button" variant="outline" onClick={() => void saveDetails()} disabled={savingDetails || !detailsConsent}>{savingDetails ? "Saving…" : "Save optional details"}</Button>
         </div>
+
         {loading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-            <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
-            Checking your verification status…
-          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status"><RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />Checking identity status…</div>
         ) : error ? (
-          <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{error}</span>
-          </div>
+          <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><span>{error}</span></div>
         ) : verified ? (
           <div className="flex items-start gap-2 rounded-lg border border-emerald-700/20 bg-emerald-50/70 p-3 text-sm text-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-100" role="status">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <div>
-              <p className="font-medium">Your identity verification is recorded as complete.</p>
-              {completedAt && <p className="mt-1">Completed {completedAt}</p>}
-            </div>
+            <div><p className="font-medium">Your identity verification is recorded as complete.</p>{completedAt && <p className="mt-1">Completed {completedAt}</p>}</div>
           </div>
         ) : (
           <div className="flex items-start gap-2 rounded-lg border p-3 text-sm" role="status">
             <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <div className="space-y-2">
-              <p className="font-medium">Verification is temporarily unavailable.</p>
-              <p className="text-muted-foreground">
-                Online verification is handled server-side by Signzy when the provider account is configured and enabled. Kairos never treats document OCR or a client-supplied result as verification.
-              </p>
-              {!status?.available && (
-                <p className="text-muted-foreground">
-                  The provider integration is not enabled for this deployment yet. Ask the Kairos administrator to configure the provider credentials and enable the integration.
-                </p>
-              )}
-              <p className="text-muted-foreground">
-                Your Aadhaar number is sent to the configured verification provider for this request and is not saved in Kairos. You can skip this optional workflow.
-              </p>
+            <div className="space-y-1">
+              <p className="font-medium">Identity status: unverified</p>
+              <p className="text-muted-foreground">Verifico extracts text from the uploaded document. OCR output alone is not proof of identity and never changes your Kairos verification status.</p>
+              {!status?.ocr_available && <p className="text-muted-foreground">Verifico OCR is not configured or is temporarily unavailable. Configure the private verifico_api key on the backend.</p>}
             </div>
           </div>
         )}
-        {status?.status === "pending" && !verified && (
-          <p className="text-sm text-muted-foreground">A verification attempt is pending. Refresh the status before taking further action.</p>
-        )}
-        {status?.status === "expired" && (
-          <p className="text-sm text-muted-foreground">The previous attempt expired. A new attempt cannot be started until an approved provider workflow is configured.</p>
-        )}
-        {status?.status === "failed" || status?.status === "cancelled" || status?.status === "review_required" ? (
-          <p className="text-sm text-muted-foreground">The previous attempt needs attention. Kairos cannot restart or resolve it until a supported provider workflow is available.</p>
-        ) : null}
-        {notice && <p role="status" className="rounded-md border p-3 text-sm">{notice}</p>}
+
         <div className="space-y-3 border-t pt-4">
           <div className="space-y-1">
-            <Label htmlFor="aadhaar-online-number">Aadhaar number</Label>
+            <Label htmlFor="aadhaar-ocr-file">Aadhaar document (JPG, PNG, or PDF; up to 10 MB)</Label>
             <Input
-              id="aadhaar-online-number"
-              type="password"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={12}
-              value={aadhaarNumber}
-              onChange={(event) => setAadhaarNumber(event.target.value.replace(/\D/g, "").slice(0, 12))}
-              placeholder="Enter 12-digit Aadhaar number"
-              aria-describedby="aadhaar-online-number-help"
+              id="aadhaar-ocr-file"
+              type="file"
+              accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf"
+              onChange={(event) => { setDocument(event.target.files?.[0] ?? null); setOcrResult(null); }}
             />
-            <p id="aadhaar-online-number-help" className="text-xs leading-5 text-muted-foreground">
-              Used only for this provider request and not saved by Kairos. This number-validation endpoint is not an OTP challenge proving control of the Aadhaar-linked mobile.
-            </p>
+            <p className="text-xs leading-5 text-muted-foreground">Your document is sent to Verifico for this request only. Kairos does not save the file or raw OCR response. Avoid uploading a document unless you consent to this processing.</p>
           </div>
           <div className="flex items-start gap-2">
-            <Checkbox id="identity-verification-consent" checked={verificationConsent} onCheckedChange={(checked) => setVerificationConsent(checked === true)} />
-            <Label htmlFor="identity-verification-consent" className="text-sm leading-5 font-normal">I explicitly consent to sending my Aadhaar number to Signzy for Aadhaar-number validation, subject to applicable provider privacy and retention terms.</Label>
+            <Checkbox id="identity-ocr-consent" checked={ocrConsent} onCheckedChange={(checked) => setOcrConsent(checked === true)} />
+            <Label htmlFor="identity-ocr-consent" className="text-sm leading-5 font-normal">I consent to sending this Aadhaar document to Verifico for OCR extraction. I understand this does not verify my identity.</Label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="max-w-xl text-xs leading-5 text-muted-foreground">
-            Status is retrieved from the authenticated Kairos API. This page never sets a verification result locally.
-          </p>
-          <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={() => void startVerification()} disabled={!verificationConsent || starting || !/^\d{12}$/.test(aadhaarNumber)}>{starting ? "Verifying securely…" : "Verify Aadhaar online"}</Button>
-          <Button type="button" variant="outline" onClick={() => void refresh(true)} disabled={loading || refreshing}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
-            {refreshing ? "Refreshing…" : "Refresh status"}
-          </Button>
-          </div>
+            <p className="max-w-xl text-xs leading-5 text-muted-foreground">Extracted fields are shown only for this session and are not saved to Kairos.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={() => void extractDocument()} disabled={!document || !ocrConsent || extracting || document.size > 10 * 1024 * 1024}>
+                <UploadCloud className="mr-2 h-4 w-4" aria-hidden="true" />{extracting ? "Extracting…" : "Extract document details"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => void refresh(true)} disabled={loading || refreshing}><RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />{refreshing ? "Refreshing…" : "Refresh status"}</Button>
+            </div>
           </div>
         </div>
+
+        {ocrResult && (
+          <section className="space-y-3 rounded-lg border p-4" aria-label="Extracted Aadhaar details">
+            <div><h3 className="font-medium">Extracted fields</h3><p className="text-sm text-muted-foreground">Not verified. Confirm any details manually before using them.</p></div>
+            <dl className="grid gap-3 sm:grid-cols-2">
+              {Object.entries(ocrResult.fields).filter(([key, value]) => value && key !== "aadhaar_last4").map(([key, value]) => (
+                <div key={key} className="min-w-0"><dt className="text-xs text-muted-foreground">{key.replace(/_/g, " ")}</dt><dd className="break-words text-sm">{value}</dd></div>
+              ))}
+              {ocrResult.fields.aadhaar_last4 && <div><dt className="text-xs text-muted-foreground">Aadhaar ending</dt><dd className="text-sm">•••• •••• {ocrResult.fields.aadhaar_last4}</dd></div>}
+            </dl>
+            <p className="text-xs text-muted-foreground">{ocrResult.message}{ocrResult.processing_time_ms != null ? ` Processing time: ${ocrResult.processing_time_ms} ms.` : ""}</p>
+          </section>
+        )}
+
+        {notice && <p role="status" className="rounded-md border p-3 text-sm">{notice}</p>}
       </CardContent>
     </Card>
   );
