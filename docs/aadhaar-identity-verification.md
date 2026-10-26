@@ -13,7 +13,7 @@ The student profile allows the user to save an optional, user-declared name at `
 - No Aadhaar number, masked Aadhaar number, OTP, document image, OCR fields, raw provider payload, or plaintext/hash-based Aadhaar identifier is retained.
 - No account-level identity flag is added. The identity-verified state is derived from the canonical verification record, preventing drift between a duplicated account flag and attempt state.
 
-The additive Alembic migration `20261026_37_optional_identity_details` follows revision `20261026_36`; it does not change or backfill prior verification attempts. Downgrade drops only the newly introduced optional details table.
+For manual database administration, use [`backend/sql/manual_mysql_identity_details.sql`](../blob/release-v1/backend/sql/manual_mysql_identity_details.sql). It includes read-only pre-checks, an idempotent `CREATE TABLE IF NOT EXISTS` for the optional details table, validation queries, and a commented destructive rollback. It creates no account or verification backfill. No Alembic migration was created, edited, or applied as part of this manual-SQL finalisation. The repository still contains the earlier committed `20261026_37_optional_identity_details.py`; do not run both paths as a new schema change. Review actual database schema first, because the checked-in identity-verification migration uses a `VARCHAR(36)` account key while the Account model declares `BIGINT UNSIGNED`; the SQL file flags this mismatch for DBA review rather than guessing an ALTER.
 
 ## State and trust boundary
 
