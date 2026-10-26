@@ -131,7 +131,6 @@ export async function apiRequest<T>(
 
   const requestUrl = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   let response = await fetch(requestUrl, { ...init, headers, credentials: "include" });
-  const isSessionEndpoint = /\/auth\/(login|refresh|logout)(?:$|\?)/.test(path);
   if (response.status === 401 && !isSessionEndpoint) {
     const renewed = await refreshSession();
     if (renewed) {
