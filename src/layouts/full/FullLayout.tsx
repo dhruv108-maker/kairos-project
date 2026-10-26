@@ -20,8 +20,9 @@ const FullLayout: FC<FullLayoutProps> = ({ allowAnonymous = false }) => {
   }
   if (!account && !allowAnonymous) return <Navigate to="/auth/auth2/login" replace />;
 
-  const isStudent = account?.roles.some((role) => role.toUpperCase() === "STUDENT") ?? false;
-  const showAadhaarBanner = Boolean(account && !allowAnonymous && isStudent);
+  const showAadhaarBanner = Boolean(
+    account && !allowAnonymous && account.roles.some((role) => role.toUpperCase() === "STUDENT"),
+  );
 
   return (
     <SidebarProvider defaultOpen={true} style={{ "--sidebar-width-icon": "52px" } as React.CSSProperties}>
