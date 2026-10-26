@@ -141,7 +141,7 @@ async def initiate_verification(
             status_code=503,
             detail={
                 "code": "identity_verification_unavailable",
-                "message": "Aadhaar identity verification is not currently supported by the configured provider.",
+                "message": "Aadhaar verification is not configured or the provider is temporarily unavailable.",
             },
             headers={"Retry-After": "3600"},
         ) from None
