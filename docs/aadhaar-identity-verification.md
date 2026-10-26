@@ -24,3 +24,10 @@ TheVerifico's currently documented Aadhaar capability is OCR/extraction, not aut
 ## Requirements before enabling live verification
 
 Select a provider with an approved, documented Aadhaar authentication flow and contract; confirm legal basis, user-facing consent notice, data-processing/retention terms, and required authorizations. Then implement and test authenticated provider callbacks or server-to-server status retrieval, replay protection, idempotent transaction updates, and an audited atomic transition to `verified` only after the provider's authoritative success semantics are validated. Do not wire the OCR endpoint into this path. No live provider requests or production migration were run for this change.
+
+
+## Regression coverage
+
+The identity API tests cover authenticated status reads, consent-gated optional-name persistence, normalization, rejection of client-forged identity/verification fields, and unauthenticated mutation rejection. Provider-boundary tests cover the disabled OCR-only adapter, consent gating, malformed provider metadata, unsafe redirects, timeout handling, and the invariant that a client-supplied success payload cannot be validated as an authoritative result.
+
+The repository's GitHub Actions regression workflow must pass on the final commit before this change should be considered verified. The migration has not been applied to a production database; upgrade/downgrade validation must run against the project's isolated database target.
