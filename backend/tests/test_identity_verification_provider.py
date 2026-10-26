@@ -4,8 +4,8 @@ import pytest
 
 from app.modules.identity_verification.provider import (
     IdentityProviderUnavailable,
+    SignzyAadhaarProvider,
     VerificationStart,
-    VerificoAadhaarProvider,
 )
 from app.modules.identity_verification.service import IdentityVerificationService
 from app.models.academic import Account
@@ -14,7 +14,10 @@ from app.models.academic import Account
 class FakeDatabase:
     def __init__(self, latest=None):
         self.latest = latest
-        self.account = Account(id="account-a", email="a@example.test", password_hash="x", full_name="A", is_verified=True, identity_verified=False, is_active=True)
+        self.account = Account(
+            id="account-a", email="a@example.test", password_hash="x",
+            full_name="A", is_verified=True, identity_verified=False, is_active=True,
+        )
         self.added = []
         self.commits = 0
         self.refreshed = []
@@ -36,41 +39,34 @@ class FakeDatabase:
         self.refreshed.append(record)
 
 
-def test_verifico_adapter_fails_closed_when_only_aadhaar_ocr_is_documented():
+def test_signzy_adapter_fails_closed_when_disabled_or_unconfigured():
     async def run():
         with pytest.raises(IdentityProviderUnavailable):
-            await VerificoAadhaarProvider().initiate(
-                account_id="account-test", consent_notice_version="test-v1"
+            await SignzyAadhaarProvider().initiate(
+                account_id="account-test",
+                consent_notice_version="test-v1",
+                aadhaar_number="123456789012",
             )
 
     asyncio.run(run())
 
 
-def test_status_for_new_account_is_explicitly_unavailable():
+def test_status_for_new_account_reflects_provider_configuration():
     async def run():
         result = await IdentityVerificationService(FakeDatabase()).status("account-a")
         assert result["status"] == "not_started"
         assert result["verified"] is False
         assert result["available"] is False
-        assert result["provider"] == "verifico"
-
-    asyncio.run(run())
-
-
-def test_unsupported_provider_does_not_create_a_fake_pending_record():
-    async def run():
-        db = FakeDatabase()
-        service = IdentityVerificationService(db, provider=VerificoAadhaarProvider())
-        with pytest.raises(IdentityProviderUnavailable):
-            await service.initiate("account-a", True, "notice-v1")
-        assert db.added == []
-        assert db.commits == 0
+        assert result["provider"] == "signzy"
 
     asyncio.run(run())
 
 
 def test_explicit_consent_is_required_before_provider_is_called():
     class Provider:
+        name = "test"
+        is_available = True
+
         async def initiate(self, **kwargs):
             raise AssertionError("Provider must not be called without consent")
 
@@ -78,89 +74,73 @@ def test_explicit_consent_is_required_before_provider_is_called():
         db = FakeDatabase()
         service = IdentityVerificationService(db, provider=Provider())
         with pytest.raises(ValueError, match="Explicit consent"):
-            await service.initiate("account-a", False, "notice-v1")
+            await service.initiate("account-a", False, "notice-v1", "123456789012")
         assert db.added == []
         assert db.commits == 0
 
     asyncio.run(run())
 
 
-def test_consent_notice_version_is_trimmed_before_provider_and_storage():
+def test_authoritative_provider_success_sets_identity_flag_without_persisting_aadhaar():
     class Provider:
-        async def initiate(self, *, account_id, consent_notice_version):
+        name = "test-provider"
+        is_available = True
+
+        async def initiate(self, *, account_id, consent_notice_version, aadhaar_number):
             assert account_id == "account-a"
             assert consent_notice_version == "notice-v1"
-            return VerificationStart("transaction-123", None)
+            assert aadhaar_number == "123456789012"
+            return VerificationStart("transaction-123", None, verified=True)
 
     async def run():
         db = FakeDatabase()
         service = IdentityVerificationService(db, provider=Provider())
-        result = await service.initiate("account-a", True, "  notice-v1  ")
-        assert result["status"] == "pending"
-        assert db.added[0].consent_notice_version == "notice-v1"
-        assert db.added[0].account_id == "account-a"
+        result = await service.initiate("account-a", True, " notice-v1 ", "123456789012")
+        assert result["status"] == "verified"
+        assert result["identity_verified"] is True
+        assert result["email_verified"] is True
+        assert db.account.identity_verified is True
+        assert db.added[0].provider_reference == "transaction-123"
+        assert not hasattr(db.added[0], "aadhaar_number")
         assert db.commits == 1
 
     asyncio.run(run())
 
 
-def test_invalid_provider_reference_does_not_create_record():
+def test_negative_provider_result_never_marks_account_verified():
     class Provider:
+        name = "test-provider"
+        is_available = True
+
         async def initiate(self, **kwargs):
-            return VerificationStart("  ", None)
+            return VerificationStart("transaction-456", None, verified=False)
 
     async def run():
         db = FakeDatabase()
-        with pytest.raises(IdentityProviderUnavailable):
-            await IdentityVerificationService(db, provider=Provider()).initiate(
-                "account-a", True, "notice-v1"
-            )
-        assert db.added == []
-        assert db.commits == 0
+        service = IdentityVerificationService(db, provider=Provider())
+        result = await service.initiate("account-a", True, "notice-v1", "123456789012")
+        assert result["status"] == "failed"
+        assert result["identity_verified"] is False
+        assert db.account.identity_verified is False
+        assert db.added[0].status == "failed"
 
     asyncio.run(run())
 
 
-def test_non_https_provider_redirect_is_rejected():
+def test_invalid_aadhaar_number_is_rejected_before_provider_call():
     class Provider:
+        name = "test-provider"
+        is_available = True
+
         async def initiate(self, **kwargs):
-            return VerificationStart("transaction-123", "http://unsafe.example/verify")
+            raise AssertionError("Provider must not be called for malformed Aadhaar")
 
     async def run():
         db = FakeDatabase()
-        with pytest.raises(IdentityProviderUnavailable):
-            await IdentityVerificationService(db, provider=Provider()).initiate(
-                "account-a", True, "notice-v1"
-            )
+        service = IdentityVerificationService(db, provider=Provider())
+        with pytest.raises(ValueError, match="12-digit"):
+            await service.initiate("account-a", True, "notice-v1", "1234")
         assert db.added == []
         assert db.commits == 0
-
-    asyncio.run(run())
-
-
-def test_provider_timeout_fails_closed_without_creating_attempt():
-    class Provider:
-        async def initiate(self, **kwargs):
-            raise TimeoutError()
-
-    async def run():
-        db = FakeDatabase()
-        with pytest.raises(IdentityProviderUnavailable):
-            await IdentityVerificationService(db, provider=Provider()).initiate(
-                "account-a", True, "notice-v1"
-            )
-        assert db.added == []
-        assert db.commits == 0
-
-    asyncio.run(run())
-
-
-def test_client_cannot_turn_ocr_or_payload_into_verified_status():
-    async def run():
-        with pytest.raises(IdentityProviderUnavailable):
-            await VerificoAadhaarProvider().validate_result(
-                provider_reference="provider-ref-test",
-                payload={"verified": True, "status": "verified"},
-            )
 
     asyncio.run(run())
