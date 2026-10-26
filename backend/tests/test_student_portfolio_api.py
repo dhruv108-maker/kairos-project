@@ -42,9 +42,9 @@ async def portfolio_api():
                          full_name="Student Two", phone_number=None, is_active=True, is_verified=True)
         session.add_all([cohort, role, first, second])
         await session.commit()
-        first_profile = StudentProfile(id="student-1", student_id=1001, account_id=first.id, enrollment_number="ENR-1",
+        first_profile = StudentProfile(id=1, student_id=1001, account_id=first.id, enrollment_number="ENR-1",
                                        cohort_id=cohort.id, current_semester=1)
-        second_profile = StudentProfile(id="student-2", student_id=1002, account_id=second.id, enrollment_number="ENR-2",
+        second_profile = StudentProfile(id=2, student_id=1002, account_id=second.id, enrollment_number="ENR-2",
                                         cohort_id=cohort.id, current_semester=1)
         session.add_all([first_profile, second_profile,
                          AccountRole(account_id=first.id, role_id=role.id),

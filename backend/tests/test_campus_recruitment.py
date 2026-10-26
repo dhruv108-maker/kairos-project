@@ -59,8 +59,8 @@ async def campus_session():
         ])
         await session.flush()
         session.add_all([
-            StudentProfile(id="student-profile", student_id=1001, account_id="student", enrollment_number="S-001", cohort_id="cohort-one", current_semester=7),
-            StudentProfile(id="outsider-profile", student_id=1002, account_id="outsider", enrollment_number="S-002", cohort_id="cohort-two", current_semester=7),
+            StudentProfile(id=1, student_id=1001, account_id="student", enrollment_number="S-001", cohort_id="cohort-one", current_semester=7),
+            StudentProfile(id=2, student_id=1002, account_id="outsider", enrollment_number="S-002", cohort_id="cohort-two", current_semester=7),
             InternshipProvider(id="provider", company_name="Company", employer_organization_id="company"),
         ])
         await session.flush()

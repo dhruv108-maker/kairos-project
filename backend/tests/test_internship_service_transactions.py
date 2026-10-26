@@ -31,7 +31,7 @@ async def internship_service_session():
                         name="Batch", graduation_year=2029)
         account = Account(id="account", email="student@example.test", password_hash="unused",
                           full_name="Student", is_active=True, is_verified=True)
-        student = StudentProfile(id="student", student_id=1001, account_id=account.id, enrollment_number="ENR-1",
+        student = StudentProfile(id=1, student_id=1001, account_id=account.id, enrollment_number="ENR-1",
                                  cohort_id=cohort.id, current_semester=1)
         provider = InternshipProvider(id="provider", company_name="Example Co")
         opportunity = InternshipOpportunity(
