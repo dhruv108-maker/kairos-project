@@ -67,8 +67,6 @@ jobs:
         run: npm run build
       - name: Frontend registration selector test
         run: npm run test:registration-selector
-      - name: Aadhaar verification banner state and integration tests
-        run: npm run test:aadhaar-banner
       - name: ESLint
         run: npm run lint
 

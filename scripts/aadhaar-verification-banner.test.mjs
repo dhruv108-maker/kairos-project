@@ -42,5 +42,5 @@ test("banner uses authenticated API status and the existing profile route", asyn
   assert.match(component, /to="\/student\/profile"/);
   assert.match(component, /catch\(\(\) =>/);
   assert.match(layout, /AadhaarVerificationBanner/);
-  assert.match(layout, /account\?\.roles\.some/);
+  assert.match(layout, /account && !allowAnonymous && account\.roles\.some/);
 });
