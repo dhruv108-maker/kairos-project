@@ -1,5 +1,5 @@
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 
 from app.api import auth
 from app.api.schemas import LoginRequest
@@ -7,6 +7,9 @@ from app.models.academic import Account
 
 
 class FakeSession:
+    def add(self, record) -> None:
+        self.added = record
+
     async def commit(self) -> None:
         return None
 
@@ -44,7 +47,7 @@ async def test_login_looks_up_normalized_email_and_returns_frontend_contract(mon
     monkeypatch.setattr(auth, "account_roles", roles_for_account)
     response = await auth.login(
         LoginRequest(email=" STUDENT@Example.test ", password="correct-password"),
-        FakeSession(),
+        FakeSession(), Response(),
     )
 
     assert service.requested_email == "student@example.test"
