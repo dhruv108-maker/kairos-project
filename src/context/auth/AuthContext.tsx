@@ -3,6 +3,8 @@ import {
   clearAccessToken,
   getAccessToken,
   getCurrentAccount,
+  refreshSession,
+  subscribeToSessionLogout,
   signIn,
   signOut,
   type KairosAccount,
@@ -23,24 +25,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    if (!getAccessToken()) {
-      setIsLoading(false);
-      return () => { active = false; };
-    }
-
-    getCurrentAccount()
-      .then((currentAccount) => {
+    const restore = async () => {
+      try {
+        // The HttpOnly refresh cookie survives reloads; recover an access token
+        // when sessionStorage is empty or the previous access token has expired.
+        if (!getAccessToken()) await refreshSession();
+        if (!getAccessToken()) return;
+        const currentAccount = await getCurrentAccount();
         if (active) setAccount(currentAccount);
-      })
-      .catch(() => {
+      } catch {
         clearAccessToken();
         if (active) setAccount(null);
-      })
-      .finally(() => {
+      } finally {
         if (active) setIsLoading(false);
-      });
-
-    return () => { active = false; };
+      }
+    };
+    void restore();
+    const unsubscribe = subscribeToSessionLogout(() => {
+      if (active) setAccount(null);
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
