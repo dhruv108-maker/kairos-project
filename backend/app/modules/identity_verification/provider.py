@@ -101,7 +101,7 @@ class SignzyAadhaarProvider:
                 if response.status_code in (401, 403):
                     raise IdentityProviderUnavailable("Signzy rejected the configured credentials.")
                 if response.status_code == 422:
-                    raise ValueError("The Aadhaar verification provider rejected the submitted details.")
+                    raise IdentityProviderUnavailable("The provider rejected the Aadhaar verification request.")
                 if response.status_code >= 500:
                     raise IdentityProviderUnavailable("Signzy Aadhaar verification is temporarily unavailable.")
                 if response.status_code != 200:
