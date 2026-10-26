@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from app.api.dependencies import CurrentAccount, DbSession
 from app.modules.identity_verification.provider import IdentityProviderUnavailable
@@ -45,14 +45,15 @@ class SaveIdentityDetailsResponse(BaseModel):
 
 class InitiateVerificationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    aadhaar_number: str = Field(min_length=12, max_length=12, repr=False)
+    aadhaar_number: SecretStr = Field(repr=False)
     consent: bool
     consent_notice_version: str = Field(min_length=1, max_length=40)
 
     @field_validator("aadhaar_number")
     @classmethod
-    def validate_aadhaar_number(cls, value: str) -> str:
-        if not value.isascii() or not value.isdigit():
+    def validate_aadhaar_number(cls, value: SecretStr) -> SecretStr:
+        raw = value.get_secret_value()
+        if len(raw) != 12 or not raw.isascii() or not raw.isdigit():
             raise ValueError("Enter a valid 12-digit Aadhaar number.")
         return value
 
@@ -131,7 +132,7 @@ async def initiate_verification(
             account_id=account.id,
             consent=payload.consent,
             notice_version=payload.consent_notice_version,
-            aadhaar_number=payload.aadhaar_number,
+            aadhaar_number=payload.aadhaar_number.get_secret_value(),
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
