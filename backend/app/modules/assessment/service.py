@@ -9,7 +9,7 @@ from app.models.evaluation import ReportSubmission, ReportVersion
 from app.models.internship import InternshipPlacement
 from app.models.institutions import InstitutionMembership
 from app.models.curriculum import CurriculumMappingVersion
-from app.models.assessment import AssessmentRubric, AssessmentRubricCriterion, BlindAssessmentAssignment, BlindAssessmentScore
+from app.models.assessment import AssessmentRubric, AssessmentRubricCriterion, BlindAssessmentAssignment, BlindAssessmentScore, BlindAssessmentScoreRevision
 from app.modules.institutions.service import InstitutionService
 from app.modules.audit.service import AuditService
 
@@ -139,6 +139,54 @@ class BlindAssessmentService:
                 "scores": [{"criterion_id": s.criterion_id, "score": str(s.score), "feedback": s.feedback} for s in scores]})
         return result
 
+
+    async def _assignment_institution(self, assignment: BlindAssessmentAssignment):
+        version = await self.db.get(ReportVersion, assignment.report_version_id)
+        submission = await self.db.get(ReportSubmission, version.submission_id) if version else None
+        placement = await self.db.get(InternshipPlacement, submission.placement_id) if submission else None
+        student = await self.db.get(StudentProfile, placement.student_id) if placement else None
+        if student is None:
+            raise BlindAssessmentError(404, "Assessment assignment not found")
+        institution_id = await self._institution_for_student(student)
+        if institution_id is None:
+            raise BlindAssessmentError(409, "Student institution could not be established")
+        return institution_id
+
+    async def reopen(self, assignment_id: str, actor_id: str):
+        assignment = await self.db.get(BlindAssessmentAssignment, assignment_id)
+        if assignment is None:
+            raise BlindAssessmentError(404, "Assessment assignment not found")
+        institution_id = await self._assignment_institution(assignment)
+        await InstitutionService(self.db).require_admin(institution_id, actor_id)
+        if assignment.status != "SUBMITTED":
+            raise BlindAssessmentError(409, "Only a submitted assessment can be reopened")
+        old_status = assignment.status
+        assignment.status = "DRAFT"
+        assignment.submitted_at = None
+        assignment.released_at = None
+        AuditService(self.db).record(actor_id, institution_id, "assessment.blind_assessment_reopened",
+            "blind_assessment_assignment", assignment.id, {"previous_status": old_status})
+        await self.db.commit()
+        await self.db.refresh(assignment)
+        return assignment
+
+    async def release(self, assignment_id: str, actor_id: str):
+        assignment = await self.db.get(BlindAssessmentAssignment, assignment_id)
+        if assignment is None:
+            raise BlindAssessmentError(404, "Assessment assignment not found")
+        institution_id = await self._assignment_institution(assignment)
+        await InstitutionService(self.db).require_admin(institution_id, actor_id)
+        if assignment.status != "SUBMITTED":
+            raise BlindAssessmentError(409, "Only a submitted assessment can be released")
+        if assignment.released_at is not None:
+            raise BlindAssessmentError(409, "Assessment scores have already been released")
+        assignment.released_at = datetime.now(UTC).replace(tzinfo=None)
+        AuditService(self.db).record(actor_id, institution_id, "assessment.blind_assessment_released",
+            "blind_assessment_assignment", assignment.id, {"released_at": assignment.released_at.isoformat()})
+        await self.db.commit()
+        await self.db.refresh(assignment)
+        return assignment
+
     async def save_scores(self, assignment_id: str, actor_id: str, scores: list[dict], submit: bool):
         assignment = await self.db.get(BlindAssessmentAssignment, assignment_id)
         if assignment is None or str(assignment.evaluator_account_id) != str(actor_id):
@@ -164,8 +212,13 @@ class BlindAssessmentService:
                 self.db.add(BlindAssessmentScore(id=str(uuid4()), assignment_id=assignment.id,
                     criterion_id=item["criterion_id"], score=item["score"], feedback=item.get("feedback")))
             else:
-                score.score = item["score"]
-                score.feedback = item.get("feedback")
+                if score.score != item["score"] or score.feedback != item.get("feedback"):
+                    self.db.add(BlindAssessmentScoreRevision(id=str(uuid4()), assignment_id=assignment.id,
+                        criterion_id=score.criterion_id, actor_account_id=actor_id, action="CORRECTED",
+                        previous_score=score.score, new_score=item["score"],
+                        previous_feedback=score.feedback, new_feedback=item.get("feedback")))
+                    score.score = item["score"]
+                    score.feedback = item.get("feedback")
         if submit:
             supplied = set(existing) | {item["criterion_id"] for item in scores}
             if supplied != set(by_id):

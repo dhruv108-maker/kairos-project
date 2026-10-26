@@ -52,3 +52,15 @@ async def my_blind_assessments(account: CurrentAccount, db: DbSession):
 async def save_blind_scores(assignment_id: str, payload: BlindScoreSave, account: CurrentAccount, db: DbSession):
     return await _call(BlindAssessmentService(db).save_scores(assignment_id, account.id,
         [score.model_dump() for score in payload.scores], payload.submit), db)
+
+
+@router.post("/blind-assessments/assignments/{assignment_id}/reopen")
+async def reopen_blind_assessment(assignment_id: str, account: CurrentAccount, db: DbSession):
+    item = await _call(BlindAssessmentService(db).reopen(assignment_id, account.id), db)
+    return {"id": item.id, "status": item.status, "submitted_at": item.submitted_at}
+
+
+@router.post("/blind-assessments/assignments/{assignment_id}/release")
+async def release_blind_assessment(assignment_id: str, account: CurrentAccount, db: DbSession):
+    item = await _call(BlindAssessmentService(db).release(assignment_id, account.id), db)
+    return {"id": item.id, "status": item.status, "released_at": item.released_at}

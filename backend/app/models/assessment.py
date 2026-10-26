@@ -58,3 +58,17 @@ class BlindAssessmentScore(Base):
     score: Mapped[Decimal] = mapped_column(Numeric(7, 2), nullable=False)
     feedback: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class BlindAssessmentScoreRevision(Base):
+    __tablename__ = "blind_assessment_score_revisions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    assignment_id: Mapped[str] = mapped_column(ForeignKey("blind_assessment_assignments.id", ondelete="RESTRICT"), nullable=False, index=True)
+    criterion_id: Mapped[str] = mapped_column(ForeignKey("assessment_rubric_criteria.id", ondelete="RESTRICT"), nullable=False)
+    actor_account_id: Mapped[int | str] = mapped_column(MYSQL_BIGINT(unsigned=True).with_variant(String(36), "sqlite"), ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    action: Mapped[str] = mapped_column(String(20), nullable=False)
+    previous_score: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
+    new_score: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
+    previous_feedback: Mapped[str | None] = mapped_column(Text)
+    new_feedback: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
