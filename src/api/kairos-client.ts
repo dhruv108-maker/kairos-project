@@ -54,7 +54,7 @@ export function clearAccessToken(): void {
 
 export async function refreshSession(): Promise<AuthResponse | null> {
   if (refreshInFlight) return refreshInFlight;
-  refreshInFlight = (async () => {
+  const performRefresh = async (): Promise<AuthResponse | null> => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: "POST",
@@ -70,6 +70,16 @@ export async function refreshSession(): Promise<AuthResponse | null> {
       return result;
     } catch {
       return null;
+    }
+  };
+  refreshInFlight = (async () => {
+    try {
+      // Web Locks serializes refresh-cookie rotation across tabs where supported.
+      // No token is broadcast between tabs; the browser sends the HttpOnly cookie.
+      if (typeof navigator !== "undefined" && navigator.locks) {
+        return await navigator.locks.request("kairos-auth-refresh", performRefresh);
+      }
+      return await performRefresh();
     } finally {
       refreshInFlight = null;
     }
