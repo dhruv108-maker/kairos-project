@@ -65,10 +65,10 @@ jobs:
         run: npm install --no-save --package-lock=false @eslint/js globals typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh
       - name: TypeScript and production build
         run: npm run build
-      - name: ESLint
-        run: npm run lint
       - name: Frontend registration selector test
         run: npm run test:registration-selector
+      - name: ESLint
+        run: npm run lint
 
   mysql-schema-compatibility:
     name: Isolated MySQL schema compatibility

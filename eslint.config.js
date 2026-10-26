@@ -25,6 +25,11 @@ export default tseslint.config(
       "react-refresh": reactRefresh,
     },
     rules: {
+      // The previous .eslintrc enabled react-hooks/recommended, which did not
+      // include these newer React Compiler diagnostics. Keep this migration
+      // behavior-compatible while retaining the established hook rules.
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/incompatible-library": "off",
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },
