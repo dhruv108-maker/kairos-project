@@ -184,17 +184,17 @@ export function signOut(): void {
   clearAccessToken();
   announceLogout();
 
-  // Revoke the server-side token version when possible, but never keep the
-  // browser session alive just because the API is temporarily unavailable.
-  if (token) {
-    void fetch(`${API_BASE_URL}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {
-      // Local logout has already completed; network failure must not restore the session.
-    });
-  }
+  // Always clear/revoke the HttpOnly refresh cookie, even if the access token
+  // is missing or expired. Local logout is immediate if the network is offline.
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  void fetch(`${API_BASE_URL}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+    headers,
+  }).catch(() => {
+    // Local logout has already completed; the server cookie expires within seven days.
+  });
 }
 
 export async function getRoleDashboard(account: KairosAccount): Promise<unknown> {
