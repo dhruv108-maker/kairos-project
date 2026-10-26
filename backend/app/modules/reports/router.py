@@ -32,7 +32,7 @@ def _submission(item):
 
 def _version(item):
     return {"id": item.id, "submission_id": item.submission_id, "version_number": item.version_number,
-            "file_id": item.file_id, "submission_notes": item.submission_notes, "submitted_at": item.submitted_at}
+            "file_id": item.file_id, "presentation_file_id": item.presentation_file_id, "submission_notes": item.submission_notes, "submitted_at": item.submitted_at}
 
 
 def _requirement(item):
@@ -45,7 +45,7 @@ def _requirement(item):
 @router.post("", status_code=201)
 async def create_report(payload: ReportCreate, account: CurrentAccount, db: DbSession):
     item = await _call(ReportService(db).create(account.id, payload.placement_id, payload.title, payload.file_id,
-        payload.submission_notes, payload.requirement_id), db)
+        payload.submission_notes, payload.requirement_id, payload.presentation_file_id), db)
     return _submission(item)
 
 
@@ -81,7 +81,7 @@ async def rename_report(submission_id: str, payload: ReportTitleUpdate, account:
 
 @router.post("/{submission_id}/versions", status_code=201)
 async def add_report_version(submission_id: str, payload: ReportVersionCreate, account: CurrentAccount, db: DbSession):
-    item = await _call(ReportService(db).add_version(submission_id, account.id, payload.file_id, payload.submission_notes), db)
+    item = await _call(ReportService(db).add_version(submission_id, account.id, payload.file_id, payload.submission_notes, payload.presentation_file_id), db)
     return _version(item)
 
 
