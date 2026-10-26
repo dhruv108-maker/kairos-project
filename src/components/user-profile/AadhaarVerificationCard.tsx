@@ -42,6 +42,7 @@ export default function AadhaarVerificationCard() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [declaredName, setDeclaredName] = useState("");
+  const [aadhaarNumber, setAadhaarNumber] = useState("");
   const [detailsConsent, setDetailsConsent] = useState(false);
   const [verificationConsent, setVerificationConsent] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
@@ -111,15 +112,20 @@ export default function AadhaarVerificationCard() {
     setError("");
     setNotice("");
     try {
-      await apiRequest("/identity-verification/initiate", {
+      const result = await apiRequest<{ status: "verified" | "failed"; verified: boolean; message?: string | null }>("/identity-verification/initiate", {
         method: "POST",
-        body: JSON.stringify({ consent: verificationConsent, consent_notice_version: "aadhaar-optional-v1" }),
+        body: JSON.stringify({
+          aadhaar_number: aadhaarNumber,
+          consent: verificationConsent,
+          consent_notice_version: "aadhaar-online-v1",
+        }),
       });
+      setAadhaarNumber("");
       await refresh(true);
-      setNotice("The attempt was created. The displayed state comes from the backend.");
+      setNotice(result.verified ? "Aadhaar verification succeeded. Kairos has saved the provider-confirmed result." : "The provider could not verify these details. No verified status was recorded.");
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 503) {
-        setNotice("Authoritative Aadhaar verification is not available yet. No attempt was created; Kairos remains usable.");
+        setNotice("Online Aadhaar verification is not configured or the provider is temporarily unavailable. No verified status was recorded.");
       } else {
         setError(cause instanceof Error ? cause.message : "We couldn't start verification.");
       }
@@ -188,10 +194,15 @@ export default function AadhaarVerificationCard() {
             <div className="space-y-2">
               <p className="font-medium">Verification is temporarily unavailable.</p>
               <p className="text-muted-foreground">
-                The configured Verifico service currently documents Aadhaar document text extraction (OCR), not Aadhaar identity verification against an authoritative source. Kairos will not treat OCR as proof of identity.
+                Online verification is handled server-side by Signzy when the provider account is configured and enabled. Kairos never treats document OCR or a client-supplied result as verification.
               </p>
+              {!status?.available && (
+                <p className="text-muted-foreground">
+                  The provider integration is not enabled for this deployment yet. Ask the Kairos administrator to configure the provider credentials and enable the integration.
+                </p>
+              )}
               <p className="text-muted-foreground">
-                No Aadhaar number, OTP, or identity document is requested or uploaded here. Your account remains usable without this optional workflow.
+                Your Aadhaar number is sent to the configured verification provider for this request and is not saved in Kairos. You can skip this optional workflow.
               </p>
             </div>
           </div>
@@ -207,16 +218,33 @@ export default function AadhaarVerificationCard() {
         ) : null}
         {notice && <p role="status" className="rounded-md border p-3 text-sm">{notice}</p>}
         <div className="space-y-3 border-t pt-4">
+          <div className="space-y-1">
+            <Label htmlFor="aadhaar-online-number">Aadhaar number</Label>
+            <Input
+              id="aadhaar-online-number"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={12}
+              value={aadhaarNumber}
+              onChange={(event) => setAadhaarNumber(event.target.value.replace(/\D/g, "").slice(0, 12))}
+              placeholder="Enter 12-digit Aadhaar number"
+              aria-describedby="aadhaar-online-number-help"
+            />
+            <p id="aadhaar-online-number-help" className="text-xs leading-5 text-muted-foreground">
+              Used only for this provider request. Do not enter it unless you have reviewed and agree to the consent below.
+            </p>
+          </div>
           <div className="flex items-start gap-2">
             <Checkbox id="identity-verification-consent" checked={verificationConsent} onCheckedChange={(checked) => setVerificationConsent(checked === true)} />
-            <Label htmlFor="identity-verification-consent" className="text-sm leading-5 font-normal">I consent to initiating the optional identity-verification workflow.</Label>
+            <Label htmlFor="identity-verification-consent" className="text-sm leading-5 font-normal">I explicitly consent to sending my Aadhaar number to Signzy for online verification, subject to applicable provider privacy and retention terms.</Label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-xl text-xs leading-5 text-muted-foreground">
             Status is retrieved from the authenticated Kairos API. This page never sets a verification result locally.
           </p>
           <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={() => void startVerification()} disabled={!verificationConsent || starting}>{starting ? "Checking availability…" : "Start verification"}</Button>
+          <Button type="button" onClick={() => void startVerification()} disabled={!verificationConsent || starting || !/^\d{12}$/.test(aadhaarNumber)}>{starting ? "Verifying securely…" : "Verify Aadhaar online"}</Button>
           <Button type="button" variant="outline" onClick={() => void refresh(true)} disabled={loading || refreshing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
             {refreshing ? "Refreshing…" : "Refresh status"}
