@@ -15,6 +15,7 @@ from app.models.recruitment import RecruitmentDrive, RecruitmentDriveProgrammeTa
 from app.models.user_preferences import UserPreferences
 from app.models.saved_job import SavedJob
 from app.models.curriculum import LearningOutcome, CurriculumMappingVersion, CurriculumMappingItem
+from app.models.assessment import AssessmentRubric, AssessmentRubricCriterion, BlindAssessmentAssignment, BlindAssessmentScore
 
 __all__ = [
     "Base", "IdentityVerification", "School", "Department", "Programme", "AcademicYear", "Cohort",
@@ -23,7 +24,7 @@ __all__ = [
     "InternshipApplication", "InternshipPlacement", "InternshipWorkLog", "InternshipWorkLogReview", "RecruitmentStageEvent", "RecruitmentNote", "ReportRequirement", "ReportSubmission",
     "ReportVersion", "GriffinEvaluation", "GriffinEvaluationAttempt",
     "GriffinResultSnapshot", "EvaluationWorkflow", "EvaluationStageResult",
-    "FinalEvaluationOutcome", "LearningOutcome", "CurriculumMappingVersion", "CurriculumMappingItem", "Team", "TeamMembership", "AssessmentCampaign",
+    "FinalEvaluationOutcome", "LearningOutcome", "CurriculumMappingVersion", "CurriculumMappingItem", "AssessmentRubric", "AssessmentRubricCriterion", "BlindAssessmentAssignment", "BlindAssessmentScore", "Team", "TeamMembership", "AssessmentCampaign",
     "FacultyAssessmentAssignment", "StudentAcademicRecord", "StudentPortfolioEntry",
     "StudentResume", "Institution", "InstitutionMembership", "InstitutionInvitation", "InstitutionDomain", "FacultyStudentMentorship", "AuditEvent",
     "EmployerOrganization", "EmployerMembership", "EmployerInvitation", "RecruitmentInterview", "RecruitmentOffer",
