@@ -7,6 +7,9 @@ import { useAuth } from "@/context/auth/AuthContext";
 import { getAadhaarBannerContent, type AadhaarBannerStatus } from "./aadhaar-verification-banner-state.mjs";
 
 type VerificationStatusResponse = AadhaarBannerStatus & {
+  email_verified: boolean;
+  identity_verified: boolean;
+  identity_verification_status: AadhaarBannerStatus["status"];
   available?: boolean;
   provider?: string;
   declared_name?: string | null;
@@ -40,7 +43,7 @@ export default function AadhaarVerificationBanner() {
       .then((current) => {
         if (!active) return;
         // A missing identity record is the normal not-started state.
-        setStatus(current ?? { status: "not_started", verified: false });
+        setStatus(current ?? { status: "not_started", identity_verified: false });
       })
       .catch(() => {
         if (!active) return;

@@ -64,6 +64,8 @@ async def _account_public(db, account: Account) -> AccountPublic:
         phone_number=account.phone_number,
         is_active=account.is_active,
         is_verified=account.is_verified,
+        email_verified=account.is_verified,
+        identity_verified=bool(account.identity_verified),
         last_login_at=account.last_login_at,
         roles=await account_roles(db, account.id),
     )

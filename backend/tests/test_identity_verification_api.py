@@ -64,6 +64,9 @@ async def test_identity_status_requires_authentication_and_uses_token_account(id
     assert response.status_code == 200
     assert response.json()["status"] == "not_started"
     assert response.json()["verified"] is False
+    assert response.json()["identity_verified"] is False
+    assert response.json()["email_verified"] is True
+    assert response.json()["identity_verification_status"] == "not_started"
     assert response.json()["available"] is False
 
 
@@ -128,6 +131,8 @@ async def test_optional_identity_details_require_consent_and_never_verify_accoun
     assert status.status_code == 200
     assert status.json()["declared_name"] == "Example Student"
     assert status.json()["verified"] is False
+    assert status.json()["identity_verified"] is False
+    assert status.json()["email_verified"] is True
 
 
 @pytest.mark.asyncio

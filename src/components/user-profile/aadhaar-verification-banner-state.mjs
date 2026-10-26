@@ -33,7 +33,7 @@ const COPY = {
 };
 
 export function getAadhaarBannerContent(status) {
-  if (status?.status === "verified" && status.verified === true) return null;
+  if (status?.status === "verified" && status.identity_verified === true) return null;
   const key = COPY[status?.status] ? status.status : "not_started";
   return COPY[key];
 }

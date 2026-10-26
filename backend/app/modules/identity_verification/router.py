@@ -62,7 +62,11 @@ class VerificationStatusResponse(BaseModel):
     status: Literal[
         "not_started", "pending", "verified", "failed", "expired", "cancelled", "review_required"
     ]
+    # Backward-compatible alias for identity_verified; never email verification.
     verified: bool
+    email_verified: bool
+    identity_verified: bool
+    identity_verification_status: Literal["not_started", "pending", "verified", "failed", "expired", "cancelled", "review_required"]
     available: bool
     provider: str
     created_at: datetime | None = None

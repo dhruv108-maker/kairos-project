@@ -31,3 +31,22 @@ Select a provider with an approved, documented Aadhaar authentication flow and c
 The identity API tests cover authenticated status reads, consent-gated optional-name persistence, normalization, rejection of client-forged identity/verification fields, and unauthenticated mutation rejection. Provider-boundary tests cover the disabled OCR-only adapter, consent gating, malformed provider metadata, unsafe redirects, timeout handling, and the invariant that a client-supplied success payload cannot be validated as an authoritative result.
 
 The repository's GitHub Actions regression workflow must pass on the final commit before this change should be considered verified. The migration has not been applied to a production database; upgrade/downgrade validation must run against the project's isolated database target.
+
+
+## Separate email and identity verification states
+
+- `accounts.is_verified` remains the email-verification flag used by login/authentication.
+- `accounts.identity_verified` is a separate, non-null, default-false summary for authoritative identity verification.
+- `identity_verifications` remains the canonical lifecycle record. A summary flag is true only after the backend validates an authoritative provider result and atomically updates both records.
+- The status API returns explicit `email_verified`, `identity_verified`, and `identity_verification_status` fields. The legacy `verified` status field remains an identity-only compatibility alias; `accounts.is_verified` is not reinterpreted.
+- The current TheVerifico adapter fails closed because OCR/extraction is not authoritative identity authentication. No production verification result is fabricated and the identity flag remains false without an approved provider.
+- A legacy lifecycle row marked `verified` without the dedicated account summary is exposed as `review_required`; it is not automatically trusted or backfilled.
+
+### Manual rollout
+
+1. Review and manually execute `backend/sql/manual_mysql_identity_verification.sql` against the intended database after checking the engine/version and existing column definition.
+2. Verify the column is `BOOLEAN/TINYINT(1) NOT NULL DEFAULT 0`, and that existing `is_verified` values are unchanged.
+3. Deploy the backend model/API changes only after the SQL is complete. Deploy the frontend with the backend.
+4. Run the backend regression suite and frontend build/tests. Do not apply an Alembic migration for this column.
+
+The SQL file has not been executed against production. A future provider integration must authenticate its callback and validate an authoritative result before calling the backend service helper. No client-facing endpoint may accept a `verified=true` flag.

@@ -11,6 +11,10 @@ from app.models.academic import Account
 def test_account_model_declares_required_full_name_and_display_name_columns():
     full_name = Account.__table__.c.full_name
     display_name = Account.__table__.c.display_name
+    identity_verified = Account.__table__.c.identity_verified
+    assert identity_verified.nullable is False
+    assert str(identity_verified.server_default.arg) in {"0", "false", "FALSE"}
+    assert identity_verified.default is not None
     assert full_name.type.length == 255
     assert full_name.nullable is False
     assert display_name.type.length == 255
@@ -72,5 +76,5 @@ def test_login_and_registration_contracts_normalize_email_and_name():
 def test_auth_response_keeps_frontend_contract_fields():
     assert set(AuthResponse.model_fields) == {"access_token", "token_type", "expires_in", "account"}
     assert set(Account.__table__.columns.keys()) >= {
-        "id", "email", "password_hash", "full_name", "display_name", "account_status", "is_active", "is_verified", "token_version"
+        "id", "email", "password_hash", "full_name", "display_name", "account_status", "is_active", "is_verified", "identity_verified", "token_version"
     }

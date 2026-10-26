@@ -7,7 +7,10 @@ export interface KairosAccount {
   full_name: string;
   phone_number: string | null;
   is_active: boolean;
+  /** Backward-compatible alias for email verification only. */
   is_verified: boolean;
+  email_verified: boolean;
+  identity_verified: boolean;
   last_login_at: string | null;
   roles: string[];
 }

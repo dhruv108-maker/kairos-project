@@ -98,7 +98,10 @@ class Account(TimestampMixin, Base):
     )
     phone_number: Mapped[str | None] = mapped_column(String(32))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
+    # Email verification only; authentication continues to depend on this field.
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    # Summary of authoritative identity verification; never set from OCR or client input.
+    identity_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     verification_token: Mapped[str | None] = mapped_column(String(128))
     reset_token: Mapped[str | None] = mapped_column(String(128))
     reset_token_expires_at: Mapped[datetime | None] = mapped_column(TIMESTAMP)

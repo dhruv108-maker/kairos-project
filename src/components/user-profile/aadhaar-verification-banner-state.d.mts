@@ -1,6 +1,6 @@
 export type AadhaarBannerStatus = {
   status: "not_started" | "pending" | "verified" | "failed" | "expired" | "cancelled" | "review_required";
-  verified: boolean;
+  identity_verified: boolean;
 };
 
 export type AadhaarBannerContent = {

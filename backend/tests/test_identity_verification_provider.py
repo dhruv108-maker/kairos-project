@@ -8,16 +8,20 @@ from app.modules.identity_verification.provider import (
     VerificoAadhaarProvider,
 )
 from app.modules.identity_verification.service import IdentityVerificationService
+from app.models.academic import Account
 
 
 class FakeDatabase:
     def __init__(self, latest=None):
         self.latest = latest
+        self.account = Account(id="account-a", email="a@example.test", password_hash="x", full_name="A", is_verified=True, identity_verified=False, is_active=True)
         self.added = []
         self.commits = 0
         self.refreshed = []
 
     async def scalar(self, statement):
+        if "accounts" in str(statement):
+            return self.account
         if "identity_details" in str(statement):
             return None
         return self.latest

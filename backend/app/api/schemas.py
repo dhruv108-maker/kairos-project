@@ -123,7 +123,10 @@ class AccountPublic(BaseModel):
     full_name: str
     phone_number: str | None
     is_active: bool
+    # Backward-compatible alias for email_verified; never means identity verification.
     is_verified: bool
+    email_verified: bool
+    identity_verified: bool
     last_login_at: datetime | None
     roles: list[str]
 

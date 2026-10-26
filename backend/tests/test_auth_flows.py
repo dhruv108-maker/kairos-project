@@ -127,6 +127,9 @@ async def test_student_signup_verification_login_and_profile(client):
         "password": "a secure student password 42",
     })
     assert login.status_code == 200
+    assert login.json()["account"]["email_verified"] is True
+    assert login.json()["account"]["is_verified"] is True
+    assert login.json()["account"]["identity_verified"] is False
     token = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 

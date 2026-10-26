@@ -13,7 +13,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 type VerificationStatus = {
   id?: string | null;
   status: "not_started" | "pending" | "verified" | "failed" | "expired" | "cancelled" | "review_required";
-  verified: boolean;
+  /** Legacy identity-only alias; use identity_verified for UI decisions. */
+  verified?: boolean;
+  email_verified: boolean;
+  identity_verified: boolean;
+  identity_verification_status: VerificationStatus["status"];
   available: boolean;
   provider: string;
   created_at?: string | null;
@@ -77,7 +81,7 @@ export default function AadhaarVerificationCard() {
 
   if (!account?.roles.some((role) => role.toUpperCase() === "STUDENT")) return null;
 
-  const verified = status?.status === "verified" && status.verified === true;
+  const verified = status?.identity_verified === true && status.status === "verified";
   const completedAt = displayDate(status?.completed_at);
 
   const saveDetails = async () => {
