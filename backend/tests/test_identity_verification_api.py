@@ -103,3 +103,50 @@ async def test_identity_initiation_rejects_client_supplied_identity_or_verified_
         },
     )
     assert response.status_code == 422
+
+
+
+@pytest.mark.asyncio
+async def test_optional_identity_details_require_consent_and_never_verify_account(identity_client):
+    client, headers = identity_client
+    no_consent = await client.put(
+        "/api/v1/identity-verification/details",
+        headers=headers,
+        json={"declared_name": "  Example Student ", "consent": False, "consent_notice_version": "notice-v1"},
+    )
+    assert no_consent.status_code == 422
+
+    saved = await client.put(
+        "/api/v1/identity-verification/details",
+        headers=headers,
+        json={"declared_name": "  Example Student ", "consent": True, "consent_notice_version": " notice-v1 "},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["declared_name"] == "Example Student"
+
+    status = await client.get("/api/v1/identity-verification/status", headers=headers)
+    assert status.status_code == 200
+    assert status.json()["declared_name"] == "Example Student"
+    assert status.json()["verified"] is False
+
+
+@pytest.mark.asyncio
+async def test_optional_identity_details_reject_forged_verification_fields(identity_client):
+    client, headers = identity_client
+    response = await client.put(
+        "/api/v1/identity-verification/details",
+        headers=headers,
+        json={"declared_name": "Example Student", "consent": True, "consent_notice_version": "notice-v1",
+              "verified": True, "identity_verified": True, "account_id": "another-account"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_optional_identity_details_require_authentication(identity_client):
+    client, _ = identity_client
+    response = await client.put(
+        "/api/v1/identity-verification/details",
+        json={"declared_name": "Example Student", "consent": True, "consent_notice_version": "notice-v1"},
+    )
+    assert response.status_code == 401

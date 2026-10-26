@@ -18,6 +18,8 @@ class FakeDatabase:
         self.refreshed = []
 
     async def scalar(self, statement):
+        if "identity_details" in str(statement):
+            return None
         return self.latest
 
     def add(self, record):

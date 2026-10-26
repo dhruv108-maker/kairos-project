@@ -1,5 +1,6 @@
 from app.models.base import Base
 from app.models.identity_verification import IdentityVerification
+from app.models.identity_details import IdentityDetails
 from app.models.academic import School, Department, Programme, AcademicYear, Cohort, Account, Role, AccountRole, Student, StudentProfile, FacultyProfile
 from app.models.storage import StorageFile
 from app.models.internship import InternshipProvider, InternshipOpportunity, InternshipApplication, InternshipPlacement, InternshipWorkLog, InternshipWorkLogReview, RecruitmentStageEvent, RecruitmentNote
@@ -19,7 +20,7 @@ from app.models.assessment import AssessmentRubric, AssessmentRubricCriterion, B
 from app.models.academic_result import InternshipGradingPolicy, OfficialInternshipResult, OfficialInternshipResultHistory
 
 __all__ = [
-    "Base", "IdentityVerification", "School", "Department", "Programme", "AcademicYear", "Cohort",
+    "Base", "IdentityVerification", "IdentityDetails", "School", "Department", "Programme", "AcademicYear", "Cohort",
     "Account", "Role", "AccountRole", "Student", "StudentProfile", "FacultyProfile",
     "StorageFile", "InternshipProvider", "InternshipOpportunity",
     "InternshipApplication", "InternshipPlacement", "InternshipWorkLog", "InternshipWorkLogReview", "RecruitmentStageEvent", "RecruitmentNote", "ReportRequirement", "ReportSubmission",

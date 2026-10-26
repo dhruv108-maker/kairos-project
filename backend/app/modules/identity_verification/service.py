@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.identity_verification import IdentityVerification
+from app.models.identity_details import IdentityDetails
 from app.modules.identity_verification.provider import (
     IdentityProviderUnavailable,
     IdentityVerificationProvider,
@@ -31,6 +32,8 @@ class IdentityVerificationService:
             .order_by(IdentityVerification.created_at.desc())
             .limit(1)
         )
+        details = await self.db.scalar(select(IdentityDetails).where(IdentityDetails.account_id == account_id).limit(1))
+        declared_name = details.declared_name if details else None
         if latest is None:
             return {
                 "status": "not_started",
@@ -38,6 +41,7 @@ class IdentityVerificationService:
                 "available": False,
                 "provider": "verifico",
                 "message": "Optional Aadhaar verification is not currently available.",
+                "declared_name": declared_name,
             }
         return {
             "id": latest.id,
@@ -50,6 +54,7 @@ class IdentityVerificationService:
             "expires_at": latest.expires_at,
             "completed_at": latest.completed_at,
             "error_category": latest.error_category,
+            "declared_name": declared_name,
         }
 
     async def initiate(
@@ -122,4 +127,41 @@ class IdentityVerificationService:
             "status": record.status,
             "redirect_url": started.redirect_url,
             "expires_at": record.expires_at,
+        }
+
+    
+    async def save_details(
+        self, account_id: str, declared_name: str | None, consent: bool, notice_version: str
+    ) -> dict:
+        """Save only user-declared details; this never changes verification status."""
+        if not consent:
+            raise ValueError("Explicit consent is required to store optional identity details.")
+        version = notice_version.strip()
+        if not version or len(version) > 40:
+            raise ValueError("A valid consent notice version is required.")
+        name = declared_name.strip() if declared_name is not None else None
+        if name == "":
+            name = None
+        if name is not None and (len(name) > 200 or any(ord(char) < 32 for char in name)):
+            raise ValueError("The declared name must be 1-200 printable characters.")
+        details = await self.db.scalar(
+            select(IdentityDetails).where(IdentityDetails.account_id == account_id).limit(1)
+        )
+        now = datetime.now(UTC).replace(tzinfo=None)
+        if details is None:
+            details = IdentityDetails(
+                id=str(uuid4()), account_id=account_id, declared_name=name,
+                consented_at=now, consent_notice_version=version,
+            )
+            self.db.add(details)
+        else:
+            details.declared_name = name
+            details.consented_at = now
+            details.consent_notice_version = version
+        await self.db.commit()
+        await self.db.refresh(details)
+        return {
+            "declared_name": details.declared_name,
+            "consented_at": details.consented_at,
+            "updated_at": details.updated_at,
         }

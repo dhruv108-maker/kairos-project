@@ -4,6 +4,9 @@ import { AlertCircle, CheckCircle2, Clock3, RefreshCw, ShieldCheck } from "lucid
 import { apiRequest, ApiError } from "@/api/kairos-client";
 import { useAuth } from "@/context/auth/AuthContext";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -19,6 +22,7 @@ type VerificationStatus = {
   completed_at?: string | null;
   error_category?: string | null;
   message?: string | null;
+  declared_name?: string | null;
 };
 
 function displayDate(value?: string | null) {
@@ -33,6 +37,12 @@ export default function AadhaarVerificationCard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [declaredName, setDeclaredName] = useState("");
+  const [detailsConsent, setDetailsConsent] = useState(false);
+  const [verificationConsent, setVerificationConsent] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const refresh = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
@@ -44,6 +54,7 @@ export default function AadhaarVerificationCard() {
         cache: "no-store",
       });
       setStatus(current);
+      setDeclaredName(current.declared_name ?? "");
     } catch (cause) {
       setError(
         cause instanceof ApiError && cause.status === 401
@@ -69,6 +80,50 @@ export default function AadhaarVerificationCard() {
   const verified = status?.status === "verified" && status.verified === true;
   const completedAt = displayDate(status?.completed_at);
 
+  const saveDetails = async () => {
+    setSavingDetails(true);
+    setError("");
+    setNotice("");
+    try {
+      await apiRequest("/identity-verification/details", {
+        method: "PUT",
+        body: JSON.stringify({
+          declared_name: declaredName.trim() || null,
+          consent: detailsConsent,
+          consent_notice_version: "aadhaar-optional-v1",
+        }),
+      });
+      await refresh(true);
+      setNotice("Your optional name was saved. It is user-declared, not a verified identity claim.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "We couldn't save your optional details.");
+    } finally {
+      setSavingDetails(false);
+    }
+  };
+
+  const startVerification = async () => {
+    setStarting(true);
+    setError("");
+    setNotice("");
+    try {
+      await apiRequest("/identity-verification/initiate", {
+        method: "POST",
+        body: JSON.stringify({ consent: verificationConsent, consent_notice_version: "aadhaar-optional-v1" }),
+      });
+      await refresh(true);
+      setNotice("The attempt was created. The displayed state comes from the backend.");
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 503) {
+        setNotice("Authoritative Aadhaar verification is not available yet. No attempt was created; Kairos remains usable.");
+      } else {
+        setError(cause instanceof Error ? cause.message : "We couldn't start verification.");
+      }
+    } finally {
+      setStarting(false);
+    }
+  };
+
   return (
     <Card className="shadow-none" aria-labelledby="aadhaar-verification-title">
       <CardHeader>
@@ -87,12 +142,24 @@ export default function AadhaarVerificationCard() {
               )}
             </div>
             <CardDescription className="mt-1">
-              Check whether an approved identity-verification workflow is available for your account.
+              Optional identity step. You can skip it and continue using Kairos normally.
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-3 rounded-lg border p-4">
+          <div className="space-y-1">
+            <Label htmlFor="identity-declared-name">Name for identity workflow (optional)</Label>
+            <Input id="identity-declared-name" value={declaredName} maxLength={200} autoComplete="name" onChange={(event) => setDeclaredName(event.target.value)} placeholder="Enter a name only if you want to" />
+            <p className="text-xs text-muted-foreground">This is user-provided, not a verified claim. No Aadhaar number, OTP, or document is collected here.</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <Checkbox id="identity-details-consent" checked={detailsConsent} onCheckedChange={(checked) => setDetailsConsent(checked === true)} />
+            <Label htmlFor="identity-details-consent" className="text-sm leading-5 font-normal">I consent to storing this optional name for the identity workflow.</Label>
+          </div>
+          <Button type="button" variant="outline" onClick={() => void saveDetails()} disabled={savingDetails || !detailsConsent}>{savingDetails ? "Saving…" : "Save optional details"}</Button>
+        </div>
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
             <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -134,14 +201,24 @@ export default function AadhaarVerificationCard() {
         {status?.status === "failed" || status?.status === "cancelled" || status?.status === "review_required" ? (
           <p className="text-sm text-muted-foreground">The previous attempt needs attention. Kairos cannot restart or resolve it until a supported provider workflow is available.</p>
         ) : null}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+        {notice && <p role="status" className="rounded-md border p-3 text-sm">{notice}</p>}
+        <div className="space-y-3 border-t pt-4">
+          <div className="flex items-start gap-2">
+            <Checkbox id="identity-verification-consent" checked={verificationConsent} onCheckedChange={(checked) => setVerificationConsent(checked === true)} />
+            <Label htmlFor="identity-verification-consent" className="text-sm leading-5 font-normal">I consent to initiating the optional identity-verification workflow.</Label>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-xl text-xs leading-5 text-muted-foreground">
             Status is retrieved from the authenticated Kairos API. This page never sets a verification result locally.
           </p>
+          <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => void startVerification()} disabled={!verificationConsent || starting}>{starting ? "Checking availability…" : "Start verification"}</Button>
           <Button type="button" variant="outline" onClick={() => void refresh(true)} disabled={loading || refreshing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
             {refreshing ? "Refreshing…" : "Refresh status"}
           </Button>
+          </div>
+          </div>
         </div>
       </CardContent>
     </Card>
