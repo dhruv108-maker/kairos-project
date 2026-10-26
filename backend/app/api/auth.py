@@ -861,7 +861,7 @@ async def resend_verification(payload: ResendVerificationRequest, db: DbSession)
     )
 
 
-SESSION_LIFETIME_SECONDS = 7 * 24 * 60 * 60
+SESSION_LIFETIME_SECONDS = settings.SESSION_LIFETIME_SECONDS
 REFRESH_COOKIE_NAME = "kairos_refresh"
 ACCESS_TOKEN_SECONDS = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
