@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.dependencies import CurrentAccount, DbSession
 from app.modules.curriculum.schemas import LearningOutcomeCreate, CurriculumMappingCreate, CurriculumMappingReview
 from app.modules.curriculum.service import CurriculumService, CurriculumWorkflowError
+from app.modules.institutions.service import InstitutionAccessError
 
 router = APIRouter(tags=["curriculum mapping"])
 
@@ -10,8 +11,8 @@ router = APIRouter(tags=["curriculum mapping"])
 async def _call(operation, db):
     try:
         return await operation
-    except CurriculumWorkflowError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.message) from None
+    except (CurriculumWorkflowError, InstitutionAccessError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=getattr(exc, "message", str(exc))) from None
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail="Curriculum mapping conflicts with existing data") from None

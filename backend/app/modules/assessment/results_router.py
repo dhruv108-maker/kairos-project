@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.dependencies import CurrentAccount, DbSession
 from app.modules.assessment.results_schemas import GradingPolicyCreate, ResultPrepare
 from app.modules.assessment.results_service import OfficialResultService, OfficialResultError
+from app.modules.institutions.service import InstitutionAccessError
 
 router = APIRouter(tags=["official academic results"])
 
@@ -10,8 +11,8 @@ router = APIRouter(tags=["official academic results"])
 async def _call(operation, db):
     try:
         return await operation
-    except OfficialResultError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.message) from None
+    except (OfficialResultError, InstitutionAccessError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=getattr(exc, "message", str(exc))) from None
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail="Result operation conflicts with an existing official record") from None
