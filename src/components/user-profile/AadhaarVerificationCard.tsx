@@ -137,7 +137,7 @@ export default function AadhaarVerificationCard() {
               {verified && <Badge>Verified</Badge>}
               {!loading && status && !verified && (
                 <Badge variant="outline">
-                  {status.status === "not_started" ? "Not started" : status.status.replaceAll("_", " ")}
+                  {status.status === "not_started" ? "Not started" : status.status.replace(/_/g, " ")}
                 </Badge>
               )}
             </div>
