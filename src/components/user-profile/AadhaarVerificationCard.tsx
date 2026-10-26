@@ -129,7 +129,7 @@ export default function AadhaarVerificationCard() {
         body,
       });
       setOcrResult(result);
-      setNotice("OCR extraction completed. Your Kairos identity status remains unverified.");
+      setNotice("Document text extracted successfully. Identity verification is a separate step and remains unavailable in this workflow.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "We couldn't extract document details.");
     } finally {
@@ -149,12 +149,12 @@ export default function AadhaarVerificationCard() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle id="aadhaar-verification-title">Aadhaar document OCR</CardTitle>
+              <CardTitle id="aadhaar-verification-title">Aadhaar document extraction</CardTitle>
               {verified && <Badge>Verified</Badge>}
               {!loading && status && !verified && <Badge variant="outline">{status.status === "not_started" ? "Unverified" : status.status.replace(/_/g, " ")}</Badge>}
             </div>
             <CardDescription className="mt-1">
-              Extract document details with Verifico. This optional step does not verify your identity.
+              Verifico currently provides document OCR here, not identity verification. Extracted details cannot change your verification status.
             </CardDescription>
           </div>
         </div>
@@ -186,9 +186,10 @@ export default function AadhaarVerificationCard() {
           <div className="flex items-start gap-2 rounded-lg border p-3 text-sm" role="status">
             <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div className="space-y-1">
-              <p className="font-medium">Identity status: unverified</p>
-              <p className="text-muted-foreground">Verifico extracts text from the uploaded document. OCR output alone is not proof of identity and never changes your Kairos verification status.</p>
-              {!status?.ocr_available && <p className="text-muted-foreground">Verifico OCR is not configured or is temporarily unavailable. Configure the private verifico_api key on the backend.</p>}
+              <p className="font-medium">Identity verification is not available in this workflow</p>
+              <p className="text-muted-foreground">Your document was read successfully, but OCR only copies information from the document. It does not authenticate the Aadhaar, confirm ownership, or verify your identity.</p>
+              <p className="text-muted-foreground">{status?.message ?? "Kairos needs a separate supported, authoritative identity-verification provider before it can mark an account as verified."}</p>
+              {!status?.ocr_available && <p className="text-muted-foreground">Document OCR is not configured or is temporarily unavailable. Configure the private VERIFICO_API key on the backend.</p>}
             </div>
           </div>
         )}
@@ -209,7 +210,7 @@ export default function AadhaarVerificationCard() {
             <Label htmlFor="identity-ocr-consent" className="text-sm leading-5 font-normal">I consent to sending this Aadhaar document to Verifico for OCR extraction. I understand this does not verify my identity.</Label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="max-w-xl text-xs leading-5 text-muted-foreground">Extracted fields are shown only for this session and are not saved to Kairos.</p>
+            <p className="max-w-xl text-xs leading-5 text-muted-foreground">OCR results are shown only for this session and are not saved to Kairos. Extracting them will not verify your identity.</p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={() => void extractDocument()} disabled={!document || !ocrConsent || extracting || document.size > 10 * 1024 * 1024}>
                 <UploadCloud className="mr-2 h-4 w-4" aria-hidden="true" />{extracting ? "Extracting…" : "Extract document details"}
@@ -221,7 +222,7 @@ export default function AadhaarVerificationCard() {
 
         {ocrResult && (
           <section className="space-y-3 rounded-lg border p-4" aria-label="Extracted Aadhaar details">
-            <div><h3 className="font-medium">Extracted fields</h3><p className="text-sm text-muted-foreground">Not verified. Confirm any details manually before using them.</p></div>
+            <div><h3 className="font-medium">Document details extracted — not verified</h3><p className="text-sm text-muted-foreground">These are OCR results only. They are not proof of identity and cannot be used to mark your Kairos account verified.</p></div>
             <dl className="grid gap-3 sm:grid-cols-2">
               {Object.entries(ocrResult.fields).filter(([key, value]) => value && key !== "aadhaar_last4").map(([key, value]) => (
                 <div key={key} className="min-w-0"><dt className="text-xs text-muted-foreground">{key.replace(/_/g, " ")}</dt><dd className="break-words text-sm">{value}</dd></div>
