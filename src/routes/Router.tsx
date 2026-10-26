@@ -37,6 +37,7 @@ const TablesPage = Loadable(lazy(() => import('../views/pages/tables')));
 const FormPage = Loadable(lazy(() => import('../views/pages/form')));
 const UserProfilePage = Loadable(lazy(() => import('../views/pages/user-profile')));
 const StudentProfilePage = Loadable(lazy(() => import('../views/pages/student-profile')));
+const StudentPerformancePage = Loadable(lazy(() => import('../views/pages/StudentPerformancePage')));
 const DuringInternshipPage = Loadable(lazy(() => import('../views/internships/DuringInternshipPage')));
 const SettingsPage = Loadable(lazy(() => import('../views/settings/SettingsPage')));
 
@@ -76,6 +77,7 @@ const Router = [
       { path: '/pages/user-profile', element: <UserProfilePage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/student/profile', element: <StudentProfilePage /> },
+      { path: '/student/performance', element: <StudentPerformancePage /> },
       { path: '/internships/during', element: <DuringInternshipPage /> },
       { path: '/icons/iconify', element: <SolarIcon /> },
       { path: '*', element: <Navigate to="/auth/404" /> },
