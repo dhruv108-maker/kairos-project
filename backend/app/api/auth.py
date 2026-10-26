@@ -4,8 +4,9 @@ import hmac
 import logging
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
+import secrets
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 
@@ -48,6 +49,7 @@ from app.models.academic import (
 )
 from app.services.email import send_verification_email, send_password_reset_email
 from app.modules.identity.service import IdentityService
+from app.models.auth_session import AuthSession
 from app.models.institutions import Institution
 from app.models.institution_domains import InstitutionDomain
 
@@ -859,27 +861,90 @@ async def resend_verification(payload: ResendVerificationRequest, db: DbSession)
     )
 
 
+SESSION_LIFETIME_SECONDS = 7 * 24 * 60 * 60
+REFRESH_COOKIE_NAME = "kairos_refresh"
+ACCESS_TOKEN_SECONDS = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
+
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME, value=token, max_age=SESSION_LIFETIME_SECONDS,
+        httponly=True,
+        secure=settings.ENVIRONMENT.lower() in {"production", "prod", "staging"},
+        samesite="lax", path="/api/v1/auth",
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=REFRESH_COOKIE_NAME, httponly=True,
+        secure=settings.ENVIRONMENT.lower() in {"production", "prod", "staging"},
+        samesite="lax", path="/api/v1/auth",
+    )
+
+
+async def _issue_access_token(account: Account) -> str:
+    return create_token(
+        str(account.id), "access", timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        token_version=account.token_version,
+    )
+
+
 @router.post("/login", response_model=AuthResponse)
-async def login(payload: LoginRequest, db: DbSession) -> AuthResponse:
+async def login(payload: LoginRequest, db: DbSession, response: Response) -> AuthResponse:
     account = await IdentityService(db).get_account_by_email(payload.email)
-    # Same response for missing account, wrong password, pending, or disabled account.
     if (
-        account is None
-        or not verify_password(payload.password, account.password_hash)
-        or not account.is_active
-        or not account.is_verified
+        account is None or not verify_password(payload.password, account.password_hash)
+        or not account.is_active or not account.is_verified
     ):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    account.last_login_at = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
+    refresh_token = secrets.token_urlsafe(48)
+    db.add(AuthSession(
+        id=str(uuid4()), account_id=account.id, refresh_token_hash=hash_token(refresh_token),
+        created_at=now, last_used_at=now,
+        expires_at=now + timedelta(seconds=SESSION_LIFETIME_SECONDS),
+        token_version=account.token_version,
+    ))
+    account.last_login_at = now
     await db.commit()
-    token = create_token(
-        str(account.id), "access", timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), token_version=account.token_version
-    )
+    _set_refresh_cookie(response, refresh_token)
     return AuthResponse(
-        access_token=token,
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        account=await _account_public(db, account),
+        access_token=await _issue_access_token(account),
+        expires_in=ACCESS_TOKEN_SECONDS, account=await _account_public(db, account),
+    )
+
+
+@router.post("/refresh", response_model=AuthResponse)
+async def refresh_session(request: Request, response: Response, db: DbSession) -> AuthResponse:
+    raw_token = request.cookies.get(REFRESH_COOKIE_NAME)
+    if not raw_token or len(raw_token) > 200:
+        _clear_refresh_cookie(response)
+        raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
+    now = datetime.now(UTC).replace(tzinfo=None)
+    session = await db.scalar(
+        select(AuthSession).where(AuthSession.refresh_token_hash == hash_token(raw_token)).with_for_update()
+    )
+    if session is None or session.revoked_at is not None or session.expires_at <= now:
+        _clear_refresh_cookie(response)
+        raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
+    account = await db.scalar(select(Account).where(Account.id == session.account_id).with_for_update())
+    if account is None or not account.is_active or not account.is_verified or account.token_version != session.token_version:
+        session.revoked_at = now
+        await db.commit()
+        _clear_refresh_cookie(response)
+        raise HTTPException(status_code=401, detail="Session is no longer valid. Please sign in again.")
+
+    # Rotate the opaque token on each use; expires_at is a fixed seven-day absolute deadline.
+    replacement = secrets.token_urlsafe(48)
+    session.refresh_token_hash = hash_token(replacement)
+    session.last_used_at = now
+    await db.commit()
+    _set_refresh_cookie(response, replacement)
+    return AuthResponse(
+        access_token=await _issue_access_token(account),
+        expires_in=ACCESS_TOKEN_SECONDS, account=await _account_public(db, account),
     )
 
 
@@ -887,6 +952,19 @@ async def login(payload: LoginRequest, db: DbSession) -> AuthResponse:
 async def current_user(account: CurrentAccount, db: DbSession) -> AccountPublic:
     return await _account_public(db, account)
 
+
+@router.post("/logout", response_model=MessageResponse)
+async def logout(account: CurrentAccount, db: DbSession, response: Response) -> MessageResponse:
+    now = datetime.now(UTC).replace(tzinfo=None)
+    account.token_version += 1
+    sessions = await db.scalars(select(AuthSession).where(
+        AuthSession.account_id == account.id, AuthSession.revoked_at.is_(None)
+    ).with_for_update())
+    for session in sessions:
+        session.revoked_at = now
+    await db.commit()
+    _clear_refresh_cookie(response)
+    return MessageResponse(message="Logged out. Active sessions for this account have been revoked.")
 
 
 
