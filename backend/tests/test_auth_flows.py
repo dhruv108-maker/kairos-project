@@ -132,6 +132,18 @@ async def test_student_signup_verification_login_and_profile(client):
     assert login.json()["account"]["identity_verified"] is False
     token = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+    refresh_cookie = http.cookies.get("kairos_refresh")
+    assert refresh_cookie
+    assert "HttpOnly" in login.headers.get("set-cookie", "")
+    assert "Max-Age=604800" in login.headers.get("set-cookie", "")
+
+    refreshed = await http.post("/api/v1/auth/refresh")
+    assert refreshed.status_code == 200, refreshed.text
+    assert refreshed.json()["access_token"] != token
+    assert refreshed.json()["expires_in"] == 1800
+    assert http.cookies.get("kairos_refresh") != refresh_cookie
+    token = refreshed.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
 
     profile = await http.get("/api/v1/students/me", headers=headers)
     assert profile.status_code == 200
@@ -154,6 +166,11 @@ async def test_student_signup_verification_login_and_profile(client):
         json={"is_active": True, "roles": ["SYSTEM_ADMIN"]},
     )
     assert escalation.status_code == 422
+
+    logout = await http.post("/api/v1/auth/logout", headers=headers)
+    assert logout.status_code == 200
+    denied_refresh = await http.post("/api/v1/auth/refresh")
+    assert denied_refresh.status_code == 401
 
 
 @pytest.mark.asyncio
