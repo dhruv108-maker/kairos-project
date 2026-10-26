@@ -77,14 +77,14 @@ async def test_identity_initiation_requires_consent_and_fails_safely_when_unavai
     no_consent = await client.post(
         "/api/v1/identity-verification/initiate",
         headers=headers,
-        json={"consent": False, "consent_notice_version": "notice-v1"},
+        json={"aadhaar_number": "123456789012", "consent": False, "consent_notice_version": "notice-v1"},
     )
     assert no_consent.status_code == 422
 
     unavailable = await client.post(
         "/api/v1/identity-verification/initiate",
         headers=headers,
-        json={"consent": True, "consent_notice_version": " notice-v1 "},
+        json={"aadhaar_number": "123456789012", "consent": True, "consent_notice_version": " notice-v1 "},
     )
     assert unavailable.status_code == 503
     assert unavailable.json()["detail"]["code"] == "identity_verification_unavailable"
@@ -99,6 +99,7 @@ async def test_identity_initiation_rejects_client_supplied_identity_or_verified_
         "/api/v1/identity-verification/initiate",
         headers=headers,
         json={
+            "aadhaar_number": "123456789012",
             "consent": True,
             "consent_notice_version": "notice-v1",
             "user_id": "another-account",
