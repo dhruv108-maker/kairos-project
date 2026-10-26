@@ -20,6 +20,9 @@ const FullLayout: FC<FullLayoutProps> = ({ allowAnonymous = false }) => {
   }
   if (!account && !allowAnonymous) return <Navigate to="/auth/auth2/login" replace />;
 
+  const isStudent = account?.roles.some((role) => role.toUpperCase() === "STUDENT") ?? false;
+  const showAadhaarBanner = Boolean(account && !allowAnonymous && isStudent);
+
   return (
     <SidebarProvider defaultOpen={true} style={{ "--sidebar-width-icon": "52px" } as React.CSSProperties}>
       <Sidebar />
@@ -27,12 +30,12 @@ const FullLayout: FC<FullLayoutProps> = ({ allowAnonymous = false }) => {
         <Header />
         <div className="flex flex-1 flex-col gap-4 p-4">
           <div className={cn("w-full mx-auto", "container")}>
-            <div className="min-h-[calc(100vh-140px)]"><Outlet /></div>
-            {account && !allowAnonymous && account.roles.some((role) => role.toUpperCase() === "STUDENT") && (
-              <div className="pt-6">
+            {showAadhaarBanner && (
+              <div className="mb-4">
                 <AadhaarVerificationBanner />
               </div>
             )}
+            <div className="min-h-[calc(100vh-140px)]"><Outlet /></div>
             <div className="pt-6"><Footer /></div>
           </div>
         </div>
