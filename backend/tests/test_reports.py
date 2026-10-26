@@ -195,3 +195,33 @@ async def test_requirement_deadline_is_enforced(report_session):
     with pytest.raises(ReportWorkflowError) as error:
         await ReportService(report_session).create("student-account", "placement", "Expired", "file1", None, requirement.id)
     assert error.value.status_code == 409
+
+@pytest.mark.asyncio
+async def test_report_and_presentation_are_linked_to_the_same_immutable_version(report_session):
+    service = ReportService(report_session)
+    report = await service.create(
+        "student-account", "placement", "Final assessment package", "file1",
+        "Report and presentation", presentation_file_id="file2",
+    )
+    version = await report_session.scalar(
+        select(ReportVersion).where(ReportVersion.submission_id == report.id)
+    )
+    assert version is not None
+    assert version.file_id == "file1"
+    assert version.presentation_file_id == "file2"
+
+    # A presentation uploaded by a different account must not be attachable.
+    report_session.add(StorageFile(
+        id="foreign-presentation", original_name="presentation.pdf",
+        file_path="private/foreign-presentation", file_size_bytes=10,
+        mime_type="application/pdf", sha256_hash="c" * 64,
+        uploaded_by_account_id="faculty-account",
+    ))
+    await report_session.commit()
+    with pytest.raises(ReportWorkflowError) as error:
+        await service.create(
+            "student-account", "placement", "Invalid package", "file1", None,
+            presentation_file_id="foreign-presentation",
+        )
+    assert error.value.status_code == 422
+
