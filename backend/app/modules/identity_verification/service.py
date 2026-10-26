@@ -30,11 +30,20 @@ class IdentityVerificationService:
             .order_by(IdentityVerification.created_at.desc(), IdentityVerification.id.desc()).limit(1)
         )
         details = await self.db.scalar(select(IdentityDetails).where(IdentityDetails.account_id == account_id).limit(1))
-        if account.identity_verified and (latest is None or latest.status != "verified"):
+        if account.identity_verified and (
+            latest is None
+            or latest.status != "verified"
+            or latest.provider in {"signzy", "verifico", "verifico_ocr"}
+        ):
             account.identity_verified = False
             await self.db.commit()
             await self.db.refresh(account)
-        identity_verified = bool(account.identity_verified and latest is not None and latest.status == "verified")
+        identity_verified = bool(
+            account.identity_verified
+            and latest is not None
+            and latest.status == "verified"
+            and latest.provider not in {"signzy", "verifico", "verifico_ocr"}
+        )
         if latest is None:
             state = "not_started"
         elif latest.status == "verified" and not identity_verified:
