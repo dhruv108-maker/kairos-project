@@ -5,7 +5,7 @@ import hashlib
 import mimetypes
 import uuid
 from pathlib import Path
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -146,7 +146,7 @@ class StorageService:
                 allowed = await self.db.scalar(
                     select(ReportVersion.id).join(ReportSubmission, ReportSubmission.id == ReportVersion.submission_id)
                     .join(InternshipPlacement, InternshipPlacement.id == ReportSubmission.placement_id)
-                    .where(ReportVersion.file_id == file_id, InternshipPlacement.faculty_supervisor_id == faculty_id)
+                    .where(or_(ReportVersion.file_id == file_id, ReportVersion.presentation_file_id == file_id), InternshipPlacement.faculty_supervisor_id == faculty_id)
                 ) is not None
         if not allowed:
             raise StorageWorkflowError(404, "File not found")
@@ -162,7 +162,7 @@ class StorageService:
         item = await self.db.get(StorageFile, file_id)
         if item is None or item.uploaded_by_account_id != account_id:
             raise StorageWorkflowError(404, "File not found")
-        referenced_report = await self.db.scalar(select(ReportVersion.id).where(ReportVersion.file_id == file_id))
+        referenced_report = await self.db.scalar(select(ReportVersion.id).where(or_(ReportVersion.file_id == file_id, ReportVersion.presentation_file_id == file_id)))
         referenced_resume = await self.db.scalar(select(StudentResume.id).where(StudentResume.storage_file_id == file_id))
         if referenced_report is not None or referenced_resume is not None:
             raise StorageWorkflowError(409, "File is attached to a report or resume and cannot be deleted")
