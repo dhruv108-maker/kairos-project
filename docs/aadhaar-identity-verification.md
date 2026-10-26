@@ -50,3 +50,22 @@ Response contains an allowlisted field projection, processing time, and identity
 - The frontend clears the selected file after each attempt and never sees the API key.
 
 Before production, review Verifico's data-processing terms, retention policy, contractual authorization and the institution's lawful basis for processing Aadhaar-related data. Do not call OCR output “verified”.
+
+## Implementing real Aadhaar verification (required onboarding gate)
+
+Do not implement a client-side “verified” toggle or infer identity verification from OCR field matches. A production verification flow must use a UIDAI-supported method and validate its cryptographic/trusted result on the backend.
+
+### Recommended path for Kairos: consent-based offline verification
+
+1. The institution must confirm its legal basis and register/onboard with UIDAI as an Offline Verification Seeking Entity (OVSE), where applicable. See the [official UIDAI OVSE registration page](https://uidai.gov.in/pa/ovse) and the [Aadhaar Authentication and Offline Verification Regulations](https://uidai.gov.in/images/The_Aadhaar_Authentication_and_Offline_Verifications_Regulations_2021-_Clean_copy-30122025.pdf).
+2. Obtain the current official technical integration specification, trust material/certificates, callback requirements, and test credentials from UIDAI during onboarding. Do not hard-code a guessed callback format or trust a certificate supplied by the client.
+3. Add a separate verification provider adapter (not the Verifico OCR adapter). Validate the official signature and transaction/callback authenticity server-side, enforce freshness/replay protections, and bind each result to the authenticated account and a server-generated attempt/reference.
+4. Store only the minimum audit metadata required by the approved policy (provider reference, status, timestamps, consent notice version, and outcome category). Do not persist Aadhaar number, share code, XML/ZIP contents, biometric data, or raw provider payloads unless an expressly authorized requirement says otherwise.
+5. Set `accounts.identity_verified = true` only after a trusted, cryptographically validated successful result. Invalid, missing, expired, replayed, or inconclusive responses must remain unverified and map to a failed/action-required/review state.
+6. The frontend should poll or refresh the server-owned attempt status and render Verified, Verification failed, or Action required based only on that backend status.
+
+### Why this is not enabled by the current Verifico key
+
+The currently configured Verifico integration is an Aadhaar OCR endpoint only. It does not provide an authoritative Aadhaar identity-verification result, so it cannot safely complete the flow above. UIDAI states that online authentication is performed by eligible/onboarded requesting entities through the UIDAI ecosystem; offline verification also has consent and purpose limitations. See [UIDAI authentication requesting agencies](https://uidai.gov.in/hi/authentication-requesting-agency) and [Section 8A of the Aadhaar Act](https://uidai.gov.in/hi/aadhaar-act).
+
+**Deployment blocker:** do not expose a “Start verification” action that implies a live verification service until Kairos's institution has completed the relevant onboarding and the official callback/API contract and credentials are available. Until then, keep OCR clearly separate and identity status unverified.
