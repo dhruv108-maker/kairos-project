@@ -9,11 +9,12 @@ from app.models.employers import EmployerMembership
 from app.modules.internships.exceptions import DuplicateApplicationError, InternshipConflictError, InternshipNotFoundError, InternshipValidationError, InvalidInternshipStateTransitionError, ProviderNotFoundError
 from app.modules.internships.repository import InternshipRepository
 
-# Values are constrained by the supplied MySQL DDL. Add ACCEPTED only with a DDL migration.
+# Keep application states aligned with ck_application_status in the deployed MySQL schema.
 APPLICATION_TRANSITIONS = {
-    "APPLIED": frozenset({"SHORTLISTED", "REJECTED", "WITHDRAWN"}),
-    "SHORTLISTED": frozenset({"OFFERED", "REJECTED", "WITHDRAWN"}),
-    "OFFERED": frozenset({"REJECTED"}), "REJECTED": frozenset(), "WITHDRAWN": frozenset(),
+    "SUBMITTED": frozenset({"UNDER_REVIEW", "SHORTLISTED", "REJECTED", "WITHDRAWN"}),
+    "UNDER_REVIEW": frozenset({"SHORTLISTED", "REJECTED", "WITHDRAWN"}),
+    "SHORTLISTED": frozenset({"ACCEPTED", "REJECTED", "WITHDRAWN"}),
+    "ACCEPTED": frozenset(), "REJECTED": frozenset(), "WITHDRAWN": frozenset(),
 }
 
 class InternshipService:
@@ -53,7 +54,7 @@ class InternshipService:
         except EmployerError as exc:
             raise InternshipConflictError(exc.message) from None
         if await self.repository.find_application(opportunity_id, student.id): raise DuplicateApplicationError("You have already applied to this opportunity")
-        item = InternshipApplication(id=str(uuid4()), opportunity_id=opportunity_id, student_id=student.id, status="APPLIED")
+        item = InternshipApplication(id=str(uuid4()), opportunity_id=opportunity_id, student_id=student.id, status="SUBMITTED")
         self.session.add(item)
         try: await self.session.commit()
         except IntegrityError:
@@ -87,7 +88,7 @@ class InternshipService:
     async def create_placement(self, application_id: str, data: dict) -> InternshipPlacement:
         item = await self.repository.get_application(application_id)
         if item is None: raise InternshipNotFoundError("Application not found")
-        if item.status != "OFFERED": raise InvalidInternshipStateTransitionError("Only an OFFERED application can become a placement")
+        if item.status != "ACCEPTED": raise InvalidInternshipStateTransitionError("Only an ACCEPTED application can become a placement")
         if data["end_date"] < data["start_date"]: raise InternshipValidationError("end_date must be on or after start_date")
         supervisor_id = data.get("faculty_supervisor_id")
         if supervisor_id and await self.repository.get_faculty(supervisor_id) is None: raise InternshipValidationError("Unknown faculty_supervisor_id")
