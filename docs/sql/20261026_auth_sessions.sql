@@ -8,6 +8,13 @@ SELECT TABLE_NAME
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'auth_sessions';
 
+-- REPAIR EXISTING TABLE: if auth_sessions already exists but lacks refresh_token_hash,
+-- first inspect it with SHOW CREATE TABLE auth_sessions. This additive repair keeps
+-- legacy rows (with NULL hashes) but new application-created sessions store a hash.
+-- Run only when information_schema confirms the column is absent.
+-- ALTER TABLE auth_sessions ADD COLUMN refresh_token_hash CHAR(64) NULL;
+-- CREATE UNIQUE INDEX uq_auth_sessions_refresh_token_hash ON auth_sessions (refresh_token_hash);
+
 -- APPLY: execute only if the pre-check confirms auth_sessions does not exist.
 CREATE TABLE auth_sessions (
     id CHAR(36) NOT NULL,
