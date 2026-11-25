@@ -102,7 +102,7 @@ class RecruitmentWorkflowService:
         )
         old_stage = application.recruitment_stage or "SUBMITTED"
         application.recruitment_stage = "OFFER"
-        application.status = "OFFERED"
+        application.status = "ACCEPTED"
         self.db.add(item)
         self.db.add(RecruitmentStageEvent(id=str(uuid4()), application_id=application.id, actor_account_id=actor_id,
             from_stage=old_stage, to_stage="OFFER", note="Offer issued"))
