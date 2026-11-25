@@ -540,8 +540,8 @@ class EmployerService:
         if new_stage not in transitions.get(old_stage, set()):
             raise EmployerError(409, f"Invalid application stage transition: {old_stage} -> {new_stage}")
         legacy_status = {
-            "SUBMITTED": "APPLIED", "UNDER_REVIEW": "APPLIED", "SHORTLISTED": "SHORTLISTED",
-            "INTERVIEW": "SHORTLISTED", "OFFER": "OFFERED", "HIRED": "OFFERED",
+            "SUBMITTED": "SUBMITTED", "UNDER_REVIEW": "UNDER_REVIEW", "SHORTLISTED": "SHORTLISTED",
+            "INTERVIEW": "SHORTLISTED", "OFFER": "ACCEPTED", "HIRED": "ACCEPTED",
             "REJECTED": "REJECTED", "WITHDRAWN": "WITHDRAWN",
         }[new_stage]
         application.recruitment_stage = new_stage
@@ -580,6 +580,6 @@ class EmployerService:
             counts[state.lower()] = result.scalar_one()
         result = await self.db.execute(select(func.count(InternshipApplication.id)).join(InternshipOpportunity, InternshipApplication.opportunity_id == InternshipOpportunity.id).where(InternshipOpportunity.provider_id == provider.id))
         counts["applications"] = result.scalar_one()
-        result = await self.db.execute(select(func.count(InternshipApplication.id)).join(InternshipOpportunity, InternshipApplication.opportunity_id == InternshipOpportunity.id).where(InternshipOpportunity.provider_id == provider.id, InternshipApplication.status == "APPLIED"))
+        result = await self.db.execute(select(func.count(InternshipApplication.id)).join(InternshipOpportunity, InternshipApplication.opportunity_id == InternshipOpportunity.id).where(InternshipOpportunity.provider_id == provider.id, InternshipApplication.status == "SUBMITTED"))
         counts["new_applications"] = result.scalar_one()
         return counts
