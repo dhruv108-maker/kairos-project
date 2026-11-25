@@ -39,7 +39,7 @@ async def internship_service_session():
             location="Remote", application_deadline=date(2099, 12, 31), is_active=True,
         )
         application = InternshipApplication(
-            id="application", opportunity_id=opportunity.id, student_id=student.id, status="APPLIED",
+            id="application", opportunity_id=opportunity.id, student_id=student.id, status="SUBMITTED",
         )
         session.add_all([school, department, programme, year, cohort, account, student,
                          provider, opportunity, application])
@@ -54,12 +54,12 @@ async def test_invalid_transition_does_not_mutate_application(internship_service
     service = InternshipService(session)
 
     with pytest.raises(InvalidInternshipStateTransitionError):
-        await service.transition_application("application", "OFFERED")
+        await service.transition_application("application", "ACCEPTED")
 
     application = await session.scalar(select(InternshipApplication).where(
         InternshipApplication.id == "application"
     ))
-    assert application.status == "APPLIED"
+    assert application.status == "SUBMITTED"
 
 
 @pytest.mark.asyncio
