@@ -127,7 +127,7 @@ def main() -> None:
 
         profiles = list(session.scalars(select(StudentProfile).order_by(StudentProfile.id).limit(4)))
         faculty = session.scalar(select(FacultyProfile).order_by(FacultyProfile.id).limit(1))
-        statuses = ["APPLIED", "SHORTLISTED", "OFFERED", "REJECTED"]
+        statuses = ["SUBMITTED", "SHORTLISTED", "ACCEPTED", "REJECTED"]
         stages = ["SUBMITTED", "SHORTLISTED", "OFFERED", "REJECTED"]
         applications = []
         for index, profile in enumerate(profiles):
