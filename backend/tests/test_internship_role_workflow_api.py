@@ -107,7 +107,7 @@ async def persisted_role_workflow():
         session.add_all(opportunities)
         await session.flush()
         applications = [
-            InternshipApplication(id="application1", opportunity_id="job1", student_id=101, status="OFFERED"),
+            InternshipApplication(id="application1", opportunity_id="job1", student_id=101, status="ACCEPTED"),
             InternshipApplication(id="application2", opportunity_id="job2", student_id=102, status="OFFERED"),
         ]
         session.add_all(applications)
@@ -291,7 +291,7 @@ async def test_student_application_is_scoped_to_owning_recruiter_and_status_sync
     applied = await client.post(f"/api/v1/internships/opportunities/{job_id}/applications")
     assert applied.status_code == 201, applied.text
     application_id = applied.json()["id"]
-    assert applied.json()["status"] == "APPLIED"
+    assert applied.json()["status"] == "SUBMITTED"
 
     async with ctx["session_factory"]() as session:
         stored = await session.get(InternshipApplication, application_id)
