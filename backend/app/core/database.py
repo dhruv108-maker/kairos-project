@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+import ssl
 
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -15,8 +16,16 @@ DATABASE_URL = URL.create(
     database=settings.DB_NAME,
 )
 
+# TiDB Cloud requires TLS. Keep local MySQL development connections unchanged.
+ssl_context = (
+    ssl.create_default_context()
+    if settings.DB_HOST and settings.DB_HOST.endswith("tidbcloud.com")
+    else None
+)
+
 engine = create_async_engine(
     DATABASE_URL,
+    connect_args={"ssl": ssl_context} if ssl_context is not None else {},
     echo=settings.SQL_ECHO,
     pool_pre_ping=True,
     pool_size=settings.DB_POOL_SIZE,
