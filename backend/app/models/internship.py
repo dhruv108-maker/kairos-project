@@ -58,7 +58,7 @@ class InternshipApplication(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     opportunity_id: Mapped[str] = mapped_column(ForeignKey("internship_opportunities.id", ondelete="RESTRICT"), nullable=False)
     student_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False)
-    status: Mapped[str] = mapped_column(Enum("APPLIED", "SHORTLISTED", "OFFERED", "REJECTED", "WITHDRAWN", name="internship_application_status"), nullable=False, server_default="APPLIED")
+    status: Mapped[str] = mapped_column(Enum("SUBMITTED", "UNDER_REVIEW", "SHORTLISTED", "ACCEPTED", "REJECTED", "WITHDRAWN", name="internship_application_status"), nullable=False, server_default="SUBMITTED")
     recruitment_stage: Mapped[str] = mapped_column(String(20), nullable=False, server_default="SUBMITTED", index=True)
     applied_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
