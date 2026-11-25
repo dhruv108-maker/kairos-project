@@ -72,8 +72,8 @@ class ApplicationStatusUpdate(BaseModel):
     @classmethod
     def valid_status(cls, value: str) -> str:
         value = value.strip().upper()
-        if value not in {"SHORTLISTED", "OFFERED", "REJECTED"}:
-            raise ValueError("Status must be SHORTLISTED, OFFERED, or REJECTED")
+        if value not in {"UNDER_REVIEW", "SHORTLISTED", "ACCEPTED", "REJECTED"}:
+            raise ValueError("Status must be UNDER_REVIEW, SHORTLISTED, ACCEPTED, or REJECTED")
         return value
 
 
