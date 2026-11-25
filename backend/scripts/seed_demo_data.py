@@ -14,6 +14,7 @@ from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
 
 from sqlalchemy import create_engine, select
+from sqlalchemy.engine import URL
 from sqlalchemy.orm import Session
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -50,10 +51,14 @@ def get_or_add(session: Session, model, identity: dict, values: dict):
 def main() -> None:
     if os.getenv("KAIROS_SEED_DEMO", "").lower() != "true":
         raise SystemExit("Safety stop: set KAIROS_SEED_DEMO=true to insert demo data.")
-    url = (
-        f"mysql+pymysql://{settings.DB_USER}:"
-        f"{settings.DB_PASSWORD.get_secret_value()}@{settings.DB_HOST}:"
-        f"{settings.DB_PORT}/{settings.DB_NAME}?charset=utf8mb4"
+    url = URL.create(
+        "mysql+pymysql",
+        username=settings.DB_USER,
+        password=settings.DB_PASSWORD.get_secret_value(),
+        host=settings.DB_HOST,
+        port=settings.DB_PORT,
+        database=settings.DB_NAME,
+        query={"charset": "utf8mb4"},
     )
     engine = create_engine(url, pool_pre_ping=True)
     counts: dict[str, int] = {}
