@@ -5,6 +5,7 @@ Safety: requires KAIROS_SEED_DEMO=true. Inserts only deterministic demo IDs and 
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 from datetime import date, datetime, timedelta
@@ -184,7 +185,7 @@ def main() -> None:
                     {"id": did("report-file"), "original_name": "DEMO-internship-report.pdf",
                      "file_path": "demo-seed/DEMO-internship-report.pdf", "file_size_bytes": 2048,
                      "mime_type": "application/pdf",
-                     "sha256_hash": did("report-file-hash").replace("-", "")[:64],
+                     "sha256_hash": hashlib.sha256(b"kairos-demo-report-file-v1").hexdigest(),
                      "uploaded_by_account_id": actor_id})
                 counts["storage_files"] = int(made)
 
